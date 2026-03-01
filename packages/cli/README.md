@@ -1,5 +1,7 @@
 # @taskless/cli
 
+> A Work in Progress
+
 CLI companion for [Taskless](https://taskless.io). Designed to be invoked by skills via `npx` or `pnpm dlx`. Useful for agents, and works for humans too.
 
 ## Usage
