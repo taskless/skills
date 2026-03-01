@@ -11,6 +11,9 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "citty": "^0.1.6"
+  },
   "devDependencies": {
     "typescript": "^5.7.2",
     "vite": "^7.3.1",

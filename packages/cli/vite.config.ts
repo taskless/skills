@@ -1,7 +1,12 @@
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { Plugin } from "vite";
 import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
+
+const pkg = JSON.parse(
+  readFileSync(resolve(import.meta.dirname, "package.json"), "utf8"),
+) as { version: string };
 
 function shebang(): Plugin {
   return {
@@ -17,6 +22,9 @@ function shebang(): Plugin {
 }
 
 export default defineConfig({
+  define: {
+    __VERSION__: JSON.stringify(pkg.version),
+  },
   plugins: [tsconfigPaths(), shebang()],
   build: {
     lib: {
