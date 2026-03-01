@@ -1,6 +1,8 @@
 # Taskless Skills
 
-A skills repository for agentic workflows, built for [Claude Code](https://docs.anthropic.com/en/docs/claude-code).
+A skills repository for agentic workflows, built for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and other Agent capable systems.
+
+Includes a CLI that works with agentic systems (and humans too) at @taskless/cli.
 
 ## Structure
 
@@ -10,32 +12,22 @@ plugins/
     skills/
       info/SKILL.md          # /taskless:info — confirms Taskless is working
 packages/
-  cli/                       # @taskless/cli — Taskless CLI agent
+  cli/                       # @taskless/cli — Taskless CLI
 ```
 
 ## Skills
 
-Skills follow the [Claude Code plugin format](https://github.com/getsentry/skills) with YAML frontmatter in `SKILL.md` files.
+Skills follow the [Agent Skills Specification](https://agentskills.io) with additional hooks for Claude Code integration.
 
-| Skill | Command | Description |
-|-------|---------|-------------|
-| info | `/taskless:info` | Confirms Taskless is installed and working |
+| Skill | Command          | Description                                |
+| ----- | ---------------- | ------------------------------------------ |
+| info  | `/taskless:info` | Confirms Taskless is installed and working |
 
 ## CLI
 
-The `@taskless/cli` package provides a CLI agent for Taskless workflows.
+The `@taskless/cli` package provides a CLI agent for Taskless workflows. It's recommended to always call the `latest` tag unless you know you need a specific version:
 
 ```bash
-pnpm dlx @taskless/cli
-npx @taskless/cli
-```
-
-## Development
-
-```bash
-pnpm install                          # Install dependencies
-pnpm lint                             # Run ESLint
-pnpm lint:fix                         # Run ESLint with auto-fix
-pnpm --filter @taskless/cli build     # Build the CLI
-pnpm --filter @taskless/cli typecheck # Type check the CLI
+pnpm dlx @taskless/cli@latest info
+npx @taskless/cli@latest info
 ```
