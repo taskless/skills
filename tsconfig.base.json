@@ -1,0 +1,25 @@
+{
+  // Base TypeScript configuration for all packages and workers.
+  // Extend this and override only what's specific to your package.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+
+    // Emit
+    "noEmit": true,
+    "declaration": true,
+    "sourceMap": true,
+
+    // Interop
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+
+    // Strictness
+    "strict": true,
+    "skipLibCheck": true,
+  },
+}
