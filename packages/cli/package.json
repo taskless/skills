@@ -1,24 +1,21 @@
 {
   "name": "@taskless/cli",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/taskless/skills.git",
     "directory": "packages/cli"
   },
-  "type": "module",
-  "bin": {
-    "taskless": "./dist/index.js"
-  },
-  "files": [
-    "dist"
-  ],
   "scripts": {
     "build": "vite build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
+  "type": "module",
+  "files": [
+    "dist"
+  ],
   "dependencies": {
     "@ast-grep/cli": "^0.41.0",
     "citty": "^0.1.6",
@@ -29,5 +26,8 @@
     "vite": "^7.3.1",
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.2.3"
+  },
+  "bin": {
+    "taskless": "./dist/index.js"
   }
 }

@@ -19,8 +19,8 @@ export interface Compatibility {
  * When a breaking spec change ships, close the current range and add a new one.
  */
 export const COMPATIBILITY: Compatibility[] = [
-  { start: "2026-02-18", end: "2026-03-01" },
-  { start: "2026-03-01" },
+  // initial release, ast-grep 0.41 compatibility
+  { start: "2026-02-18" },
 ];
 
 /** Check whether the CLI supports a given spec version */

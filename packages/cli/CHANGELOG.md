@@ -1,5 +1,12 @@
 # @taskless/cli
 
+## 0.0.3
+
+### Patch Changes
+
+- Add check command with ast-grep scanning, version compatibility, and formatting support
+- 82ad614: Add init/update command with skill installation and staleness detection
+
 ## 0.0.2
 
 ### Patch Changes
