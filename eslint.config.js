@@ -13,6 +13,7 @@ export default tseslint.config(
       ".lintstagedrc.js",
       "plugins/",
       "openspec/",
+      "**/test/fixtures/",
     ],
   },
   eslint.configs.recommended,

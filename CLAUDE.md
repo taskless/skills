@@ -12,12 +12,6 @@ When creating or modifying files, you **MUST** follow these conventions:
 
 **IMPORTANT** After making code changes, you **MUST** run the checks specified in @.claude/STYLEGUIDE-CODE.md
 
-## MCP Integrations
-
-When using MCP tools, follow these integration-specific rules:
-
-- No MCP tool specific instructions
-
 ## Git Commits
 
 When creating commit messages:

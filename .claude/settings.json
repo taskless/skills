@@ -21,8 +21,7 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(pnpm:*)",
       "Bash(git -C:*)",
-      "WebFetch(domain:api.reactrouter.com)",
-      "Bash(node firebot/query-db.test.js)"
+      "WebFetch(domain:api.reactrouter.com)"
     ],
     "deny": ["Bash(npx:*)"],
     "additionalDirectories": ["openspec/*"]

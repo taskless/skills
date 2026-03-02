@@ -1,0 +1,6 @@
+id: no-console-warn
+language: javascript
+severity: warning
+rule:
+  pattern: console.warn($$$)
+message: Avoid console.warn in production code

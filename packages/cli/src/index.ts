@@ -1,5 +1,6 @@
 import { defineCommand, runMain, showUsage } from "citty";
 
+import { checkCommand } from "./commands/check";
 import { initCommand } from "./commands/init";
 import { infoCommand } from "./commands/info";
 
@@ -15,11 +16,17 @@ const main = defineCommand({
       alias: "d",
       description: "Set the working directory",
     },
+    json: {
+      type: "boolean",
+      description: "Output as JSON",
+      default: false,
+    },
   },
   subCommands: {
     init: initCommand,
     update: initCommand,
     info: infoCommand,
+    check: checkCommand,
   },
   async run({ rawArgs, cmd }) {
     // citty always calls the parent's run handler, even after a subcommand.

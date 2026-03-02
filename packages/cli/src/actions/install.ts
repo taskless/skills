@@ -1,6 +1,6 @@
 import { readFile, stat, writeFile, mkdir } from "node:fs/promises";
 import { join, basename, dirname } from "node:path";
-import matter from "gray-matter";
+import { parseFrontmatter, stringifyFrontmatter } from "./frontmatter";
 
 // Skill files embedded at build time via Vite import.meta.glob
 const skillFiles: Record<string, string> = import.meta.glob(
@@ -76,7 +76,7 @@ export async function detectTools(cwd: string): Promise<ToolDescriptor[]> {
 
 export function getEmbeddedSkills(): EmbeddedSkill[] {
   return Object.entries(skillFiles).map(([path, content]) => {
-    const parsed = matter(content);
+    const parsed = parseFrontmatter(content);
     const data = parsed.data as {
       name?: string;
       description?: string;
@@ -98,10 +98,9 @@ function buildNamespacedSkillContent(
   skill: EmbeddedSkill,
   prefix: string,
 ): string {
-  const parsed = matter(skill.content);
-  const data = { ...parsed.data } as Record<string, unknown>;
-  data.name = `${prefix}${skill.name}`;
-  return matter.stringify(parsed.content, data);
+  const parsed = parseFrontmatter(skill.content);
+  const data = { ...parsed.data, name: `${prefix}${skill.name}` };
+  return stringifyFrontmatter(parsed.content, data);
 }
 
 export async function installForTool(
@@ -157,7 +156,7 @@ export function deriveCommand(skill: EmbeddedSkill): string {
     tags: ["taskless"],
     metadata: skill.metadata,
   };
-  return matter.stringify(skill.body, commandData);
+  return stringifyFrontmatter(skill.body, commandData);
 }
 
 // --- AGENTS.md ---
@@ -231,7 +230,7 @@ async function readInstalledSkillVersion(
 ): Promise<string | undefined> {
   try {
     const content = await readFile(skillPath, "utf8");
-    const parsed = matter(content);
+    const parsed = parseFrontmatter(content);
     const metadata = parsed.data.metadata as
       | Record<string, string>
       | undefined;
