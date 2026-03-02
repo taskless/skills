@@ -1,5 +1,6 @@
 import { defineCommand, runMain, showUsage } from "citty";
 
+import { initCommand } from "./commands/init";
 import { infoCommand } from "./commands/info";
 
 const main = defineCommand({
@@ -8,7 +9,16 @@ const main = defineCommand({
     version: __VERSION__,
     description: "Taskless CLI",
   },
+  args: {
+    dir: {
+      type: "string",
+      alias: "d",
+      description: "Set the working directory",
+    },
+  },
   subCommands: {
+    init: initCommand,
+    update: initCommand,
     info: infoCommand,
   },
   async run({ rawArgs, cmd }) {

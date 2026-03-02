@@ -20,7 +20,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "citty": "^0.1.6"
+    "citty": "^0.1.6",
+    "gray-matter": "^4.0.3"
   },
   "devDependencies": {
     "typescript": "^5.7.2",

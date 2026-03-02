@@ -1,8 +1,0 @@
-{
-  "plugins": [
-    {
-      "name": "taskless",
-      "source": "./plugins/taskless"
-    }
-  ]
-}
