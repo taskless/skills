@@ -30,7 +30,7 @@ export async function runAstGrepScan(cwd: string): Promise<ScanResult> {
         cwd,
         stdio: ["ignore", "pipe", "pipe"],
         env: { ...process.env, PATH: buildPath() },
-      },
+      }
     );
 
     const results: CheckResult[] = [];
@@ -54,7 +54,11 @@ export async function runAstGrepScan(cwd: string): Promise<ScanResult> {
 
     child.on("error", (error) => {
       if ("code" in error && error.code === "ENOENT") {
-        reject(new Error("ast-grep (sg) binary not found. Is @ast-grep/cli installed?"));
+        reject(
+          new Error(
+            "ast-grep (sg) binary not found. Is @ast-grep/cli installed?"
+          )
+        );
       } else {
         reject(error);
       }
@@ -67,8 +71,8 @@ export async function runAstGrepScan(cwd: string): Promise<ScanResult> {
         const stderr = stderrChunks.join("");
         reject(
           new Error(
-            `ast-grep scan failed with exit code ${String(code)}${stderr ? `: ${stderr.trim()}` : ""}`,
-          ),
+            `ast-grep scan failed with exit code ${String(code)}${stderr ? `: ${stderr.trim()}` : ""}`
+          )
         );
         return;
       }

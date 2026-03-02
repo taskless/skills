@@ -28,7 +28,7 @@ export const initCommand = defineCommand({
     if (tools.length === 0) {
       await writeAgentsMd(cwd, __VERSION__);
       console.log(
-        `No tool directories detected. Wrote AGENTS.md with Taskless CLI reference.`,
+        `No tool directories detected. Wrote AGENTS.md with Taskless CLI reference.`
       );
       return;
     }
@@ -41,7 +41,7 @@ export const initCommand = defineCommand({
       }
       if (tool.commands) {
         console.log(
-          `  + ${installed.length} derived command(s) in ${tool.dir}/${tool.commands.path}/`,
+          `  + ${installed.length} derived command(s) in ${tool.dir}/${tool.commands.path}/`
         );
       }
     }

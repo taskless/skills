@@ -13,9 +13,11 @@ The Taskless platform generates ast-grep rules via PRs into a `.taskless/` direc
 ## Capabilities
 
 ### New Capabilities
+
 - `cli-check`: The `taskless check` subcommand — validates `.taskless/taskless.json` exists, checks for rules, executes `sg scan` via `@ast-grep/cli`, and formats results
 
 ### Modified Capabilities
+
 - `cli`: Add the `check` subcommand to the main command's subcommands registry and add the global `--json` argument
 
 ## Impact

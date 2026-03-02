@@ -5,7 +5,7 @@ import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
 const pkg = JSON.parse(
-  readFileSync(resolve(import.meta.dirname, "package.json"), "utf8"),
+  readFileSync(resolve(import.meta.dirname, "package.json"), "utf8")
 ) as { version: string };
 
 function shebang(): Plugin {

@@ -61,7 +61,7 @@ describe("cli", () => {
 
       const agentsContent = await readFile(
         join(temporaryDirectory, "AGENTS.md"),
-        "utf8",
+        "utf8"
       );
       expect(agentsContent).toContain("<!-- BEGIN taskless version");
       expect(agentsContent).toContain("<!-- END taskless -->");
@@ -85,15 +85,15 @@ describe("cli", () => {
           ".claude",
           "skills",
           "taskless-info",
-          "SKILL.md",
+          "SKILL.md"
         ),
-        "utf8",
+        "utf8"
       );
       expect(skillContent).toContain("name: taskless-info");
 
       const commandContent = await readFile(
         join(temporaryDirectory, ".claude", "commands", "taskless", "info.md"),
-        "utf8",
+        "utf8"
       );
       expect(commandContent).toContain("Taskless");
     });
@@ -102,12 +102,7 @@ describe("cli", () => {
       await mkdir(join(temporaryDirectory, ".claude"), { recursive: true });
 
       // Install first
-      await execFileAsync("node", [
-        binPath,
-        "init",
-        "-d",
-        temporaryDirectory,
-      ]);
+      await execFileAsync("node", [binPath, "init", "-d", temporaryDirectory]);
 
       // Check info
       const { stdout } = await execFileAsync("node", [

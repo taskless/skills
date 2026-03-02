@@ -39,7 +39,7 @@ export const checkCommand = defineCommand({
 
     if (!tasklessJsonExists) {
       console.error(
-        "Error: .taskless/taskless.json not found. Run `taskless init` to set up your project.",
+        "Error: .taskless/taskless.json not found. Run `taskless init` to set up your project."
       );
       process.exit(1);
     }
@@ -51,13 +51,13 @@ export const checkCommand = defineCommand({
       const config = JSON.parse(raw) as { version?: string };
       if (!config.version) {
         console.error(
-          'Error: .taskless/taskless.json is missing the "version" field.',
+          'Error: .taskless/taskless.json is missing the "version" field.'
         );
         process.exit(1);
       }
       if (!isValidSpecVersion(config.version)) {
         console.error(
-          `Error: Invalid spec version "${config.version}" in .taskless/taskless.json. Expected YYYY-MM-DD format.`,
+          `Error: Invalid spec version "${config.version}" in .taskless/taskless.json. Expected YYYY-MM-DD format.`
         );
         process.exit(1);
       }
@@ -73,10 +73,10 @@ export const checkCommand = defineCommand({
     // Strict version check
     if (!isSupportedSpecVersion(projectVersion)) {
       const ranges = COMPATIBILITY.map((r) =>
-        r.end === undefined ? `${r.start}+` : `${r.start} to ${r.end}`,
+        r.end === undefined ? `${r.start}+` : `${r.start} to ${r.end}`
       ).join(", ");
       console.error(
-        `Error: Spec version ${projectVersion} is not supported by this CLI (supports ${ranges}). Please use a compatible version of @taskless/cli.`,
+        `Error: Spec version ${projectVersion} is not supported by this CLI (supports ${ranges}). Please use a compatible version of @taskless/cli.`
       );
       process.exit(1);
     }
@@ -93,11 +93,11 @@ export const checkCommand = defineCommand({
 
     if (ruleFiles.length === 0) {
       console.warn(
-        "Warning: No rules found in .taskless/rules/. Nothing to check.",
+        "Warning: No rules found in .taskless/rules/. Nothing to check."
       );
       console.warn(`  directory: ${rulesDirectory}`);
       console.warn(
-        "  If you expected rules here, check that your Taskless skills have generated .yml rule files.",
+        "  If you expected rules here, check that your Taskless skills have generated .yml rule files."
       );
       process.exit(0);
     }
@@ -117,7 +117,7 @@ export const checkCommand = defineCommand({
       process.exit(hasErrors ? 1 : 0);
     } catch (error) {
       console.error(
-        `Error: ${error instanceof Error ? error.message : String(error)}`,
+        `Error: ${error instanceof Error ? error.message : String(error)}`
       );
       process.exit(1);
     }

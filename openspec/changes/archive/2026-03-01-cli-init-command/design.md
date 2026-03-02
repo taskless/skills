@@ -5,6 +5,7 @@ The CLI currently has a single `info` subcommand and one runtime dependency (`ci
 ## Goals / Non-Goals
 
 **Goals:**
+
 - Add `init`/`update` subcommand that installs skills into user repositories
 - Support multiple AI tools via a tool detection matrix
 - Bundle skills into the CLI binary so install works offline
@@ -13,6 +14,7 @@ The CLI currently has a single `info` subcommand and one runtime dependency (`ci
 - Keep the CLI lean — minimal new dependencies
 
 **Non-Goals:**
+
 - Fetching skills from a remote source (all content is bundled)
 - Interactive tool selection prompts (detect what's present, install for those)
 - Supporting non-Agent Skills spec formats (tools must support SKILL.md or get AGENTS.md fallback)
@@ -27,8 +29,8 @@ Embed skill file content into the CLI bundle at build time using Vite's `import.
 ```typescript
 // In cli/src/actions/install.ts
 const skillFiles = import.meta.glob(
-  '../../plugins/taskless/skills/**/SKILL.md',
-  { query: '?raw', import: 'default', eager: true }
+  "../../plugins/taskless/skills/**/SKILL.md",
+  { query: "?raw", import: "default", eager: true }
 );
 ```
 
@@ -41,6 +43,7 @@ This produces a record of `{ [path]: content }` at build time. Vite resolves the
 ### Decision 2: `gray-matter` for frontmatter parsing
 
 Add `gray-matter` as a runtime dependency (bundled by Vite). Used for:
+
 1. Parsing embedded skill content to extract metadata (name, description, version)
 2. Parsing installed skill files for staleness comparison
 3. Extracting frontmatter fields during command derivation
@@ -55,14 +58,14 @@ Define the AI tool registry in `cli/src/actions/install.ts` as a typed array of 
 
 ```typescript
 interface ToolDescriptor {
-  name: string;          // Display name (e.g., "Claude Code")
-  dir: string;           // Detection directory (e.g., ".claude")
+  name: string; // Display name (e.g., "Claude Code")
+  dir: string; // Detection directory (e.g., ".claude")
   skills: {
-    path: string;        // Subdirectory for skills (e.g., "skills")
-    prefix: string;      // Name prefix (e.g., "taskless-")
+    path: string; // Subdirectory for skills (e.g., "skills")
+    prefix: string; // Name prefix (e.g., "taskless-")
   };
   commands?: {
-    path: string;        // Subdirectory for commands (e.g., "commands/taskless")
+    path: string; // Subdirectory for commands (e.g., "commands/taskless")
   };
 }
 ```
@@ -87,7 +90,9 @@ When no tool directories are detected, write a thin section to `AGENTS.md` using
 
 ```markdown
 <!-- BEGIN taskless version x.y.z -->
+
 ...brief CLI overview...
+
 <!-- END taskless -->
 ```
 
@@ -98,6 +103,7 @@ Region replacement uses string operations to find/replace between markers, prese
 ### Decision 6: Staleness check via `metadata.version`
 
 `taskless info` is enhanced to:
+
 1. Detect installed tools (same detection as init)
 2. For each tool, read installed skill files and extract `metadata.version` from frontmatter
 3. Compare against the CLI's embedded skill versions

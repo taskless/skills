@@ -5,7 +5,7 @@ import { parseFrontmatter, stringifyFrontmatter } from "./frontmatter";
 // Skill files embedded at build time via Vite import.meta.glob
 const skillFiles: Record<string, string> = import.meta.glob(
   "../../../../plugins/taskless/skills/**/SKILL.md",
-  { query: "?raw", import: "default", eager: true },
+  { query: "?raw", import: "default", eager: true }
 );
 
 // --- Types ---
@@ -67,7 +67,7 @@ export async function detectTools(cwd: string): Promise<ToolDescriptor[]> {
         .then((s) => s.isDirectory())
         .catch(() => false);
       return exists ? tool : undefined;
-    }),
+    })
   );
   return results.filter((t): t is ToolDescriptor => t !== undefined);
 }
@@ -96,7 +96,7 @@ export function getEmbeddedSkills(): EmbeddedSkill[] {
 
 function buildNamespacedSkillContent(
   skill: EmbeddedSkill,
-  prefix: string,
+  prefix: string
 ): string {
   const parsed = parseFrontmatter(skill.content);
   const data = { ...parsed.data, name: `${prefix}${skill.name}` };
@@ -106,7 +106,7 @@ function buildNamespacedSkillContent(
 export async function installForTool(
   cwd: string,
   tool: ToolDescriptor,
-  skills: EmbeddedSkill[],
+  skills: EmbeddedSkill[]
 ): Promise<string[]> {
   const installed: string[] = [];
 
@@ -116,7 +116,7 @@ export async function installForTool(
       cwd,
       tool.dir,
       tool.skills.path,
-      `${tool.skills.prefix}${skill.name}`,
+      `${tool.skills.prefix}${skill.name}`
     );
     await mkdir(skillDirectory, { recursive: true });
     const skillContent = buildNamespacedSkillContent(skill, tool.skills.prefix);
@@ -131,7 +131,7 @@ export async function installForTool(
       await writeFile(
         join(commandDirectory, `${skill.name}.md`),
         commandContent,
-        "utf8",
+        "utf8"
       );
     }
   }
@@ -188,7 +188,7 @@ function buildAgentsMdRegion(version: string): string {
 
 export async function writeAgentsMd(
   cwd: string,
-  version: string,
+  version: string
 ): Promise<void> {
   const filePath = join(cwd, "AGENTS.md");
   const region = buildAgentsMdRegion(version);
@@ -218,7 +218,7 @@ export async function writeAgentsMd(
     await writeFile(
       filePath,
       existing.trimEnd() + "\n\n" + region + "\n",
-      "utf8",
+      "utf8"
     );
   }
 }
@@ -226,14 +226,12 @@ export async function writeAgentsMd(
 // --- Staleness Check ---
 
 async function readInstalledSkillVersion(
-  skillPath: string,
+  skillPath: string
 ): Promise<string | undefined> {
   try {
     const content = await readFile(skillPath, "utf8");
     const parsed = parseFrontmatter(content);
-    const metadata = parsed.data.metadata as
-      | Record<string, string>
-      | undefined;
+    const metadata = parsed.data.metadata as Record<string, string> | undefined;
     return metadata?.version;
   } catch {
     return undefined;
@@ -259,7 +257,7 @@ export async function checkStaleness(cwd: string): Promise<ToolStatus[]> {
         tool.dir,
         tool.skills.path,
         `${tool.skills.prefix}${skill.name}`,
-        "SKILL.md",
+        "SKILL.md"
       );
       const installedVersion = await readInstalledSkillVersion(installedPath);
       const currentVersion = skill.metadata.version ?? "unknown";

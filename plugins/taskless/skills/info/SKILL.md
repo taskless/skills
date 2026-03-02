@@ -22,12 +22,15 @@ When this skill is invoked, verify that the Taskless CLI is reachable and report
    - npm: `npx @taskless/cli@latest info`
 
 3. **Parse the response.** The CLI outputs a single line of JSON to stdout:
+
    ```json
-   {"version":"0.0.1"}
+   { "version": "0.0.1" }
    ```
+
    Parse this with `JSON.parse()` and extract the `version` field.
 
 4. **Report the result.** Display a confirmation message with the version:
+
    ```
    Taskless skills plugin is installed and working.
    CLI version: <version>

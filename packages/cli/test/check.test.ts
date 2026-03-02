@@ -7,11 +7,14 @@ import { describe, expect, it, beforeEach, afterEach } from "vitest";
 
 const execFileAsync = promisify(execFile);
 const binPath = resolve(import.meta.dirname, "../dist/index.js");
-const fixturesDirectory = resolve(import.meta.dirname, "fixtures/taskless-project");
+const fixturesDirectory = resolve(
+  import.meta.dirname,
+  "fixtures/taskless-project"
+);
 
 /** Run the CLI and capture output, allowing non-zero exit codes */
 async function runCli(
-  args: string[],
+  args: string[]
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   try {
     const { stdout, stderr } = await execFileAsync("node", [binPath, ...args]);
@@ -58,7 +61,7 @@ describe("check", () => {
     });
     await writeFile(
       join(temporaryDirectory, ".taskless", "taskless.json"),
-      JSON.stringify({ version: "2026-03-01" }),
+      JSON.stringify({ version: "2026-03-01" })
     );
 
     const { stderr, exitCode } = await runCli([
@@ -125,11 +128,11 @@ describe("check", () => {
     });
     await writeFile(
       join(temporaryDirectory, ".taskless", "taskless.json"),
-      JSON.stringify({ version: "2026-03-01" }),
+      JSON.stringify({ version: "2026-03-01" })
     );
     await writeFile(
       join(temporaryDirectory, ".taskless", "sgconfig.yml"),
-      "ruleDirs:\n  - rules\n",
+      "ruleDirs:\n  - rules\n"
     );
     await writeFile(
       join(temporaryDirectory, ".taskless", "rules", "warn-only.yml"),
@@ -140,11 +143,11 @@ describe("check", () => {
         "rule:",
         "  pattern: console.warn($$$)",
         "message: Avoid console.warn",
-      ].join("\n"),
+      ].join("\n")
     );
     await writeFile(
       join(temporaryDirectory, "test.js"),
-      'console.warn("hello");\n',
+      'console.warn("hello");\n'
     );
 
     const { exitCode } = await runCli(["check", "-d", temporaryDirectory]);
@@ -158,7 +161,7 @@ describe("check", () => {
     });
     await writeFile(
       join(temporaryDirectory, ".taskless", "taskless.json"),
-      JSON.stringify({ version: "2026-02-25" }),
+      JSON.stringify({ version: "2026-02-25" })
     );
 
     const { stderr, exitCode } = await runCli([
@@ -175,7 +178,7 @@ describe("check", () => {
     await mkdir(join(temporaryDirectory, ".taskless"), { recursive: true });
     await writeFile(
       join(temporaryDirectory, ".taskless", "taskless.json"),
-      JSON.stringify({ version: "2026-02-17" }),
+      JSON.stringify({ version: "2026-02-17" })
     );
 
     const { stderr, exitCode } = await runCli([
@@ -191,7 +194,7 @@ describe("check", () => {
     await mkdir(join(temporaryDirectory, ".taskless"), { recursive: true });
     await writeFile(
       join(temporaryDirectory, ".taskless", "taskless.json"),
-      JSON.stringify({}),
+      JSON.stringify({})
     );
 
     const { stderr, exitCode } = await runCli([

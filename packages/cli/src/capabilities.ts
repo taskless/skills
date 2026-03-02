@@ -28,7 +28,6 @@ export function isSupportedSpecVersion(version: string): boolean {
   if (!isValidSpecVersion(version)) return false;
   return COMPATIBILITY.some(
     (range) =>
-      version >= range.start &&
-      (range.end === undefined || version < range.end),
+      version >= range.start && (range.end === undefined || version < range.end)
   );
 }

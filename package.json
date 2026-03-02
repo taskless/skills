@@ -3,11 +3,7 @@
   "name": "@taskless/skills",
   "version": "1.0.0",
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/taskless/skills.git"
-  },
-  "packageManager": "pnpm@10.12.4",
+  "repository": "taskless/skills.git",
   "scripts": {
     "build": "turbo run build",
     "changeset": "changeset",
@@ -23,6 +19,7 @@
     "typecheck": "turbo run typecheck"
   },
   "type": "module",
+  "packageManager": "pnpm@10.12.4",
   "devDependencies": {
     "@changesets/cli": "^2.29.8",
     "@eslint/js": "^9.39.2",
@@ -33,6 +30,7 @@
     "eslint-plugin-unicorn": "^62.0.0",
     "husky": "^9.1.7",
     "lint-staged": "^15.4.3",
+    "prettier": "^3.8.1",
     "syncpack": "^13.0.0",
     "turbo": "^2.5.4",
     "typescript": "^5.7.2",

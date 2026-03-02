@@ -20,6 +20,6 @@
 
     // Strictness
     "strict": true,
-    "skipLibCheck": true,
-  },
+    "skipLibCheck": true
+  }
 }

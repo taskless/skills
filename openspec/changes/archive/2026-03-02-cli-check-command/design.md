@@ -7,6 +7,7 @@ The CLI uses citty for argument parsing, Vite for bundling, and follows a patter
 ## Goals / Non-Goals
 
 **Goals:**
+
 - Add a `taskless check` subcommand that runs ast-grep rules from `.taskless/rules/`
 - Own the output format in both human and JSON modes (don't pass through ast-grep's raw output)
 - Design the scanner/formatter boundary to support additional scanning tools in the future
@@ -14,6 +15,7 @@ The CLI uses citty for argument parsing, Vite for bundling, and follows a patter
 - Work cross-platform (Linux, macOS, Windows)
 
 **Non-Goals:**
+
 - Supporting custom sgconfig locations (always `.taskless/sgconfig.yml`)
 - SARIF output format (future enhancement)
 - `--fail-on` severity control (future enhancement)
@@ -29,6 +31,7 @@ The CLI uses citty for argument parsing, Vite for bundling, and follows a patter
 **Rationale:** The napi library provides per-file, per-rule scanning via `findInFiles()`. Running a full lint pass with many YAML rules would require reimplementing ast-grep's orchestration: YAML rule loading, language grouping, file discovery, `utils` resolution, and result assembly. The CLI binary handles all of this, and `--json=stream` gives structured JSONL output we can parse and reformat.
 
 **Alternatives considered:**
+
 - `@ast-grep/napi` with custom orchestration — high implementation cost, maintains parity with ast-grep features
 - Bundling/downloading ast-grep separately — unnecessary complexity when the npm package handles platform-specific binaries
 
@@ -45,6 +48,7 @@ The CLI uses citty for argument parsing, Vite for bundling, and follows a patter
 **Rationale:** On Unix, `spawn` searches PATH. On Windows, the `sg` binary is installed as `sg.cmd` in `node_modules/.bin/`, which requires shell resolution. Since all arguments are controlled (no user input in the command string), `shell: true` has no injection risk. When the CLI is run via `pnpm dlx` or `npx`, `node_modules/.bin` is automatically added to PATH.
 
 **Alternatives considered:**
+
 - `cross-spawn` package — adds a dependency for the same result
 - Manual binary path resolution with platform checks — more code, fragile
 

@@ -17,9 +17,11 @@ The CLI currently only has an `info` subcommand. To deliver skills to user repos
 ## Capabilities
 
 ### New Capabilities
+
 - `cli-init`: The `init`/`update` subcommand, global `-d` flag, tool detection, skill installation, AGENTS.md fallback, and staleness reporting via `taskless info`
 
 ### Modified Capabilities
+
 - `cli`: Add global `-d` flag for working directory, enhance `info` subcommand with staleness checks
 - `skills`: Skills are now bundled into the CLI build and installed via `taskless init` rather than discovered via plugin marketplace. Source skills use bare names, prefixed to `taskless-<name>` at install time.
 

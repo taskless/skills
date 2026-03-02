@@ -40,7 +40,6 @@ Fast-forward through artifact creation - generate everything needed to start imp
    ```
 
    Parse the JSON to get:
-
    - `applyRequires`: array of artifact IDs needed before implementation (e.g., `["tasks"]`)
    - `artifacts`: list of all artifacts with their status and dependencies
 
@@ -51,7 +50,6 @@ Fast-forward through artifact creation - generate everything needed to start imp
    Loop through artifacts in dependency order (artifacts with no pending dependencies first):
 
    a. **For each artifact that is `ready` (dependencies satisfied)**:
-
    - Get instructions:
      ```bash
      openspec instructions <artifact-id> --change "<name>" --json
@@ -69,13 +67,11 @@ Fast-forward through artifact creation - generate everything needed to start imp
    - Show brief progress: "✓ Created <artifact-id>"
 
    b. **Continue until all `applyRequires` artifacts are complete**
-
    - After creating each artifact, re-run `openspec status --change "<name>" --json`
    - Check if every artifact ID in `applyRequires` has `status: "done"` in the artifacts array
    - Stop when all `applyRequires` artifacts are done
 
    c. **If an artifact requires user input** (unclear context):
-
    - Use **AskUserQuestion tool** to clarify
    - Then continue with creation
 

@@ -13,7 +13,7 @@ export function formatText(results: CheckResult[]): string {
     lines.push(
       `  ${location}`,
       `  ${result.severity}[${result.ruleId}] ${result.message}`,
-      `  > ${result.matchedText.split("\n")[0]}`,
+      `  > ${result.matchedText.split("\n")[0]}`
     );
     if (result.note) {
       lines.push(`  note: ${result.note}`);
@@ -37,7 +37,7 @@ export function formatText(results: CheckResult[]): string {
 
   const uniqueFiles = new Set(results.map((r) => r.file)).size;
   lines.push(
-    `${String(results.length)} issue${results.length === 1 ? "" : "s"} (${parts.join(", ")}) across ${String(uniqueFiles)} file${uniqueFiles === 1 ? "" : "s"}`,
+    `${String(results.length)} issue${results.length === 1 ? "" : "s"} (${parts.join(", ")}) across ${String(uniqueFiles)} file${uniqueFiles === 1 ? "" : "s"}`
   );
 
   return lines.join("\n");

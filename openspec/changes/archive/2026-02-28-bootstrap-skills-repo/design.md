@@ -3,6 +3,7 @@
 This repository currently contains Twitchdrift scaffolding (React Router, Cloudflare, Spotify, Kysely, etc.) that was copied over to bootstrap code style conventions. The core tooling — TypeScript, ESLint, Prettier, Husky, lint-staged, syncpack — is the foundation we're keeping. Everything else gets stripped or reorganized.
 
 The target is a pnpm monorepo with two concerns:
+
 1. A Claude Code plugin marketplace hosting Taskless skills (Sentry-compatible format)
 2. A CLI package (`@taskless/cli`) distributed via npm
 

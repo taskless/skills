@@ -5,8 +5,8 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitReturns": true,
-    "noUncheckedIndexedAccess": true,
+    "noUncheckedIndexedAccess": true
   },
   "include": ["src", "test"],
-  "exclude": ["node_modules", "dist", "test/fixtures"],
+  "exclude": ["node_modules", "dist", "test/fixtures"]
 }

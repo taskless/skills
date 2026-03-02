@@ -20,7 +20,7 @@ export function parseFrontmatter(source: string): Frontmatter {
 /** Serialize data as YAML frontmatter prepended to a body string. */
 export function stringifyFrontmatter(
   body: string,
-  data: Record<string, unknown>,
+  data: Record<string, unknown>
 ): string {
   return `---\n${stringify(data)}---\n${body}`;
 }
