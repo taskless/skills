@@ -1,6 +1,6 @@
 {
   "name": "@taskless/cli",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -10,7 +10,8 @@
   "scripts": {
     "build": "vite build",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "publish": "pnpm build && pnpm publish --access public"
   },
   "type": "module",
   "files": [
