@@ -13,7 +13,7 @@ export async function writeRuleFile(
   const directory = join(cwd, ".taskless", "rules");
   await mkdir(directory, { recursive: true });
   const filePath = join(directory, `${rule.id}.yml`);
-  await writeFile(filePath, stringify(rule.content), "utf8");
+  await writeFile(filePath, stringify(rule.content, { lineWidth: 0 }), "utf8");
   return filePath;
 }
 
@@ -31,7 +31,7 @@ export async function writeRuleTestFile(
     valid: rule.tests?.valid ?? [],
     invalid: rule.tests?.invalid ?? [],
   };
-  await writeFile(filePath, stringify(content), "utf8");
+  await writeFile(filePath, stringify(content, { lineWidth: 0 }), "utf8");
   return filePath;
 }
 

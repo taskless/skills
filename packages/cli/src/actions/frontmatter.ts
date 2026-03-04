@@ -22,5 +22,5 @@ export function stringifyFrontmatter(
   body: string,
   data: Record<string, unknown>
 ): string {
-  return `---\n${stringify(data)}---\n${body}`;
+  return `---\n${stringify(data, { lineWidth: 0 })}---\n${body}`;
 }
