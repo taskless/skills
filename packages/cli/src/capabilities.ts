@@ -23,6 +23,18 @@ export const COMPATIBILITY: Compatibility[] = [
   { start: "2026-02-18" },
 ];
 
+/**
+ * Minimum spec version that includes orgId and repositoryUrl in taskless.json.
+ * Required by `rules create`.
+ */
+export const RULES_MIN_SPEC_VERSION = "2026-03-03";
+
+/** Check whether a spec version supports rules generation (orgId + repositoryUrl) */
+export function isRulesCompatibleVersion(version: string): boolean {
+  if (!isValidSpecVersion(version)) return false;
+  return version >= RULES_MIN_SPEC_VERSION && isSupportedSpecVersion(version);
+}
+
 /** Check whether the CLI supports a given spec version */
 export function isSupportedSpecVersion(version: string): boolean {
   if (!isValidSpecVersion(version)) return false;

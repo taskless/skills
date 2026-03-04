@@ -3,6 +3,7 @@ import { defineCommand } from "citty";
 
 import { checkStaleness } from "../actions/install";
 import { getToken } from "../actions/token";
+import { fetchWhoami } from "../actions/whoami";
 
 export const infoCommand = defineCommand({
   meta: {
@@ -19,11 +20,25 @@ export const infoCommand = defineCommand({
   async run({ args }) {
     const cwd = resolve(args.dir ?? process.cwd());
     const [tools, token] = await Promise.all([checkStaleness(cwd), getToken()]);
+
+    let auth: { user: string; email: string; orgs: string[] } | undefined;
+    if (token) {
+      const whoami = await fetchWhoami(token);
+      if (whoami) {
+        auth = {
+          user: whoami.user,
+          email: whoami.email,
+          orgs: whoami.orgs.map((o) => o.name),
+        };
+      }
+    }
+
     console.log(
       JSON.stringify({
         version: __VERSION__,
         tools,
         loggedIn: token !== undefined,
+        auth,
       })
     );
   },

@@ -4,6 +4,7 @@ import { authCommand } from "./commands/auth";
 import { checkCommand } from "./commands/check";
 import { initCommand } from "./commands/init";
 import { infoCommand } from "./commands/info";
+import { rulesCommand } from "./commands/rules";
 
 const main = defineCommand({
   meta: {
@@ -29,6 +30,7 @@ const main = defineCommand({
     info: infoCommand,
     check: checkCommand,
     auth: authCommand,
+    rules: rulesCommand,
   },
   async run({ rawArgs, cmd }) {
     // citty always calls the parent's run handler, even after a subcommand.
