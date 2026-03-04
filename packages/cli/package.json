@@ -11,7 +11,7 @@
     "build": "vite build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "publish": "pnpm build && pnpm publish --access public"
+    "release": "pnpm build && pnpm publish --access public"
   },
   "type": "module",
   "files": [
