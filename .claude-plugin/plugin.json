@@ -1,0 +1,12 @@
+{
+  "name": "taskless",
+  "description": "Taskless skills for code quality rules, authentication, and project management",
+  "version": "0.0.5",
+  "author": {
+    "name": "Taskless"
+  },
+  "homepage": "https://taskless.io",
+  "repository": "https://github.com/taskless/skills",
+  "license": "MIT",
+  "commands": "./commands/taskless/"
+}

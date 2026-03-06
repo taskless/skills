@@ -38,9 +38,13 @@ export const checkCommand = defineCommand({
       .catch(() => false);
 
     if (!tasklessJsonExists) {
-      console.error(
-        "Error: .taskless/taskless.json not found. Run `taskless init` to set up your project."
-      );
+      const message =
+        "Error: .taskless/taskless.json not found. Run `taskless init` to set up your project.";
+      if (args.json) {
+        console.log(formatJson([], { success: false, error: message }));
+      } else {
+        console.error(message);
+      }
       process.exit(1);
     }
 
@@ -50,21 +54,33 @@ export const checkCommand = defineCommand({
       const raw = await readFile(tasklessJsonPath, "utf8");
       const config = JSON.parse(raw) as { version?: string };
       if (!config.version) {
-        console.error(
-          'Error: .taskless/taskless.json is missing the "version" field.'
-        );
+        const message =
+          'Error: .taskless/taskless.json is missing the "version" field.';
+        if (args.json) {
+          console.log(formatJson([], { success: false, error: message }));
+        } else {
+          console.error(message);
+        }
         process.exit(1);
       }
       if (!isValidSpecVersion(config.version)) {
-        console.error(
-          `Error: Invalid spec version "${config.version}" in .taskless/taskless.json. Expected YYYY-MM-DD format.`
-        );
+        const message = `Error: Invalid spec version "${config.version}" in .taskless/taskless.json. Expected YYYY-MM-DD format.`;
+        if (args.json) {
+          console.log(formatJson([], { success: false, error: message }));
+        } else {
+          console.error(message);
+        }
         process.exit(1);
       }
       projectVersion = config.version;
     } catch (error) {
       if (error instanceof SyntaxError) {
-        console.error("Error: .taskless/taskless.json is not valid JSON.");
+        const message = "Error: .taskless/taskless.json is not valid JSON.";
+        if (args.json) {
+          console.log(formatJson([], { success: false, error: message }));
+        } else {
+          console.error(message);
+        }
         process.exit(1);
       }
       throw error;
@@ -75,9 +91,12 @@ export const checkCommand = defineCommand({
       const ranges = COMPATIBILITY.map((r) =>
         r.end === undefined ? `${r.start}+` : `${r.start} to ${r.end}`
       ).join(", ");
-      console.error(
-        `Error: Spec version ${projectVersion} is not supported by this CLI (supports ${ranges}). Please use a compatible version of @taskless/cli.`
-      );
+      const message = `Error: Spec version ${projectVersion} is not supported by this CLI (supports ${ranges}). Please use a compatible version of @taskless/cli.`;
+      if (args.json) {
+        console.log(formatJson([], { success: false, error: message }));
+      } else {
+        console.error(message);
+      }
       process.exit(1);
     }
 
@@ -92,13 +111,17 @@ export const checkCommand = defineCommand({
     }
 
     if (ruleFiles.length === 0) {
-      console.warn(
-        "Warning: No rules found in .taskless/rules/. Nothing to check."
-      );
-      console.warn(`  directory: ${rulesDirectory}`);
-      console.warn(
-        "  If you expected rules here, check that your Taskless skills have generated .yml rule files."
-      );
+      if (args.json) {
+        console.log(formatJson([], { success: true }));
+      } else {
+        console.warn(
+          "Warning: No rules found in .taskless/rules/. Nothing to check."
+        );
+        console.warn(`  directory: ${rulesDirectory}`);
+        console.warn(
+          "  If you expected rules here, check that your Taskless skills have generated .yml rule files."
+        );
+      }
       process.exit(0);
     }
 
@@ -108,17 +131,18 @@ export const checkCommand = defineCommand({
 
       // Format output
       const output = args.json ? formatJson(results) : formatText(results);
-      if (output) {
-        console.log(output);
-      }
+      console.log(output);
 
       // Exit code: 1 if any errors, 0 otherwise
       const hasErrors = results.some((r) => r.severity === "error");
       process.exit(hasErrors ? 1 : 0);
     } catch (error) {
-      console.error(
-        `Error: ${error instanceof Error ? error.message : String(error)}`
-      );
+      const message = `Error: ${error instanceof Error ? error.message : String(error)}`;
+      if (args.json) {
+        console.log(formatJson([], { success: false, error: message }));
+      } else {
+        console.error(message);
+      }
       process.exit(1);
     }
   },

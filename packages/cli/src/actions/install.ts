@@ -1,10 +1,16 @@
 import { readFile, stat, writeFile, mkdir } from "node:fs/promises";
 import { join, basename, dirname } from "node:path";
-import { parseFrontmatter, stringifyFrontmatter } from "./frontmatter";
+import { parseFrontmatter } from "./frontmatter";
 
 // Skill files embedded at build time via Vite import.meta.glob
 const skillFiles: Record<string, string> = import.meta.glob(
-  "../../../../plugins/taskless/skills/**/SKILL.md",
+  "../../../../skills/**/SKILL.md",
+  { query: "?raw", import: "default", eager: true }
+);
+
+// Command files embedded at build time via Vite import.meta.glob
+const commandFiles: Record<string, string> = import.meta.glob(
+  "../../../../commands/taskless/**/*.md",
   { query: "?raw", import: "default", eager: true }
 );
 
@@ -15,7 +21,6 @@ interface ToolDescriptor {
   dir: string;
   skills: {
     path: string;
-    prefix: string;
   };
   commands?: {
     path: string;
@@ -28,6 +33,11 @@ interface EmbeddedSkill {
   content: string;
   body: string;
   metadata: Record<string, string>;
+}
+
+interface EmbeddedCommand {
+  filename: string;
+  content: string;
 }
 
 interface SkillStatus {
@@ -50,7 +60,6 @@ const TOOLS: ToolDescriptor[] = [
     dir: ".claude",
     skills: {
       path: "skills",
-      prefix: "taskless-",
     },
     commands: {
       path: "commands/taskless",
@@ -92,135 +101,54 @@ export function getEmbeddedSkills(): EmbeddedSkill[] {
   });
 }
 
-// --- Skill Installation ---
+// --- Embedded Commands ---
 
-function buildNamespacedSkillContent(
-  skill: EmbeddedSkill,
-  prefix: string
-): string {
-  const parsed = parseFrontmatter(skill.content);
-  const data = { ...parsed.data, name: `${prefix}${skill.name}` };
-  return stringifyFrontmatter(parsed.content, data);
+export function getEmbeddedCommands(): EmbeddedCommand[] {
+  return Object.entries(commandFiles).map(([path, content]) => ({
+    filename: basename(path),
+    content,
+  }));
+}
+
+// --- Installation ---
+
+export interface InstallResult {
+  skills: string[];
+  commands: string[];
 }
 
 export async function installForTool(
   cwd: string,
   tool: ToolDescriptor,
-  skills: EmbeddedSkill[]
-): Promise<string[]> {
-  const installed: string[] = [];
+  skills: EmbeddedSkill[],
+  commands: EmbeddedCommand[]
+): Promise<InstallResult> {
+  const installedSkills: string[] = [];
+  const installedCommands: string[] = [];
 
+  // Install skills verbatim
   for (const skill of skills) {
-    // Write SKILL.md
-    const skillDirectory = join(
-      cwd,
-      tool.dir,
-      tool.skills.path,
-      `${tool.skills.prefix}${skill.name}`
-    );
+    const skillDirectory = join(cwd, tool.dir, tool.skills.path, skill.name);
     await mkdir(skillDirectory, { recursive: true });
-    const skillContent = buildNamespacedSkillContent(skill, tool.skills.prefix);
-    await writeFile(join(skillDirectory, "SKILL.md"), skillContent, "utf8");
-    installed.push(`${tool.skills.prefix}${skill.name}`);
+    await writeFile(join(skillDirectory, "SKILL.md"), skill.content, "utf8");
+    installedSkills.push(skill.name);
+  }
 
-    // Write derived command if tool supports commands
-    if (tool.commands) {
-      const commandDirectory = join(cwd, tool.dir, tool.commands.path);
-      await mkdir(commandDirectory, { recursive: true });
-      const commandContent = deriveCommand(skill);
+  // Place commands (Claude Code only)
+  if (tool.commands) {
+    const commandDirectory = join(cwd, tool.dir, tool.commands.path);
+    await mkdir(commandDirectory, { recursive: true });
+    for (const command of commands) {
       await writeFile(
-        join(commandDirectory, `${skill.name}.md`),
-        commandContent,
+        join(commandDirectory, command.filename),
+        command.content,
         "utf8"
       );
+      installedCommands.push(command.filename);
     }
   }
 
-  return installed;
-}
-
-// --- Command Derivation ---
-
-function titleCase(value: string): string {
-  return value
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-}
-
-export function deriveCommand(skill: EmbeddedSkill): string {
-  const commandData: Record<string, unknown> = {
-    name: `"Taskless: ${titleCase(skill.name)}"`,
-    description: skill.description,
-    category: "Taskless",
-    tags: ["taskless"],
-    metadata: skill.metadata,
-  };
-  return stringifyFrontmatter(skill.body, commandData);
-}
-
-// --- AGENTS.md ---
-
-const AGENTS_BEGIN_PATTERN = /<!-- BEGIN taskless version .+ -->/;
-const AGENTS_END_MARKER = "<!-- END taskless -->";
-
-function buildAgentsMdRegion(version: string): string {
-  const lines = [
-    `<!-- BEGIN taskless version ${version} -->`,
-    "",
-    "## Taskless",
-    "",
-    "Taskless provides agentic workflow skills for this project.",
-    "Discover available capabilities using the CLI:",
-    "",
-    "    pnpm dlx @taskless/cli --help",
-    "    npx @taskless/cli --help",
-    "",
-    "| Command          | Purpose                              |",
-    "|------------------|--------------------------------------|",
-    "| `taskless info`  | Show version and installation status |",
-    "| `taskless init`  | Install or update skills             |",
-    "",
-    AGENTS_END_MARKER,
-  ];
-  return lines.join("\n");
-}
-
-export async function writeAgentsMd(
-  cwd: string,
-  version: string
-): Promise<void> {
-  const filePath = join(cwd, "AGENTS.md");
-  const region = buildAgentsMdRegion(version);
-
-  let existing: string | undefined;
-  try {
-    existing = await readFile(filePath, "utf8");
-  } catch {
-    // File doesn't exist, create it
-  }
-
-  if (existing === undefined) {
-    await writeFile(filePath, region + "\n", "utf8");
-    return;
-  }
-
-  const beginMatch = AGENTS_BEGIN_PATTERN.exec(existing);
-  const endIndex = existing.indexOf(AGENTS_END_MARKER);
-
-  if (beginMatch !== null && endIndex !== -1) {
-    // Replace existing region
-    const before = existing.slice(0, beginMatch.index);
-    const after = existing.slice(endIndex + AGENTS_END_MARKER.length);
-    await writeFile(filePath, before + region + after, "utf8");
-  } else {
-    // Append region
-    await writeFile(
-      filePath,
-      existing.trimEnd() + "\n\n" + region + "\n",
-      "utf8"
-    );
-  }
+  return { skills: installedSkills, commands: installedCommands };
 }
 
 // --- Staleness Check ---
@@ -238,11 +166,6 @@ async function readInstalledSkillVersion(
   }
 }
 
-function parseAgentsMdVersion(content: string): string | undefined {
-  const match = /<!-- BEGIN taskless version (.+) -->/.exec(content);
-  return match?.[1];
-}
-
 export async function checkStaleness(cwd: string): Promise<ToolStatus[]> {
   const embedded = getEmbeddedSkills();
   const tools = await detectTools(cwd);
@@ -256,14 +179,14 @@ export async function checkStaleness(cwd: string): Promise<ToolStatus[]> {
         cwd,
         tool.dir,
         tool.skills.path,
-        `${tool.skills.prefix}${skill.name}`,
+        skill.name,
         "SKILL.md"
       );
       const installedVersion = await readInstalledSkillVersion(installedPath);
       const currentVersion = skill.metadata.version ?? "unknown";
 
       skillStatuses.push({
-        name: `${tool.skills.prefix}${skill.name}`,
+        name: skill.name,
         installedVersion,
         currentVersion,
         current: installedVersion === currentVersion,
@@ -271,27 +194,6 @@ export async function checkStaleness(cwd: string): Promise<ToolStatus[]> {
     }
 
     results.push({ name: tool.name, skills: skillStatuses });
-  }
-
-  // Check AGENTS.md too
-  try {
-    const agentsContent = await readFile(join(cwd, "AGENTS.md"), "utf8");
-    const agentsVersion = parseAgentsMdVersion(agentsContent);
-    if (agentsVersion !== undefined) {
-      results.push({
-        name: "AGENTS.md",
-        skills: [
-          {
-            name: "agents-md",
-            installedVersion: agentsVersion,
-            currentVersion: __VERSION__,
-            current: agentsVersion === __VERSION__,
-          },
-        ],
-      });
-    }
-  } catch {
-    // No AGENTS.md, skip
   }
 
   return results;

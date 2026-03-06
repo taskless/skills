@@ -21,9 +21,11 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(pnpm:*)",
       "Bash(git -C:*)",
-      "WebFetch(domain:api.reactrouter.com)"
+      "WebFetch(domain:api.reactrouter.com)",
+      "WebFetch(domain:docs.taskless.io)",
+      "Bash(git status -u)"
     ],
-    "deny": ["Bash(npx:*)"],
+    "deny": ["Bash(npx:*)", "Bash(pnpm dlx @taskless/cli*)"],
     "additionalDirectories": ["openspec/*"]
   },
   "read": {

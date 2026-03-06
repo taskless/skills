@@ -1,0 +1,16 @@
+{
+  "name": "taskless",
+  "owner": {
+    "name": "Taskless"
+  },
+  "metadata": {
+    "description": "Taskless skills for code quality rules and analysis"
+  },
+  "plugins": [
+    {
+      "name": "taskless",
+      "source": ".",
+      "description": "Taskless skills for code quality rules, authentication, and project management"
+    }
+  ]
+}

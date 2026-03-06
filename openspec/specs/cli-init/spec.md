@@ -8,7 +8,7 @@ TBD — Defines the `taskless init` subcommand that installs Taskless skills int
 
 ### Requirement: Init subcommand installs skills into a repository
 
-The CLI SHALL support a `taskless init` subcommand that installs Taskless skills into the current working directory. The subcommand SHALL also be available as `taskless update` (alias with identical behavior).
+The CLI SHALL support a `taskless init` subcommand that installs Taskless skills into the current working directory. The subcommand SHALL also be available as `taskless update` (alias with identical behavior). When no tool directories are detected, the CLI SHALL inform the user and suggest using the Claude Code Plugin Marketplace or Vercel skills CLI as alternatives.
 
 #### Scenario: Running taskless init installs skills
 
@@ -21,11 +21,11 @@ The CLI SHALL support a `taskless init` subcommand that installs Taskless skills
 - **WHEN** a user runs `taskless update`
 - **THEN** the behavior SHALL be identical to `taskless init`
 
-#### Scenario: Running init with no detected tools writes AGENTS.md
+#### Scenario: Running init with no detected tools shows alternatives
 
 - **WHEN** a user runs `taskless init` in a repository with no detected AI tool directories
-- **THEN** the CLI SHALL create or update an `AGENTS.md` file in the working directory
-- **AND** report that no tool directories were found and AGENTS.md was written as fallback
+- **THEN** the CLI SHALL inform the user that no supported tool directories were found
+- **AND** suggest using the Claude Code Plugin Marketplace or Vercel skills CLI for installation
 
 ### Requirement: Tool detection via filesystem inspection
 
@@ -44,74 +44,62 @@ The CLI SHALL detect installed AI tools by checking for known directories via pa
 #### Scenario: No tools are detected
 
 - **WHEN** no known tool directories exist in the working directory
-- **THEN** the CLI SHALL fall back to AGENTS.md installation
+- **THEN** the CLI SHALL inform the user and suggest using the Claude Code Plugin Marketplace or Vercel skills CLI
 
 ### Requirement: Skills are installed as Agent Skills spec SKILL.md files
 
-For each detected tool that supports skills, the CLI SHALL write SKILL.md files into the tool's skill directory. Skill directory names SHALL be prefixed with `taskless-` to namespace them. The installed SKILL.md content SHALL match the canonical source with the `name` field updated to include the `taskless-` prefix.
+For each detected tool that supports skills, the CLI SHALL write SKILL.md files into the tool's skill directory. Skill names SHALL be installed verbatim from the embedded source (already prefixed with `taskless-`). No additional namespace prefixing SHALL be applied at install time.
 
-#### Scenario: Skill installed with namespaced directory
+#### Scenario: Skill installed with verbatim name
 
-- **WHEN** the CLI installs the `info` skill for Claude Code
+- **WHEN** the CLI installs the `taskless-info` skill for Claude Code
 - **THEN** it SHALL write to `.claude/skills/taskless-info/SKILL.md`
 - **AND** the `name` field in the SKILL.md frontmatter SHALL be `taskless-info`
 
 #### Scenario: Skill content matches source
 
 - **WHEN** a skill is installed
-- **THEN** the SKILL.md body content SHALL be identical to the canonical source in `plugins/taskless/skills/`
-- **AND** only the `name` field in frontmatter SHALL differ (prefixed with `taskless-`)
+- **THEN** the SKILL.md content SHALL be identical to the embedded source from `skills/`
+- **AND** no frontmatter fields SHALL be modified at install time
 
-### Requirement: Claude Code commands are derived from skills
+### Requirement: Claude Code commands are placed from embedded source
 
-For Claude Code specifically, the CLI SHALL also generate command `.md` files derived from the canonical SKILL.md files. Commands SHALL be placed in the tool's commands directory under a `taskless` namespace.
+For Claude Code specifically, the CLI SHALL also place command `.md` files from the embedded command source. Commands SHALL be placed in `.claude/commands/taskless/` with filenames matching the embedded source (prefix already stripped).
 
-#### Scenario: Command file is derived and installed
+#### Scenario: Command file is placed from embedded source
 
-- **WHEN** the CLI installs skills for Claude Code
-- **THEN** it SHALL also write command files to `.claude/commands/taskless/<name>.md`
+- **WHEN** the CLI installs for Claude Code
+- **THEN** it SHALL write command files to `.claude/commands/taskless/<name>.md`
+- **AND** the command content SHALL be identical to the embedded source from `commands/taskless/`
 
-#### Scenario: Command frontmatter is transformed from skill
+#### Scenario: Command files are only placed for Claude Code
 
-- **WHEN** a command file is derived from a skill
-- **THEN** the command frontmatter SHALL have a display `name` (e.g., `"Taskless: Info"`), a `description`, `category: "Taskless"`, and `tags` including `"taskless"`
-- **AND** the command frontmatter SHALL include the `metadata` field from the source skill (preserving `version` for staleness checks)
-- **AND** the command body SHALL be the skill's body content
-
-### Requirement: AGENTS.md fallback uses comment region markers
-
-When no tool directories are detected, the CLI SHALL write or update a region in `AGENTS.md` delimited by `<!-- BEGIN taskless version x.y.z -->` and `<!-- END taskless -->` comment markers. The version in the opening marker SHALL match the CLI's package version.
-
-#### Scenario: AGENTS.md is created when it does not exist
-
-- **WHEN** `taskless init` runs with no tool directories and no existing `AGENTS.md`
-- **THEN** the CLI SHALL create `AGENTS.md` containing the taskless region
-
-#### Scenario: AGENTS.md region is replaced on update
-
-- **WHEN** `taskless init` runs and an `AGENTS.md` with existing taskless markers exists
-- **THEN** the CLI SHALL replace the content between the markers with the updated content
-- **AND** all content outside the markers SHALL be preserved
-
-#### Scenario: AGENTS.md content is a CLI pointer
-
-- **WHEN** the taskless region is written to AGENTS.md
-- **THEN** the content SHALL include instructions to use `pnpm dlx @taskless/cli` or `npx @taskless/cli` for capability discovery
-- **AND** SHALL include a brief listing of available CLI commands and their purpose
+- **WHEN** the CLI installs for a tool that does not support commands
+- **THEN** no command files SHALL be written for that tool
 
 ### Requirement: Skills are bundled into the CLI at build time
 
-The CLI build SHALL embed all skill file content from `plugins/taskless/skills/` into the compiled bundle using Vite's `import.meta.glob` with raw file imports. No runtime file reads or network fetches SHALL be used to access skill content.
+The CLI build SHALL embed all skill file content from `skills/` and all command file content from `commands/taskless/` into the compiled bundle using Vite's `import.meta.glob` with raw file imports. No runtime file reads or network fetches SHALL be used to access skill or command content.
 
 #### Scenario: Embedded skills are available at runtime
 
 - **WHEN** the CLI runs `taskless init`
 - **THEN** it SHALL access skill content from the embedded bundle without reading the filesystem or making network requests
 
+#### Scenario: Embedded commands are available at runtime
+
+- **WHEN** the CLI runs `taskless init` for Claude Code
+- **THEN** it SHALL access command content from the embedded bundle without reading the filesystem
+
 #### Scenario: Build includes all skills from source directory
 
 - **WHEN** `pnpm build` is run in `packages/cli/`
-- **THEN** every `SKILL.md` file under `plugins/taskless/skills/` SHALL be embedded in the output bundle
+- **THEN** every `SKILL.md` file under `skills/` SHALL be embedded in the output bundle
+
+#### Scenario: Build includes all commands from source directory
+
+- **WHEN** `pnpm build` is run in `packages/cli/`
+- **THEN** every `.md` file under `commands/taskless/` SHALL be embedded in the output bundle
 
 ### Requirement: Init respects the global working directory flag
 

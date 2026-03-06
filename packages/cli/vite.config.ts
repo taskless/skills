@@ -1,5 +1,6 @@
-import { chmodSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { chmodSync, readFileSync, readdirSync } from "node:fs";
+import { resolve, join } from "node:path";
+import { parse } from "yaml";
 import type { Plugin } from "vite";
 import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
@@ -7,6 +8,46 @@ import tsconfigPaths from "vite-tsconfig-paths";
 const pkg = JSON.parse(
   readFileSync(resolve(import.meta.dirname, "package.json"), "utf8")
 ) as { version: string };
+
+const FRONTMATTER_REGEX = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
+
+function assertSkillVersions(): Plugin {
+  return {
+    name: "assert-skill-versions",
+    buildStart() {
+      const skillsDir = resolve(import.meta.dirname, "../../skills");
+      const dirs = readdirSync(skillsDir, { withFileTypes: true }).filter((d) =>
+        d.isDirectory()
+      );
+      const mismatched: string[] = [];
+
+      for (const dir of dirs) {
+        const skillPath = join(skillsDir, dir.name, "SKILL.md");
+        let content: string;
+        try {
+          content = readFileSync(skillPath, "utf8");
+        } catch {
+          continue;
+        }
+        const match = FRONTMATTER_REGEX.exec(content);
+        if (!match) continue;
+        const data = (parse(match[1] ?? "") ?? {}) as Record<string, unknown>;
+        const metadata = (data.metadata ?? {}) as Record<string, string>;
+        if (metadata.version !== pkg.version) {
+          mismatched.push(
+            `${dir.name}: ${metadata.version ?? "(none)"} (expected ${pkg.version})`
+          );
+        }
+      }
+
+      if (mismatched.length > 0) {
+        throw new Error(
+          `Skill version mismatch! Run "tsx scripts/sync-skill-versions.ts" to fix.\n${mismatched.join("\n")}`
+        );
+      }
+    },
+  };
+}
 
 function shebang(): Plugin {
   return {
@@ -33,7 +74,7 @@ export default defineConfig({
   define: {
     __VERSION__: JSON.stringify(pkg.version),
   },
-  plugins: [tsconfigPaths(), shebang()],
+  plugins: [tsconfigPaths(), assertSkillVersions(), shebang()],
   build: {
     lib: {
       entry: resolve(import.meta.dirname, "src/index.ts"),

@@ -4,8 +4,8 @@ import { defineCommand } from "citty";
 import {
   detectTools,
   getEmbeddedSkills,
+  getEmbeddedCommands,
   installForTool,
-  writeAgentsMd,
 } from "../actions/install";
 
 export const initCommand = defineCommand({
@@ -23,25 +23,27 @@ export const initCommand = defineCommand({
   async run({ args }) {
     const cwd = resolve(args.dir ?? process.cwd());
     const skills = getEmbeddedSkills();
+    const commands = getEmbeddedCommands();
     const tools = await detectTools(cwd);
 
     if (tools.length === 0) {
-      await writeAgentsMd(cwd, __VERSION__);
       console.log(
-        `No tool directories detected. Wrote AGENTS.md with Taskless CLI reference.`
+        `No supported tool directories detected.\n\nAlternative installation methods:\n  - Claude Code Plugin Marketplace: /plugin marketplace add taskless/skills\n  - Vercel Skills CLI: npx skills add taskless/skills`
       );
       return;
     }
 
     for (const tool of tools) {
-      const installed = await installForTool(cwd, tool, skills);
-      console.log(`${tool.name}: installed ${installed.length} skill(s)`);
-      for (const name of installed) {
+      const result = await installForTool(cwd, tool, skills, commands);
+      console.log(
+        `${tool.name}: installed ${String(result.skills.length)} skill(s)`
+      );
+      for (const name of result.skills) {
         console.log(`  - ${name}`);
       }
-      if (tool.commands) {
+      if (result.commands.length > 0) {
         console.log(
-          `  + ${installed.length} derived command(s) in ${tool.dir}/${tool.commands.path}/`
+          `  + ${String(result.commands.length)} command(s) in ${tool.dir}/${tool.commands!.path}/`
         );
       }
     }

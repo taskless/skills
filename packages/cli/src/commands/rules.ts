@@ -177,6 +177,7 @@ const createCommand = defineCommand({
           if (args.json) {
             console.log(
               JSON.stringify({
+                success: true,
                 ruleId,
                 rules: status.rules.map((r) => r.id),
                 files: writtenFiles,

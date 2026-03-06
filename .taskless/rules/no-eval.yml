@@ -1,0 +1,10 @@
+id: no-eval
+language: typescript
+severity: error
+message: Do not use eval() or Function() to evaluate strings as code. These are security risks that enable code injection attacks.
+note: Use safer alternatives like JSON.parse() for data, or restructure code to avoid dynamic evaluation.
+rule:
+  any:
+    - pattern: eval($$$)
+    - pattern: Function($$$)
+    - pattern: new Function($$$)

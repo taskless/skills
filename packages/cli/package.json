@@ -10,8 +10,7 @@
   "scripts": {
     "build": "vite build",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit",
-    "release": "pnpm build && pnpm publish --access public"
+    "typecheck": "tsc --noEmit"
   },
   "type": "module",
   "files": [

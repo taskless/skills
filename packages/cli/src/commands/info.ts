@@ -35,6 +35,7 @@ export const infoCommand = defineCommand({
 
     console.log(
       JSON.stringify({
+        success: true,
         version: __VERSION__,
         tools,
         loggedIn: token !== undefined,
