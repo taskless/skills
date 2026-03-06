@@ -3,8 +3,8 @@ name: taskless-login
 description: Explains how to authenticate with Taskless. Use when the user wants to log in, authenticate, connect their account, or set up credentials. Trigger on "taskless login", "authenticate taskless", "taskless auth", or "connect to taskless".
 metadata:
   author: taskless
-  version: "0.0.5"
-  commandName: "taskless:login"
+  version: 0.0.6
+  commandName: taskless:login
 compatibility: Designed for Agents implementing the Agent Skills specification.
 ---
 

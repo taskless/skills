@@ -3,8 +3,8 @@ name: taskless-rule-create
 description: Creates a new Taskless rule from a description. Use when the user wants to create a rule, add a lint rule, define a code pattern to detect, or generate an ast-grep rule. Trigger on "create a rule", "add a taskless rule", "new rule for", or "detect this pattern".
 metadata:
   author: taskless
-  version: "0.0.5"
-  commandName: "taskless:rule"
+  version: 0.0.6
+  commandName: taskless:rule
 compatibility: Designed for Agents implementing the Agent Skills specification.
 ---
 
