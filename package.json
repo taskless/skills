@@ -16,7 +16,7 @@
     "lint-staged": "lint-staged",
     "lint:fix": "eslint --fix .",
     "openspec": "openspec",
-    "package": "pnpm build && pnpm run bump && git add -A && git commit -S -m 'chore: version packages' && pnpm build",
+    "package": "pnpm build && pnpm run bump && git add -A && git commit -S -m 'chore: version packages' && pnpm build && git add -A && git commit -S -m 'chore: rebuild commands with versioned packages'",
     "prepare": "husky",
     "prettier": "prettier",
     "release": "pnpm -r publish --access public --dry-run && echo 'Good to go? pnpm release:production'",
