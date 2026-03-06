@@ -1,0 +1,27 @@
+Run Taskless rules against your codebase
+
+Scans your project using ast-grep rules defined in .taskless/rules/.
+
+Prerequisites:
+  Run `taskless init` to set up your project first.
+  A .taskless/taskless.json config file must exist.
+
+Usage:
+  taskless check [options]
+
+Options:
+  -d, --dir <path>   Set working directory (default: current directory)
+  --json             Output results as JSON
+
+Output:
+  Text (default):  filepath:line:col  severity  message
+  JSON (--json):   { "success": true, "results": [...] }
+
+Exit Codes:
+  0   All checks passed or no rules found
+  1   Errors detected or configuration issue
+
+Examples:
+  taskless check
+  taskless check -d ./my-project
+  taskless check --json

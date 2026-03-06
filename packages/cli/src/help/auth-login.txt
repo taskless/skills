@@ -1,0 +1,17 @@
+Authenticate with taskless.io
+
+Starts a device authorization flow. The CLI displays a URL and a one-time
+code. Open the URL in a browser, enter the code, and authorize access.
+Credentials are saved locally once authorization completes.
+
+Usage:
+  taskless auth login
+
+Credential Storage:
+  Tokens are saved to ~/.config/taskless/auth.json
+
+Environment Variable:
+  Set TASKLESS_TOKEN to skip the device flow entirely.
+
+Examples:
+  taskless auth login

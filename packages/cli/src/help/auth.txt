@@ -1,0 +1,7 @@
+Manage authentication with taskless.io
+
+Commands:
+  login    Authenticate via device flow
+  logout   Remove saved credentials
+
+Run `taskless help auth <command>` for details on a specific command.

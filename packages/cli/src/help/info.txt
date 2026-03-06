@@ -1,0 +1,21 @@
+Show Taskless CLI information
+
+Outputs a JSON object with the CLI version, installed tool/skill status,
+and authentication state.
+
+Usage:
+  taskless info [options]
+
+Options:
+  -d, --dir <path>   Set working directory (default: current directory)
+
+Output:
+  A JSON object with the following fields:
+    version    CLI version string
+    tools      Array of detected tools with installed skill versions
+    loggedIn   Whether a valid auth token is available
+    auth       User details when logged in (user, email, orgs)
+
+Examples:
+  taskless info
+  taskless info -d ./my-project

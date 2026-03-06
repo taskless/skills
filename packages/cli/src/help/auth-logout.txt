@@ -1,0 +1,13 @@
+Remove saved authentication
+
+Deletes the locally saved authentication token. If using the
+TASKLESS_TOKEN environment variable, unset it separately.
+
+Usage:
+  taskless auth logout
+
+Credential Storage:
+  Removes ~/.config/taskless/auth.json
+
+Examples:
+  taskless auth logout
