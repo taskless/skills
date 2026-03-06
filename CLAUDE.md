@@ -12,6 +12,10 @@ When creating or modifying files, you **MUST** follow these conventions:
 
 **IMPORTANT** After making code changes, you **MUST** run the checks specified in @.claude/STYLEGUIDE-CODE.md
 
+## Local Development
+
+When running Taskless CLI commands in this repo, use `pnpm cli` instead of `pnpm dlx @taskless/cli@latest`. This runs the locally built CLI at `./packages/cli/dist/index.js`.
+
 ## Git Commits
 
 When creating commit messages:

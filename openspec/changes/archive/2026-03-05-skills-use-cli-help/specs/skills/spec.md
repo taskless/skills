@@ -1,10 +1,4 @@
-# Skills
-
-## Purpose
-
-TBD — Defines the structure and conventions for Taskless skills.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Skills use SKILL.md format with YAML frontmatter
 
@@ -62,6 +56,8 @@ The `taskless-info` skill SHALL exist at `skills/taskless-info/SKILL.md`. When i
 
 - **WHEN** the CLI invocation fails (non-zero exit code or unparseable output)
 - **THEN** the agent SHALL report that it could not reach the Taskless CLI and suggest troubleshooting steps
+
+## ADDED Requirements
 
 ### Requirement: Check skill uses --json flag for machine-readable output
 
