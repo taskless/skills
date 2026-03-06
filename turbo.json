@@ -1,20 +1,7 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
-    "//#generate-commands": {
-      "inputs": ["skills/taskless-*/SKILL.md", "scripts/generate-commands.ts"],
-      "outputs": ["commands/taskless/**"]
-    },
-    "//#sync-skill-versions": {
-      "inputs": ["packages/cli/package.json", "scripts/sync-skill-versions.ts"],
-      "outputs": ["skills/*/SKILL.md"]
-    },
-    "//#link-skills": {
-      "inputs": ["skills/taskless-*/SKILL.md", "scripts/link-skills.sh"],
-      "outputs": [".claude/skills/**"]
-    },
     "build": {
-      "dependsOn": ["//#generate-commands", "//#link-skills"],
       "outputs": ["dist/**"]
     },
     "test": {

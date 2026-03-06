@@ -77,6 +77,8 @@ export default tseslint.config(
       ],
       // Disable forced numeric separators - 5000 is more readable than 5_000
       "unicorn/numeric-separators-style": "off",
+      // Allow null - needed for standard APIs like JSON.stringify
+      "unicorn/no-null": "off",
       // Allow destructured imports for node:path module (e.g., import { resolve } from 'node:path')
       "unicorn/import-style": [
         "error",

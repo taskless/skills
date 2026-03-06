@@ -38,7 +38,6 @@ export async function saveToken(data: {
   const directory = getConfigDirectory();
   await mkdir(directory, { recursive: true });
   const filePath = join(directory, AUTH_FILE);
-  // eslint-disable-next-line unicorn/no-null -- JSON.stringify requires null as replacer
   await writeFile(filePath, JSON.stringify(data, null, 2) + "\n", {
     mode: 0o600,
   });

@@ -19,6 +19,7 @@ packages/
   cli/                             # @taskless/cli
 scripts/
   generate-commands.ts             # Generates commands from skills
+  link-skills.ts                   # Symlinks skills into .claude/skills/
   sync-skill-versions.ts           # Syncs metadata.version to CLI version
 .claude-plugin/                    # Claude Code Plugin Marketplace manifest
 ```
@@ -50,20 +51,23 @@ Releases use [Changesets](https://github.com/changesets/changesets) with Turbore
 
 ### Build graph
 
-`pnpm build` runs the following via Turborepo:
+`pnpm build` runs the following steps sequentially via `run-s`:
 
-1. **generate-commands** — reads `skills/taskless-*/SKILL.md`, generates `commands/taskless/*.md` from each skill's `metadata.commandName` field. Skills with `commandName: "-"` are skipped.
-2. **@taskless/cli build** — Vite bundles the CLI, embedding all skills and commands at build time via `import.meta.glob`. A build-time plugin asserts that every skill's `metadata.version` matches the CLI package version.
+1. **build:generate-commands** — reads `skills/taskless-*/SKILL.md`, generates `commands/taskless/*.md` from each skill's `metadata.commandName` field. Skills with `commandName: "-"` are skipped.
+2. **build:link-skills** — symlinks `skills/` into `.claude/skills/` and `commands/` into `.claude/commands/` for local development.
+3. **build:compile** — Turborepo runs `vite build` in `packages/cli`, embedding all skills and commands at build time via `import.meta.glob`. A build-time plugin asserts that every skill's `metadata.version` matches the CLI package version.
 
 ### Version workflow
 
 ```bash
 pnpm changeset          # Create a changeset describing the change
-pnpm version            # Bump versions and sync skill metadata
+pnpm bump               # Bump versions and sync skill metadata
 pnpm build              # Build with version assertion
 ```
 
-`pnpm version` runs `changeset version` to bump `packages/cli/package.json`, then runs `sync-skill-versions` via Turborepo to update `metadata.version` in all `skills/*/SKILL.md` files to match.
+`pnpm bump` runs `changeset version` to bump `packages/cli/package.json`, then runs `sync-skill-versions` to update `metadata.version` in all `skills/*/SKILL.md` files to match.
+
+`pnpm package` combines both steps (`bump` then `build`) for convenience.
 
 ### Adding a new skill
 

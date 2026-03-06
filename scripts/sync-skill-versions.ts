@@ -5,6 +5,8 @@ import { parse, stringify } from "yaml";
 const ROOT = resolve(import.meta.dirname, "..");
 const CLI_PACKAGE_JSON = join(ROOT, "packages", "cli", "package.json");
 const SKILLS_DIR = join(ROOT, "skills");
+const ROOT_PACKAGE_JSON = join(ROOT, "package.json");
+const PLUGIN_JSON = join(ROOT, ".claude-plugin", "plugin.json");
 
 const FRONTMATTER_REGEX = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
 
@@ -59,10 +61,45 @@ for (const directory of skillDirectories) {
   console.log(`  ${directory}: ${oldVersion} → ${targetVersion}`);
 }
 
+// Update root package.json version
+const rootPackageRaw = JSON.parse(
+  readFileSync(ROOT_PACKAGE_JSON, "utf8")
+) as Record<string, unknown>;
+if (rootPackageRaw.version === targetVersion) {
+  skipped++;
+} else {
+  const oldRootVersion =
+    (rootPackageRaw.version as string | undefined) ?? "(none)";
+  rootPackageRaw.version = targetVersion;
+  writeFileSync(
+    ROOT_PACKAGE_JSON,
+    JSON.stringify(rootPackageRaw, null, 2) + "\n",
+    "utf8"
+  );
+  console.log(`  package.json: ${oldRootVersion} → ${targetVersion}`);
+  updated++;
+}
+
+// Update plugin.json version
+const pluginRaw = JSON.parse(readFileSync(PLUGIN_JSON, "utf8")) as Record<
+  string,
+  unknown
+>;
+if (pluginRaw.version === targetVersion) {
+  skipped++;
+} else {
+  const oldPluginVersion =
+    (pluginRaw.version as string | undefined) ?? "(none)";
+  pluginRaw.version = targetVersion;
+  writeFileSync(PLUGIN_JSON, JSON.stringify(pluginRaw, null, 2) + "\n", "utf8");
+  console.log(`  plugin.json: ${oldPluginVersion} → ${targetVersion}`);
+  updated++;
+}
+
 if (updated === 0) {
-  console.log(`\nAll ${String(skipped)} skill(s) already at ${targetVersion}.`);
+  console.log(`\nAll ${String(skipped)} file(s) already at ${targetVersion}.`);
 } else {
   console.log(
-    `\nUpdated ${String(updated)} skill(s), ${String(skipped)} already current.`
+    `\nUpdated ${String(updated)} file(s), ${String(skipped)} already current.`
   );
 }
