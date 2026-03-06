@@ -6,6 +6,7 @@
   "repository": "taskless/skills.git",
   "scripts": {
     "build": "turbo run build",
+    "bump": "changeset version && turbo run sync-skill-versions",
     "changeset": "changeset",
     "cli": "./packages/cli/dist/index.js",
     "generate-commands": "tsx scripts/generate-commands.ts",
@@ -15,7 +16,7 @@
     "lint-staged": "lint-staged",
     "lint:fix": "eslint --fix .",
     "openspec": "openspec",
-    "package": "pnpm build && pnpm version && git add -A && git commit -S -m 'chore: version packages' && pnpm build",
+    "package": "pnpm build && pnpm run bump && git add -A && git commit -S -m 'chore: version packages' && pnpm build",
     "prepare": "husky",
     "prettier": "prettier",
     "release": "pnpm -r publish --access public --dry-run && echo 'Good to go? pnpm release:production'",
@@ -23,8 +24,7 @@
     "sync-skill-versions": "tsx scripts/sync-skill-versions.ts",
     "syncpack": "syncpack",
     "test": "turbo run test",
-    "typecheck": "turbo run typecheck",
-    "version": "changeset version && turbo run sync-skill-versions"
+    "typecheck": "turbo run typecheck"
   },
   "type": "module",
   "packageManager": "pnpm@10.12.4",
