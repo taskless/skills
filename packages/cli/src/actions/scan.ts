@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
 import { spawn } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { createInterface } from "node:readline";
@@ -19,14 +21,55 @@ function buildPath(): string {
   return `${binDirectory}${separator}${process.env.PATH ?? ""}`;
 }
 
+/**
+ * Resolve the ast-grep binary path.
+ *
+ * The @ast-grep/cli package relies on a postinstall script that uses
+ * require.resolve() to find platform-specific binary packages and hardlink
+ * them into place. Under pnpm dlx, the strict dependency isolation can
+ * prevent that resolution from working, leaving a placeholder text file
+ * instead of the real binary.
+ *
+ * To work around this, we resolve the platform-specific package ourselves
+ * (from our own module context where optionalDependencies are accessible)
+ * and return the full path to the binary. Falls back to "sg" via PATH
+ * for environments where the normal .bin shim works fine.
+ */
+function findSgBinary(): string {
+  const parts: string[] = [process.platform, process.arch];
+  if (process.platform === "linux") {
+    parts.push("gnu");
+  } else if (process.platform === "win32") {
+    parts.push("msvc");
+  }
+
+  const platformPackage = `@ast-grep/cli-${parts.join("-")}`;
+  const binary = process.platform === "win32" ? "ast-grep.exe" : "ast-grep";
+
+  try {
+    const require = createRequire(import.meta.url);
+    const packageJsonPath = require.resolve(`${platformPackage}/package.json`);
+    const binaryPath = resolve(dirname(packageJsonPath), binary);
+    if (existsSync(binaryPath)) {
+      return binaryPath;
+    }
+  } catch {
+    // Platform package not resolvable — fall through to PATH-based lookup
+  }
+
+  return "sg";
+}
+
 /** Run ast-grep scan and return parsed results */
 export async function runAstGrepScan(cwd: string): Promise<ScanResult> {
   return new Promise((resolve, reject) => {
+    const sgBinary = findSgBinary();
+    const useShell = sgBinary === "sg";
     const child = spawn(
-      "sg",
+      sgBinary,
       ["scan", "--config", ".taskless/sgconfig.yml", "--json=stream"],
       {
-        shell: true,
+        shell: useShell,
         cwd,
         stdio: ["ignore", "pipe", "pipe"],
         env: { ...process.env, PATH: buildPath() },

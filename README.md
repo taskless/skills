@@ -59,7 +59,7 @@ pnpm build              # Build CLI and generate commands
 pnpm test               # Run all tests, confirm no errors
 git add -A              # Stage all changes
 git commit -m "chore: Releases vx.y.z"  # Commit with new version number
-pnpm release            # Publish to npm
+pnpm release            # Dry run — prints publish command when ready
 ```
 
 ### Adding a new skill
