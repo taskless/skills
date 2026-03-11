@@ -64,11 +64,12 @@ function findSgBinary(): string {
 export async function runAstGrepScan(cwd: string): Promise<ScanResult> {
   return new Promise((resolve, reject) => {
     const sgBinary = findSgBinary();
+    const useShell = sgBinary === "sg";
     const child = spawn(
       sgBinary,
       ["scan", "--config", ".taskless/sgconfig.yml", "--json=stream"],
       {
-        shell: true,
+        shell: useShell,
         cwd,
         stdio: ["ignore", "pipe", "pipe"],
         env: { ...process.env, PATH: buildPath() },
