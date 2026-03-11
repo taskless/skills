@@ -1,5 +1,6 @@
 /* eslint-disable unicorn/no-process-exit */
 import { resolve } from "node:path";
+import { readFile } from "node:fs/promises";
 import { defineCommand } from "citty";
 
 import { getToken } from "../actions/token";
@@ -13,20 +14,6 @@ import {
   writeRuleTestFile,
   deleteRuleFiles,
 } from "../actions/rule-files";
-
-/** Read all of stdin as a string */
-async function readStdin(): Promise<string> {
-  // If stdin is a TTY, there's no piped data
-  if (process.stdin.isTTY) {
-    return "";
-  }
-
-  const chunks: Buffer[] = [];
-  for await (const chunk of process.stdin) {
-    chunks.push(chunk as Buffer);
-  }
-  return Buffer.concat(chunks).toString("utf8");
-}
 
 /** Format today's date as YYYYMMDD */
 function getTimestamp(): string {
@@ -42,7 +29,8 @@ const POLL_INTERVAL_MS = 15_000;
 const createCommand = defineCommand({
   meta: {
     name: "create",
-    description: "Create a new rule from a description (reads JSON from stdin)",
+    description:
+      "Create a new rule from a JSON file (use --from to specify the input file)",
   },
   args: {
     dir: {
@@ -55,24 +43,38 @@ const createCommand = defineCommand({
       description: "Output as JSON",
       default: false,
     },
+    from: {
+      type: "string",
+      description:
+        "Path to a JSON file containing the rule request (required). Example: --from .taskless/.tmp-rule-request.json",
+      required: true,
+    },
   },
   async run({ args }) {
     const cwd = resolve(args.dir ?? process.cwd());
 
-    // 1. Read and validate stdin
-    const input = await readStdin();
-    if (!input.trim()) {
+    // 1. Read and validate --from file
+    if (!args.from) {
       console.error(
-        'Error: A JSON payload is required on stdin. Example:\n  echo \'{"prompt": "detect console.log usage"}\' | taskless rules create'
+        "Error: --from is required. Provide a path to a JSON file.\n  Example: taskless rules create --from request.json"
       );
+      process.exit(1);
+    }
+
+    const filePath = resolve(cwd, args.from);
+    let fileContent: string;
+    try {
+      fileContent = await readFile(filePath, "utf8");
+    } catch {
+      console.error(`Error: Could not read file "${args.from}".`);
       process.exit(1);
     }
 
     let request: RuleCreateRequest;
     try {
-      request = JSON.parse(input) as RuleCreateRequest;
+      request = JSON.parse(fileContent) as RuleCreateRequest;
     } catch {
-      console.error("Error: stdin is not valid JSON.");
+      console.error(`Error: "${args.from}" is not valid JSON.`);
       process.exit(1);
     }
 

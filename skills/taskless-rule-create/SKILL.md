@@ -10,11 +10,11 @@ compatibility: Designed for Agents implementing the Agent Skills specification.
 
 # Taskless Rule Create
 
-When this skill is invoked, gather the necessary information from the user, construct a JSON payload, and pipe it to the CLI to generate a rule.
+When this skill is invoked, gather the necessary information from the user, write a JSON file, and run the CLI to generate a rule.
 
 ## Instructions
 
-1. **Read current command documentation.** Run `pnpm dlx @taskless/cli@latest help rules create` and read the output. Use this to understand the command's stdin JSON fields, options, and examples.
+1. **Read current command documentation.** Run `pnpm dlx @taskless/cli@latest help rules create` and read the output. Use this to understand the command's `--from` JSON fields, options, and examples.
 
 2. **Gather the rule description.** Ask the user what pattern they want to detect. This becomes the `prompt` field (required).
 
@@ -22,13 +22,16 @@ When this skill is invoked, gather the necessary information from the user, cons
 
    You MAY analyze the codebase to infer the language or find relevant code examples. If you do, confirm your assumptions with the user before proceeding.
 
-4. **Construct the JSON payload.** Build a JSON object with the gathered fields. Only include optional fields if they were gathered or inferred.
+4. **Write the JSON payload to a file.** Build a JSON object with the gathered fields. Only include optional fields if they were gathered or inferred. Write the JSON to `.taskless/.tmp-rule-request.json`.
 
-5. **Invoke the CLI.** Pipe the JSON to `pnpm dlx @taskless/cli@latest rules create --json`, using the examples from the help output as a guide. The command may take 30-60 seconds as it polls the API.
+5. **Invoke the CLI.** Run `pnpm dlx @taskless/cli@latest rules create --from .taskless/.tmp-rule-request.json --json`. The command may take 30-60 seconds as it polls the API.
 
-6. **Report the results.** When the CLI completes, show the generated file paths and suggest running `taskless check` to test the new rule.
+6. **Clean up.** After the command completes (success or failure), delete the `.taskless/.tmp-rule-request.json` file.
 
-7. **Handle errors.** If the CLI fails:
+7. **Report the results.** When the CLI completes, show the generated file paths and suggest running `taskless check` to test the new rule.
+
+8. **Handle errors.** If the CLI fails:
    - **Authentication required**: Suggest running `taskless auth login` first.
    - **Missing config**: Suggest running `taskless init` to set up the project.
+   - **Stale scaffold version**: Suggest running `taskless update-engine` to update the `.taskless/` engine directory.
    - **API errors**: Report the error message and suggest trying again.

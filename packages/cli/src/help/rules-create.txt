@@ -1,21 +1,22 @@
-Create a new rule from a description
+Create a new rule from a JSON file
 
-Reads a JSON payload from stdin describing the desired rule, submits it
-to the Taskless API for generation, and writes the resulting rule and
-test files to .taskless/rules/ and .taskless/rule-tests/.
+Reads a JSON file describing the desired rule, submits it to the Taskless
+API for generation, and writes the resulting rule and test files to
+.taskless/rules/ and .taskless/rule-tests/.
 
 Prerequisites:
   Run `taskless auth login` to authenticate first.
   A .taskless/taskless.json config file with orgId and repositoryUrl is required.
 
 Usage:
-  echo '<json>' | taskless rules create [options]
+  taskless rules create --from <file> [options]
 
 Options:
+  --from <file>      Path to a JSON file containing the rule request (required)
   -d, --dir <path>   Set working directory (default: current directory)
   --json             Output results as JSON
 
-Stdin JSON Fields:
+JSON File Fields:
   prompt        (required) Description of the pattern to detect
   language      (optional) Target programming language
   successCase   (optional) Example code that should pass
@@ -25,5 +26,5 @@ Output:
   Lists generated rule and test file paths.
 
 Examples:
-  echo '{"prompt": "detect console.log usage"}' | taskless rules create
-  echo '{"prompt": "find innerHTML", "language": "typescript"}' | taskless rules create
+  taskless rules create --from request.json
+  taskless rules create --from .taskless/.tmp-rule-request.json --json

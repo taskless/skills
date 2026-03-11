@@ -35,7 +35,7 @@ describe("cli", () => {
       expect(stdout).toContain("taskless");
       expect(stdout).toContain("info");
       expect(stdout).toContain("init");
-      expect(stdout).toContain("update");
+      expect(stdout).toContain("update-engine");
     });
   });
 
@@ -50,22 +50,15 @@ describe("cli", () => {
       await rm(temporaryDirectory, { recursive: true, force: true });
     });
 
-    it("writes AGENTS.md when no tool directories exist", async () => {
+    it("shows alternative install methods when no tool directories exist", async () => {
       const { stdout } = await execFileAsync("node", [
         binPath,
         "init",
         "-d",
         temporaryDirectory,
       ]);
-      expect(stdout).toContain("AGENTS.md");
-
-      const agentsContent = await readFile(
-        join(temporaryDirectory, "AGENTS.md"),
-        "utf8"
-      );
-      expect(agentsContent).toContain("<!-- BEGIN taskless version");
-      expect(agentsContent).toContain("<!-- END taskless -->");
-      expect(agentsContent).toContain("pnpm dlx @taskless/cli");
+      expect(stdout).toContain("No supported tool directories detected");
+      expect(stdout).toContain("Alternative installation methods");
     });
 
     it("installs skills when .claude/ directory exists", async () => {
