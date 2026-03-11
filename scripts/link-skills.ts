@@ -40,10 +40,7 @@ for (const { source, destination } of links) {
 
     if (lstatSync(target, { throwIfNoEntry: false })?.isSymbolicLink()) {
       const existing = readlinkSync(target);
-      if (
-        resolve(destination, existing) === entrySource ||
-        existing === entrySource
-      ) {
+      if (resolve(destination, existing) === entrySource) {
         console.log(`ok: ${name} (already linked)`);
       } else {
         console.error(
