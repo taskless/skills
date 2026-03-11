@@ -1,5 +1,11 @@
 # @taskless/cli
 
+## 0.1.2
+
+### Patch Changes
+
+- fe18d42: Fix `rules create` requiring scaffold version 2026-03-03 which doesn't exist yet, causing users on the latest scaffold (2026-03-02) to be told to update when they're already current
+
 ## 0.1.1
 
 ### Patch Changes
