@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   isValidSpecVersion,
-  isSupportedSpecVersion,
-  COMPATIBILITY,
+  isScaffoldVersionSufficient,
+  MIN_SCAFFOLD_VERSION,
 } from "../src/capabilities";
 
 describe("isValidSpecVersion", () => {
@@ -28,54 +28,43 @@ describe("isValidSpecVersion", () => {
   });
 });
 
-describe("isSupportedSpecVersion", () => {
-  it("supports the start of each range", () => {
-    for (const range of COMPATIBILITY) {
-      expect(isSupportedSpecVersion(range.start)).toBe(true);
+describe("MIN_SCAFFOLD_VERSION", () => {
+  it("has valid version strings for all entries", () => {
+    for (const version of Object.values(MIN_SCAFFOLD_VERSION)) {
+      expect(isValidSpecVersion(version)).toBe(true);
     }
   });
 
-  it("supports dates between range boundaries", () => {
-    expect(isSupportedSpecVersion("2026-02-25")).toBe(true);
-  });
-
-  it("supports dates in the open-ended latest range", () => {
-    expect(isSupportedSpecVersion("2026-06-15")).toBe(true);
-    expect(isSupportedSpecVersion("2027-01-01")).toBe(true);
-  });
-
-  it("supports patch versions within a range", () => {
-    expect(isSupportedSpecVersion("2026-03-01.1")).toBe(true);
-    expect(isSupportedSpecVersion("2026-02-18.1")).toBe(true);
-  });
-
-  it("rejects dates before the earliest range", () => {
-    expect(isSupportedSpecVersion("2026-02-17")).toBe(false);
-    expect(isSupportedSpecVersion("2025-01-01")).toBe(false);
-  });
-
-  it("rejects invalid version strings", () => {
-    expect(isSupportedSpecVersion("not-a-date")).toBe(false);
+  it("contains expected subcommands", () => {
+    expect(MIN_SCAFFOLD_VERSION["rules create"]).toBeDefined();
+    expect(MIN_SCAFFOLD_VERSION["check"]).toBeDefined();
   });
 });
 
-describe("COMPATIBILITY", () => {
-  it("has valid start dates in all ranges", () => {
-    for (const range of COMPATIBILITY) {
-      expect(isValidSpecVersion(range.start)).toBe(true);
-    }
+describe("isScaffoldVersionSufficient", () => {
+  it("returns true when version meets the minimum", () => {
+    expect(isScaffoldVersionSufficient("rules create", "2026-03-03")).toBe(
+      true
+    );
+    expect(isScaffoldVersionSufficient("check", "2026-02-18")).toBe(true);
   });
 
-  it("has valid end dates where specified", () => {
-    for (const range of COMPATIBILITY) {
-      if (range.end !== undefined) {
-        expect(isValidSpecVersion(range.end)).toBe(true);
-      }
-    }
+  it("returns true when version exceeds the minimum", () => {
+    expect(isScaffoldVersionSufficient("rules create", "2026-04-01")).toBe(
+      true
+    );
+    expect(isScaffoldVersionSufficient("check", "2026-03-01")).toBe(true);
   });
 
-  it("has exactly one open-ended range (the latest)", () => {
-    const openEnded = COMPATIBILITY.filter((r) => r.end === undefined);
-    expect(openEnded).toHaveLength(1);
+  it("returns false when version is below the minimum", () => {
+    expect(isScaffoldVersionSufficient("rules create", "2026-03-02")).toBe(
+      false
+    );
+    expect(isScaffoldVersionSufficient("check", "2026-02-17")).toBe(false);
+  });
+
+  it("returns true for subcommands without a minimum", () => {
+    expect(isScaffoldVersionSufficient("init", "2025-01-01")).toBe(true);
+    expect(isScaffoldVersionSufficient("unknown-cmd", "2025-01-01")).toBe(true);
   });
 });

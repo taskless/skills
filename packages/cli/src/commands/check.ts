@@ -7,8 +7,7 @@ import { runAstGrepScan } from "../actions/scan";
 import { formatText, formatJson } from "../actions/format";
 import {
   isValidSpecVersion,
-  isSupportedSpecVersion,
-  COMPATIBILITY,
+  isScaffoldVersionSufficient,
 } from "../capabilities";
 
 export const checkCommand = defineCommand({
@@ -86,12 +85,9 @@ export const checkCommand = defineCommand({
       throw error;
     }
 
-    // Strict version check
-    if (!isSupportedSpecVersion(projectVersion)) {
-      const ranges = COMPATIBILITY.map((r) =>
-        r.end === undefined ? `${r.start}+` : `${r.start} to ${r.end}`
-      ).join(", ");
-      const message = `Error: Spec version ${projectVersion} is not supported by this CLI (supports ${ranges}). Please use a compatible version of @taskless/cli.`;
+    // Check scaffold version meets minimum for check command
+    if (!isScaffoldVersionSufficient("check", projectVersion)) {
+      const message = `Error: Scaffold version ${projectVersion} is below the minimum required for 'taskless check'. Run \`taskless update-engine\` to update.`;
       if (args.json) {
         console.log(formatJson([], { success: false, error: message }));
       } else {

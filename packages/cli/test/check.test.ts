@@ -88,7 +88,7 @@ describe("check", () => {
     expect(stdout).toContain("issue");
   });
 
-  it("produces JSONL output with --json flag", async () => {
+  it("produces JSON output with --json flag", async () => {
     await cp(fixturesDirectory, temporaryDirectory, { recursive: true });
 
     const { stdout, exitCode } = await runCli([
@@ -99,25 +99,31 @@ describe("check", () => {
     ]);
     expect(exitCode).toBe(1);
 
-    const lines = stdout
-      .trim()
-      .split("\n")
-      .filter((l) => l.trim() !== "");
-    expect(lines.length).toBeGreaterThan(0);
-
-    for (const line of lines) {
-      const parsed = JSON.parse(line) as {
+    const parsed = JSON.parse(stdout.trim()) as {
+      success: boolean;
+      results: Array<{
         source: string;
         ruleId: string;
         severity: string;
-      };
-      expect(parsed).toHaveProperty("source", "ast-grep");
-      expect(parsed).toHaveProperty("ruleId");
-      expect(parsed).toHaveProperty("severity");
-      expect(parsed).toHaveProperty("message");
-      expect(parsed).toHaveProperty("file");
-      expect(parsed).toHaveProperty("range");
-      expect(parsed).toHaveProperty("matchedText");
+        message: string;
+        file: string;
+        range: unknown;
+        matchedText: string;
+      }>;
+    };
+
+    expect(parsed).toHaveProperty("success");
+    expect(parsed).toHaveProperty("results");
+    expect(parsed.results.length).toBeGreaterThan(0);
+
+    for (const result of parsed.results) {
+      expect(result).toHaveProperty("source", "ast-grep");
+      expect(result).toHaveProperty("ruleId");
+      expect(result).toHaveProperty("severity");
+      expect(result).toHaveProperty("message");
+      expect(result).toHaveProperty("file");
+      expect(result).toHaveProperty("range");
+      expect(result).toHaveProperty("matchedText");
     }
   });
 
@@ -187,7 +193,7 @@ describe("check", () => {
       temporaryDirectory,
     ]);
     expect(exitCode).toBe(1);
-    expect(stderr).toContain("not supported");
+    expect(stderr).toContain("below the minimum");
   });
 
   it("errors when version field is missing from taskless.json", async () => {

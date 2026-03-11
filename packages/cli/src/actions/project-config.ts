@@ -3,9 +3,8 @@ import { join } from "node:path";
 
 import {
   isValidSpecVersion,
-  isSupportedSpecVersion,
-  isRulesCompatibleVersion,
-  RULES_MIN_SPEC_VERSION,
+  isScaffoldVersionSufficient,
+  MIN_SCAFFOLD_VERSION,
 } from "../capabilities";
 
 /** Typed project configuration from .taskless/taskless.json */
@@ -47,9 +46,16 @@ export async function readProjectConfig(cwd: string): Promise<ProjectConfig> {
     );
   }
 
-  if (!isSupportedSpecVersion(config.version)) {
+  // Check that the version is at least the lowest minimum across all subcommands
+  let lowestMinimum: string | undefined;
+  for (const minimum of Object.values(MIN_SCAFFOLD_VERSION)) {
+    if (lowestMinimum === undefined || minimum < lowestMinimum) {
+      lowestMinimum = minimum;
+    }
+  }
+  if (lowestMinimum && config.version < lowestMinimum) {
     throw new Error(
-      `Spec version ${config.version} is not supported by this CLI.`
+      `Spec version ${config.version} is not supported by this CLI. Run \`taskless update-engine\` to update.`
     );
   }
 
@@ -67,10 +73,11 @@ export async function readProjectConfig(cwd: string): Promise<ProjectConfig> {
 export function validateRulesConfig(
   config: ProjectConfig
 ): { valid: true } | { valid: false; error: string } {
-  if (!isRulesCompatibleVersion(config.version)) {
+  if (!isScaffoldVersionSufficient("rules create", config.version)) {
+    const required = MIN_SCAFFOLD_VERSION["rules create"]!;
     return {
       valid: false,
-      error: `Spec version ${config.version} is too old for rule generation. Update to ${RULES_MIN_SPEC_VERSION} or later by re-running \`taskless init\`.`,
+      error: `Scaffold version ${config.version} is below the minimum ${required} required for 'taskless rules create'. Run \`taskless update-engine\` to update.`,
     };
   }
 
