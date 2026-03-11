@@ -10,7 +10,7 @@ When creating or modifying files, you **MUST** follow these conventions:
 
 ## Code Quality Checks
 
-**IMPORTANT** After making code changes, you **MUST** run the checks specified in @.claude/STYLEGUIDE-CODE.md
+**IMPORTANT** After making code changes, you **MUST** run the checks specified in @.conventions/STYLEGUIDE-CODE.md
 
 ## Local Development
 
@@ -21,6 +21,7 @@ When running Taskless CLI commands in this repo, use `pnpm cli` instead of `pnpm
 When creating commit messages:
 
 - **BE AWARE** `git commit` **MUST** run with the `-S` flag. When in some environments, this will fail. You should offer a commit message in that scenario.
+- **GPG Signing Workaround:** If signing fails due to no TTY available, prompt the user to run `echo "test" | gpg --sign > /dev/null` to load the GPG signing key, then retry the commit.
 - **NEVER** add "Generated with Claude Code" or similar attribution lines
 - **NEVER** add `Co-Authored-By: Claude` or any AI co-author attribution
 - Developers are 100% accountable for all code they commit, regardless of how it was created
