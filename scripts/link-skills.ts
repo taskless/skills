@@ -6,7 +6,7 @@ import {
   readlinkSync,
   symlinkSync,
 } from "node:fs";
-import { resolve } from "node:path";
+import { relative, resolve } from "node:path";
 
 const repoRoot = resolve(import.meta.dirname, "..");
 
@@ -35,18 +35,16 @@ for (const { source, destination } of links) {
 
     const name = entry.name;
     const entrySource = resolve(source, name);
+    const relativeSource = relative(destination, entrySource);
     const target = resolve(destination, name);
 
     if (lstatSync(target, { throwIfNoEntry: false })?.isSymbolicLink()) {
       const existing = readlinkSync(target);
-      if (
-        resolve(destination, existing) === entrySource ||
-        existing === entrySource
-      ) {
+      if (resolve(destination, existing) === entrySource) {
         console.log(`ok: ${name} (already linked)`);
       } else {
         console.error(
-          `CONFLICT: ${name} -> symlink exists pointing to ${existing} (expected ${entrySource})`
+          `CONFLICT: ${name} -> symlink exists pointing to ${existing} (expected ${relativeSource})`
         );
         // eslint-disable-next-line unicorn/no-process-exit
         process.exit(1);
@@ -58,8 +56,8 @@ for (const { source, destination } of links) {
       // eslint-disable-next-line unicorn/no-process-exit
       process.exit(1);
     } else {
-      symlinkSync(entrySource, target);
-      console.log(`linked: ${name} -> ${entrySource}`);
+      symlinkSync(relativeSource, target);
+      console.log(`linked: ${name} -> ${relativeSource}`);
     }
   }
 }
