@@ -178,21 +178,5 @@ class HttpRuleApiProvider implements RuleApiProvider {
 
 // --- Stub implementation ---
 
-class StubRuleApiProvider implements RuleApiProvider {
-  submitRule(): Promise<RuleSubmitResponse> {
-    throw new Error(
-      "Rule generation is not yet available. The API is under development."
-    );
-  }
-
-  pollRuleStatus(): Promise<RuleStatusResponse> {
-    throw new Error(
-      "Rule generation is not yet available. The API is under development."
-    );
-  }
-}
-
-/** Default provider instance — stub until the API ships */
-export const ruleApiProvider: RuleApiProvider = process.env.TASKLESS_API_URL
-  ? new HttpRuleApiProvider()
-  : new StubRuleApiProvider();
+/** Default provider instance */
+export const ruleApiProvider: RuleApiProvider = new HttpRuleApiProvider();

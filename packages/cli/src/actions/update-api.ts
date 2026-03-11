@@ -133,23 +133,5 @@ class HttpUpdateApiProvider implements UpdateApiProvider {
   }
 }
 
-// --- Stub implementation ---
-
-class StubUpdateApiProvider implements UpdateApiProvider {
-  submitUpdate(): Promise<UpdateSubmitResponse> {
-    throw new Error(
-      "Update engine is not yet available. The API is under development."
-    );
-  }
-
-  pollStatus(): Promise<UpdateStatusResponse> {
-    throw new Error(
-      "Update engine is not yet available. The API is under development."
-    );
-  }
-}
-
-/** Default provider instance — uses HTTP when API URL is configured */
-export const updateApiProvider: UpdateApiProvider = process.env.TASKLESS_API_URL
-  ? new HttpUpdateApiProvider()
-  : new StubUpdateApiProvider();
+/** Default provider instance */
+export const updateApiProvider: UpdateApiProvider = new HttpUpdateApiProvider();
