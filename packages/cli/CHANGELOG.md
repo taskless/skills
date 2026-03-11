@@ -1,5 +1,11 @@
 # @taskless/cli
 
+## 0.1.1
+
+### Patch Changes
+
+- 5e0864a: Use default API URL for rule and update-engine providers instead of requiring env var
+
 ## 0.1.0
 
 ### Minor Changes

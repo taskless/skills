@@ -1,7 +1,7 @@
 {
   "private": true,
   "name": "@taskless/skills",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "repository": "taskless/skills.git",
   "scripts": {
@@ -9,7 +9,7 @@
     "build:compile": "turbo run build",
     "build:generate-commands": "tsx scripts/generate-commands.ts",
     "build:link-skills": "tsx scripts/link-skills.ts",
-    "bump": "run-s bump:version bump:sync",
+    "bump": "run-s bump:version bump:sync build:generate-commands",
     "bump:sync": "tsx scripts/sync-skill-versions.ts",
     "bump:version": "changeset version",
     "changeset": "changeset",

@@ -6,7 +6,7 @@ tags:
   - taskless
 metadata:
   author: taskless
-  version: 0.1.0
+  version: 0.1.1
   commandName: taskless:logout
 ---
 
