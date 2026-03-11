@@ -1,7 +1,7 @@
 {
   "name": "taskless",
   "description": "Taskless skills for code quality rules, authentication, and project management",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "author": {
     "name": "Taskless"
   },

@@ -1,5 +1,11 @@
 # @taskless/cli
 
+## 0.1.3
+
+### Patch Changes
+
+- 914dc37: Fix ast-grep binary not found when CLI installed via pnpm dlx. The strict dependency isolation prevents @ast-grep/cli's postinstall from resolving platform-specific binary packages, leaving a placeholder text file instead of the real binary. Now resolves the platform binary directly from our own module context.
+
 ## 0.1.2
 
 ### Patch Changes
