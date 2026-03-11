@@ -45,29 +45,22 @@ pnpm dlx @taskless/cli@latest info
 npx @taskless/cli@latest info
 ```
 
-## Releasing
+## Releasing taskless/skills
 
 Releases use [Changesets](https://github.com/changesets/changesets) with Turborepo for orchestration.
 
-### Build graph
+### Release process
 
-`pnpm build` runs the following steps sequentially via `run-s`:
-
-1. **build:generate-commands** — reads `skills/taskless-*/SKILL.md`, generates `commands/taskless/*.md` from each skill's `metadata.commandName` field. Skills with `commandName: "-"` are skipped.
-2. **build:link-skills** — symlinks `skills/` into `.claude/skills/` and `commands/` into `.claude/commands/` for local development.
-3. **build:compile** — Turborepo runs `vite build` in `packages/cli`, embedding all skills and commands at build time via `import.meta.glob`. A build-time plugin asserts that every skill's `metadata.version` matches the CLI package version.
-
-### Version workflow
+Start from a clean repo (no uncommitted changes), then:
 
 ```bash
-pnpm changeset          # Create a changeset describing the change
 pnpm bump               # Bump versions and sync skill metadata
-pnpm build              # Build with version assertion
+pnpm build              # Build CLI and generate commands
+pnpm test               # Run all tests, confirm no errors
+git add -A              # Stage all changes
+git commit -m "chore: Releases vx.y.z"  # Commit with new version number
+pnpm release            # Publish to npm
 ```
-
-`pnpm bump` runs `changeset version` to bump `packages/cli/package.json`, then runs `sync-skill-versions` to update `metadata.version` in all `skills/*/SKILL.md` files to match.
-
-`pnpm package` combines both steps (`bump` then `build`) for convenience.
 
 ### Adding a new skill
 
