@@ -1,5 +1,16 @@
 # @taskless/cli
 
+## 0.1.0
+
+### Minor Changes
+
+- 00320f6: Replace stdin JSON input with --from file flag for rules create
+
+### Patch Changes
+
+- 00320f6: Add update-engine command for requesting scaffold upgrades
+- 00320f6: Replace version compatibility ranges with per-subcommand minimum scaffold versions
+
 ## 0.0.7
 
 ### Patch Changes
