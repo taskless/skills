@@ -13,7 +13,7 @@ export function isValidSpecVersion(value: string): boolean {
  * YYYY-MM-DD strings sort lexicographically, so string comparison is sufficient.
  */
 export const MIN_SCAFFOLD_VERSION: Record<string, string> = {
-  "rules create": "2026-03-03",
+  "rules create": "2026-03-02",
   check: "2026-02-18",
 };
 

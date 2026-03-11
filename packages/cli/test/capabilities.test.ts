@@ -43,7 +43,7 @@ describe("MIN_SCAFFOLD_VERSION", () => {
 
 describe("isScaffoldVersionSufficient", () => {
   it("returns true when version meets the minimum", () => {
-    expect(isScaffoldVersionSufficient("rules create", "2026-03-03")).toBe(
+    expect(isScaffoldVersionSufficient("rules create", "2026-03-02")).toBe(
       true
     );
     expect(isScaffoldVersionSufficient("check", "2026-02-18")).toBe(true);
@@ -57,7 +57,7 @@ describe("isScaffoldVersionSufficient", () => {
   });
 
   it("returns false when version is below the minimum", () => {
-    expect(isScaffoldVersionSufficient("rules create", "2026-03-02")).toBe(
+    expect(isScaffoldVersionSufficient("rules create", "2026-03-01")).toBe(
       false
     );
     expect(isScaffoldVersionSufficient("check", "2026-02-17")).toBe(false);

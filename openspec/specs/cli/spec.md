@@ -145,7 +145,7 @@ The CLI SHALL maintain a `MIN_SCAFFOLD_VERSION` map that declares the minimum `.
 #### Scenario: Map contains entry for rules create
 
 - **WHEN** inspecting `MIN_SCAFFOLD_VERSION`
-- **THEN** the entry for `'rules create'` SHALL be `'2026-03-03'`
+- **THEN** the entry for `'rules create'` SHALL be `'2026-03-02'`
 
 #### Scenario: Map contains entry for check
 
@@ -163,13 +163,13 @@ On every subcommand invocation that has an entry in `MIN_SCAFFOLD_VERSION`, the 
 
 #### Scenario: Version below minimum
 
-- **WHEN** a user runs `taskless rules create` and `.taskless/taskless.json` has version `2026-03-02`
-- **THEN** the CLI SHALL print: "Scaffold version 2026-03-02 is below the minimum 2026-03-03 required for 'taskless rules create'. Run 'taskless update-engine' to update."
+- **WHEN** a user runs `taskless rules create` and `.taskless/taskless.json` has version `2026-03-01`
+- **THEN** the CLI SHALL print: "Scaffold version 2026-03-01 is below the minimum 2026-03-02 required for 'taskless rules create'. Run 'taskless update-engine' to update."
 - **AND** the CLI SHALL exit with a non-zero exit code
 
 #### Scenario: Version at minimum
 
-- **WHEN** a user runs `taskless rules create` and `.taskless/taskless.json` has version `2026-03-03`
+- **WHEN** a user runs `taskless rules create` and `.taskless/taskless.json` has version `2026-03-02`
 - **THEN** the CLI SHALL proceed normally
 
 #### Scenario: Version above minimum
