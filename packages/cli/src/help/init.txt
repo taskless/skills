@@ -1,11 +1,10 @@
-Install or update Taskless skills
+Install Taskless skills
 
 Detects supported coding agent tools in your project and installs
 Taskless skills and commands for each one. Currently supports Claude Code.
 
 Usage:
   taskless init [options]
-  taskless update [options]
 
 Options:
   -d, --dir <path>   Set working directory (default: current directory)
@@ -23,4 +22,3 @@ Alternative Installation:
 Examples:
   taskless init
   taskless init -d ./my-project
-  taskless update

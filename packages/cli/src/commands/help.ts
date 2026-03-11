@@ -66,7 +66,7 @@ export function createHelpCommand(
 
         const entries: Array<[string, string]> = [];
         for (const [name, cmd] of Object.entries(subCommands)) {
-          if (name === "help" || name === "update") continue;
+          if (name === "help") continue;
           const description = await resolveDescription(cmd);
           entries.push([name, description]);
         }

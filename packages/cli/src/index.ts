@@ -6,14 +6,15 @@ import { initCommand } from "./commands/init";
 import { infoCommand } from "./commands/info";
 import { createHelpCommand } from "./commands/help";
 import { rulesCommand } from "./commands/rules";
+import { updateEngineCommand } from "./commands/update-engine";
 
 const subCommands = {
   init: initCommand,
-  update: initCommand,
   info: infoCommand,
   check: checkCommand,
   auth: authCommand,
   rules: rulesCommand,
+  "update-engine": updateEngineCommand,
 };
 
 const main = defineCommand({
