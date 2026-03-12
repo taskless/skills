@@ -1,5 +1,5 @@
 ---
-name: taskless-update-engine
+name: use-taskless-update-engine
 description: Requests a scaffold upgrade for the .taskless/ engine directory. Use when the user needs to update their Taskless scaffold, upgrade their engine version, or when the CLI reports a stale scaffold version. Trigger on "update engine", "upgrade taskless", "taskless update-engine", or "scaffold is out of date".
 metadata:
   author: taskless

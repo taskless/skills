@@ -11,7 +11,7 @@ import { parse, stringify } from "yaml";
 const ROOT = resolve(import.meta.dirname, "..");
 const SKILLS_DIR = join(ROOT, "skills");
 const COMMANDS_DIR = join(ROOT, "commands");
-const PREFIX = "taskless-";
+const PREFIX = "use-taskless-";
 
 interface Frontmatter {
   data: Record<string, unknown>;

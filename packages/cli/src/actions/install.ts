@@ -1,4 +1,11 @@
-import { readFile, stat, writeFile, mkdir } from "node:fs/promises";
+import {
+  readFile,
+  readdir,
+  rm,
+  stat,
+  writeFile,
+  mkdir,
+} from "node:fs/promises";
 import { join, basename, dirname } from "node:path";
 import { parseFrontmatter } from "./frontmatter";
 
@@ -110,6 +117,34 @@ export function getEmbeddedCommands(): EmbeddedCommand[] {
   }));
 }
 
+// --- Deprecated Skill Cleanup ---
+
+/**
+ * Removes legacy skill directories that used the old "taskless-*" naming
+ * convention, now replaced by "use-taskless-*" to avoid namespace collisions.
+ */
+async function removeDeprecatedSkills(
+  cwd: string,
+  tool: ToolDescriptor
+): Promise<void> {
+  const skillsDirectory = join(cwd, tool.dir, tool.skills.path);
+
+  let entries: string[];
+  try {
+    entries = await readdir(skillsDirectory);
+  } catch {
+    return; // skills directory doesn't exist yet
+  }
+
+  const deprecated = entries.filter(
+    (name) => name.startsWith("taskless-") && !name.startsWith("use-taskless-")
+  );
+
+  for (const name of deprecated) {
+    await rm(join(skillsDirectory, name), { recursive: true, force: true });
+  }
+}
+
 // --- Installation ---
 
 export interface InstallResult {
@@ -125,6 +160,9 @@ export async function installForTool(
 ): Promise<InstallResult> {
   const installedSkills: string[] = [];
   const installedCommands: string[] = [];
+
+  // Remove legacy "taskless-*" skills replaced by "use-taskless-*"
+  await removeDeprecatedSkills(cwd, tool);
 
   // Install skills verbatim
   for (const skill of skills) {

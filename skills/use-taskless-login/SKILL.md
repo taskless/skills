@@ -1,5 +1,5 @@
 ---
-name: taskless-login
+name: use-taskless-login
 description: Explains how to authenticate with Taskless. Use when the user wants to log in, authenticate, connect their account, or set up credentials. Trigger on "taskless login", "authenticate taskless", "taskless auth", or "connect to taskless".
 metadata:
   author: taskless

@@ -1,5 +1,5 @@
 ---
-name: taskless-info
+name: use-taskless-info
 description: Confirms that the Taskless skills plugin is installed and working. Use when the user wants to verify their Taskless setup, check plugin status, test the connection, or run a health check. Trigger on "is taskless working", "check taskless", "taskless status", or "taskless info".
 metadata:
   author: taskless

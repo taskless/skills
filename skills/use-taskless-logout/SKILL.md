@@ -1,5 +1,5 @@
 ---
-name: taskless-logout
+name: use-taskless-logout
 description: Explains how to remove saved Taskless authentication. Use when the user wants to log out, disconnect, remove credentials, or clear their Taskless session. Trigger on "taskless logout", "disconnect taskless", or "remove taskless auth".
 metadata:
   author: taskless
