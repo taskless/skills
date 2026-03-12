@@ -40,7 +40,7 @@ When this skill is invoked, verify that the Taskless CLI is reachable and report
    - Suggest checking network connectivity and that npm/pnpm is available.
    - Show the raw error output if available.
 
-6. **Report if Upgrade is Required** If any installed skill is not current, include a note that an upgrade is recommended. Offer to run `pnpm dlx @taskless/cli@latest update` for them.
+6. **Report if Upgrade is Required** If any installed skill is not current, include a note that an upgrade is recommended. Offer to run `pnpm dlx @taskless/cli@latest init` for them to reinitialize with the latest skills.
 
 ## Example Output
 
