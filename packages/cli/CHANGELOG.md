@@ -1,5 +1,11 @@
 # @taskless/cli
 
+## 0.1.5
+
+### Patch Changes
+
+- 87d5644: Fixes command in info skill
+
 ## 0.1.4
 
 ### Patch Changes

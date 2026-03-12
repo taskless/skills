@@ -6,7 +6,7 @@ tags:
   - taskless
 metadata:
   author: taskless
-  version: 0.1.4
+  version: 0.1.5
   commandName: taskless:update-engine
 ---
 
