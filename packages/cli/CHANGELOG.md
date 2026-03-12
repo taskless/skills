@@ -1,5 +1,11 @@
 # @taskless/cli
 
+## 0.1.4
+
+### Patch Changes
+
+- f9d7ac6: Updates skills to collect additional information
+
 ## 0.1.3
 
 ### Patch Changes
