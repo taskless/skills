@@ -2,22 +2,22 @@
 
 ## Purpose
 
-TBD — Defines the `rules` subcommand group for the Taskless CLI, including `create` and `delete` subcommands for managing ast-grep rules via the Taskless API.
+TBD — Defines the `rules` subcommand group for the Taskless CLI, including `create`, `improve`, and `delete` subcommands for managing ast-grep rules via the Taskless API.
 
 ## Requirements
 
 ### Requirement: Rules subcommand group exists
 
-The CLI SHALL register a `rules` subcommand group with `create` and `delete` as nested subcommands. Running `taskless rules` with no subcommand SHALL display help text listing the available rules subcommands.
+The CLI SHALL register a `rules` subcommand group with `create`, `improve`, and `delete` as nested subcommands. Running `taskless rules` with no subcommand SHALL display help text listing the available rules subcommands.
 
 #### Scenario: Rules help is displayed
 
 - **WHEN** a user runs `taskless rules`
-- **THEN** the CLI SHALL print help text listing `create` and `delete` subcommands
+- **THEN** the CLI SHALL print help text listing `create`, `improve`, and `delete` subcommands
 
 ### Requirement: Rules create reads request from stdin
 
-The `taskless rules create` command SHALL read a JSON request payload from a file specified by the `--from <file>` argument. The payload SHALL conform to the shape `{ prompt: string, language?: string, successCase?: string, failureCase?: string }`. The `prompt` field is required. If `--from` is not provided, the CLI SHALL print an error message with usage examples and exit with a non-zero exit code. If the file does not exist or contains invalid JSON, the CLI SHALL print an appropriate error and exit with a non-zero exit code.
+The `taskless rules create` command SHALL read a JSON request payload from a file specified by the `--from <file>` argument. The payload SHALL conform to the shape `{ prompt: string, successCases?: string[], failureCases?: string[] }`. The `prompt` field is required. If `--from` is not provided, the CLI SHALL print an error message with usage examples and exit with a non-zero exit code. If the file does not exist or contains invalid JSON, the CLI SHALL print an appropriate error and exit with a non-zero exit code.
 
 #### Scenario: Valid JSON from file
 
