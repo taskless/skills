@@ -1,0 +1,29 @@
+Improve an existing rule with guidance
+
+Reads a JSON file containing the rule ID and improvement guidance, submits
+it to the Taskless API, and writes the updated rule and test files to
+.taskless/rules/ and .taskless/rule-tests/.
+
+Prerequisites:
+  Run `taskless auth login` to authenticate first.
+  A .taskless/taskless.json config file with orgId and repositoryUrl is required.
+
+Usage:
+  taskless rules improve --from <file> [options]
+
+Options:
+  --from <file>      Path to a JSON file containing the improve request (required)
+  -d, --dir <path>   Set working directory (default: current directory)
+  --json             Output results as JSON
+
+JSON File Fields:
+  ruleId       (required) The rule request ID to improve
+  guidance     (required) Description of what should change
+  references   (optional) Array of { filename, content } objects providing context
+
+Output:
+  Lists updated rule and test file paths.
+
+Examples:
+  taskless rules improve --from request.json
+  taskless rules improve --from .taskless/.tmp-improve-request.json --json

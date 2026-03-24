@@ -17,10 +17,9 @@ Options:
   --json             Output results as JSON
 
 JSON File Fields:
-  prompt        (required) Description of the pattern to detect
-  language      (optional) Target programming language
-  successCase   (optional) Example code that should pass
-  failureCase   (optional) Example code that should fail
+  prompt         (required) Description of the pattern to detect
+  successCases   (optional) Array of example code strings that should pass
+  failureCases   (optional) Array of example code strings that should fail
 
 Output:
   Lists generated rule and test file paths.

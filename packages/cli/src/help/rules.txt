@@ -1,7 +1,8 @@
 Manage Taskless rules
 
 Commands:
-  create   Create a new rule from a description
-  delete   Delete a rule and its test files
+  create    Create a new rule from a description
+  improve   Improve an existing rule with guidance
+  delete    Delete a rule and its test files
 
 Run `taskless help rules <command>` for details on a specific command.
