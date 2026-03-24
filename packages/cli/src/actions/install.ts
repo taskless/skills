@@ -17,7 +17,7 @@ const skillFiles: Record<string, string> = import.meta.glob(
 
 // Command files embedded at build time via Vite import.meta.glob
 const commandFiles: Record<string, string> = import.meta.glob(
-  "../../../../commands/taskless/**/*.md",
+  "../../../../commands/tskl/**/*.md",
   { query: "?raw", import: "default", eager: true }
 );
 
@@ -69,7 +69,7 @@ const TOOLS: ToolDescriptor[] = [
       path: "skills",
     },
     commands: {
-      path: "commands/taskless",
+      path: "commands/tskl",
     },
   },
 ];
@@ -117,13 +117,19 @@ export function getEmbeddedCommands(): EmbeddedCommand[] {
   }));
 }
 
-// --- Deprecated Skill Cleanup ---
+// --- Cleanup ---
+
+/** Known prefixes for Taskless-owned skills (current and legacy) */
+const SKILL_PREFIXES = ["taskless-", "use-taskless-"];
+
+/** Known directory names for Taskless-owned commands (current and legacy) */
+const COMMAND_DIRS = ["tskl", "taskless"];
 
 /**
- * Removes legacy skill directories that used the old "taskless-*" naming
- * convention, now replaced by "use-taskless-*" to avoid namespace collisions.
+ * Remove all Taskless-owned skill directories so a fresh set can be installed.
+ * Matches any directory starting with known prefixes.
  */
-async function removeDeprecatedSkills(
+async function removeOwnedSkills(
   cwd: string,
   tool: ToolDescriptor
 ): Promise<void> {
@@ -133,15 +139,35 @@ async function removeDeprecatedSkills(
   try {
     entries = await readdir(skillsDirectory);
   } catch {
-    return; // skills directory doesn't exist yet
+    return;
   }
 
-  const deprecated = entries.filter(
-    (name) => name.startsWith("taskless-") && !name.startsWith("use-taskless-")
+  const owned = entries.filter((name) =>
+    SKILL_PREFIXES.some((prefix) => name.startsWith(prefix))
   );
 
-  for (const name of deprecated) {
+  for (const name of owned) {
     await rm(join(skillsDirectory, name), { recursive: true, force: true });
+  }
+}
+
+/**
+ * Remove all Taskless-owned command directories so a fresh set can be installed.
+ * Matches known command directory names.
+ */
+async function removeOwnedCommands(
+  cwd: string,
+  tool: ToolDescriptor
+): Promise<void> {
+  if (!tool.commands) return;
+
+  const commandsBase = join(cwd, tool.dir, dirname(tool.commands.path));
+
+  for (const directoryName of COMMAND_DIRS) {
+    await rm(join(commandsBase, directoryName), {
+      recursive: true,
+      force: true,
+    });
   }
 }
 
@@ -161,8 +187,9 @@ export async function installForTool(
   const installedSkills: string[] = [];
   const installedCommands: string[] = [];
 
-  // Remove legacy "taskless-*" skills replaced by "use-taskless-*"
-  await removeDeprecatedSkills(cwd, tool);
+  // Remove all Taskless-owned skills and commands before installing fresh
+  await removeOwnedSkills(cwd, tool);
+  await removeOwnedCommands(cwd, tool);
 
   // Install skills verbatim
   for (const skill of skills) {

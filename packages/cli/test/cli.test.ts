@@ -77,15 +77,15 @@ describe("cli", () => {
           temporaryDirectory,
           ".claude",
           "skills",
-          "use-taskless-info",
+          "taskless-info",
           "SKILL.md"
         ),
         "utf8"
       );
-      expect(skillContent).toContain("name: use-taskless-info");
+      expect(skillContent).toContain("name: taskless-info");
 
       const commandContent = await readFile(
-        join(temporaryDirectory, ".claude", "commands", "taskless", "info.md"),
+        join(temporaryDirectory, ".claude", "commands", "tskl", "info.md"),
         "utf8"
       );
       expect(commandContent).toContain("Taskless");
