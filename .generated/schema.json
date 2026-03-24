@@ -1,0 +1,690 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Taskless CLI API",
+    "version": "0.0.1-private.20260324025041",
+    "description": "Internal API consumed by the Taskless CLI."
+  },
+  "paths": {
+    "/cli/api/whoami": {
+      "get": {
+        "summary": "Returns authenticated user identity and organizations",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "type": "string",
+                      "description": "Display name"
+                    },
+                    "email": {
+                      "type": "string",
+                      "description": "Email address"
+                    },
+                    "orgs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgId": {
+                            "type": "number",
+                            "description": "GitHub org ID"
+                          },
+                          "name": {
+                            "type": "string",
+                            "description": "Organization name"
+                          },
+                          "installationId": {
+                            "type": "number",
+                            "description": "GitHub App installation ID"
+                          }
+                        },
+                        "required": ["orgId", "name", "installationId"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["user", "email", "orgs"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cli/api/rule": {
+      "post": {
+        "summary": "Generate a new rule",
+        "requestBody": {
+          "description": "OK",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "orgId": {
+                    "type": "number",
+                    "description": "GitHub organization ID"
+                  },
+                  "repositoryUrl": {
+                    "type": "string",
+                    "description": "Full repository URL"
+                  },
+                  "prompt": {
+                    "type": "string",
+                    "description": "Description of the rule to generate"
+                  },
+                  "successCases": {
+                    "description": "Examples of correct code that should pass the rule (optional)",
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "failureCases": {
+                    "description": "Examples of incorrect code that should fail the rule (optional)",
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": ["orgId", "repositoryUrl", "prompt"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "ruleId": {
+                      "type": "string",
+                      "description": "UUID of the generated rule job"
+                    },
+                    "status": {
+                      "type": "string",
+                      "const": "accepted",
+                      "description": "Initial status"
+                    }
+                  },
+                  "required": ["ruleId", "status"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cli/api/rule/{ruleId}": {
+      "get": {
+        "summary": "Get rule generation status and output (poll until terminal state)",
+        "parameters": [
+          {
+            "name": "ruleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "ruleId": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "accepted",
+                        "building",
+                        "generated",
+                        "failed",
+                        "pr",
+                        "merged",
+                        "closed"
+                      ]
+                    },
+                    "rules": {
+                      "description": "Generated rules (present when status is generated)",
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "description": "Rule identifier (matches content.id)"
+                          },
+                          "content": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "description": "Unique rule identifier, e.g. no-unused-variable"
+                              },
+                              "language": {
+                                "type": "string",
+                                "description": "Language to parse, e.g. typescript"
+                              },
+                              "rule": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {},
+                                "description": "Rule object to find matching AST nodes"
+                              },
+                              "severity": {
+                                "description": "Severity level",
+                                "type": "string",
+                                "enum": [
+                                  "hint",
+                                  "info",
+                                  "warning",
+                                  "error",
+                                  "off"
+                                ]
+                              },
+                              "message": {
+                                "description": "Message explaining why the rule fired",
+                                "type": "string"
+                              },
+                              "note": {
+                                "description": "Additional notes to elaborate the message",
+                                "type": "string"
+                              },
+                              "fix": {
+                                "description": "Auto-fix pattern or object",
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string"
+                                    },
+                                    "additionalProperties": {}
+                                  }
+                                ]
+                              },
+                              "constraints": {
+                                "description": "Meta variable constraints",
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {}
+                              },
+                              "utils": {
+                                "description": "Reusable utility rules",
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {}
+                              },
+                              "transform": {
+                                "description": "Meta variable transformations",
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {}
+                              },
+                              "metadata": {
+                                "description": "Extra rule metadata",
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {}
+                              },
+                              "files": {
+                                "description": "Glob patterns the rule applies to",
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "ignores": {
+                                "description": "Glob patterns to exclude",
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "url": {
+                                "description": "Documentation link",
+                                "type": "string"
+                              }
+                            },
+                            "required": ["id", "language", "rule"],
+                            "additionalProperties": false,
+                            "description": "The ast-grep rule definition"
+                          },
+                          "tests": {
+                            "description": "Test cases for the rule",
+                            "type": "object",
+                            "properties": {
+                              "valid": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                },
+                                "description": "Code that should NOT trigger the rule"
+                              },
+                              "invalid": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                },
+                                "description": "Code that SHOULD trigger the rule"
+                              }
+                            },
+                            "required": ["valid", "invalid"],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": ["id", "content"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "meta": {
+                      "description": "Sidecar metadata keyed by rule filename (present when rules are present)",
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "ticketId": {
+                            "type": "string",
+                            "description": "Ticket ID that produced this rule"
+                          },
+                          "installationId": {
+                            "description": "GitHub App installation ID (absent for public repos)",
+                            "type": "string"
+                          },
+                          "generatedAt": {
+                            "type": "string",
+                            "description": "ISO 8601 generation timestamp"
+                          },
+                          "schemaVersion": {
+                            "type": "string",
+                            "description": "Sidecar schema version"
+                          }
+                        },
+                        "required": [
+                          "ticketId",
+                          "generatedAt",
+                          "schemaVersion"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "error": {
+                      "description": "Error message (present when status is failed)",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["ruleId", "status"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cli/api/rule/{ruleId}/iterate": {
+      "post": {
+        "summary": "Iterate on an existing rule with guidance and optional references",
+        "parameters": [
+          {
+            "name": "ruleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "OK",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "orgId": {
+                    "type": "number",
+                    "description": "GitHub organization ID"
+                  },
+                  "guidance": {
+                    "type": "string",
+                    "description": "Feedback for iterating on the existing rule"
+                  },
+                  "references": {
+                    "description": "Reference files to include as context (optional)",
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "filename": {
+                          "type": "string",
+                          "description": "File path relative to .taskless/"
+                        },
+                        "content": {
+                          "type": "string",
+                          "description": "File content"
+                        }
+                      },
+                      "required": ["filename", "content"],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": ["orgId", "guidance"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "requestId": {
+                      "type": "string",
+                      "description": "The ruleId for polling status"
+                    },
+                    "status": {
+                      "type": "string",
+                      "const": "accepted",
+                      "description": "Iteration has been enqueued"
+                    }
+                  },
+                  "required": ["requestId", "status"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cli/api/update-engine": {
+      "post": {
+        "summary": "Request a scaffold update PR for a repository",
+        "requestBody": {
+          "description": "OK",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "orgId": {
+                    "type": "number",
+                    "description": "GitHub organization ID"
+                  },
+                  "repositoryUrl": {
+                    "type": "string",
+                    "description": "Full repository URL"
+                  },
+                  "version": {
+                    "type": "string",
+                    "description": "Current scaffold version from taskless.json"
+                  }
+                },
+                "required": ["orgId", "repositoryUrl", "version"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "const": "current",
+                          "description": "Scaffold is already up to date"
+                        }
+                      },
+                      "required": ["status"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "const": "exists",
+                          "description": "An update PR already exists"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "description": "Request ID for polling"
+                        },
+                        "prUrl": {
+                          "type": "string",
+                          "description": "URL of the existing PR"
+                        }
+                      },
+                      "required": ["status", "requestId", "prUrl"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "const": "accepted",
+                          "description": "Update enqueued for processing"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "description": "Request ID for polling"
+                        }
+                      },
+                      "required": ["status", "requestId"],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Update enqueued for processing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "const": "current",
+                          "description": "Scaffold is already up to date"
+                        }
+                      },
+                      "required": ["status"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "const": "exists",
+                          "description": "An update PR already exists"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "description": "Request ID for polling"
+                        },
+                        "prUrl": {
+                          "type": "string",
+                          "description": "URL of the existing PR"
+                        }
+                      },
+                      "required": ["status", "requestId", "prUrl"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "const": "accepted",
+                          "description": "Update enqueued for processing"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "description": "Request ID for polling"
+                        }
+                      },
+                      "required": ["status", "requestId"],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cli/api/update-engine/{requestId}": {
+      "get": {
+        "summary": "Get update engine status for a scaffold update (poll until terminal state)",
+        "parameters": [
+          {
+            "name": "requestId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "const": "pending",
+                          "description": "Update is in progress"
+                        }
+                      },
+                      "required": ["status"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "const": "open",
+                          "description": "Update PR is open"
+                        },
+                        "prUrl": {
+                          "type": "string",
+                          "description": "URL of the PR"
+                        }
+                      },
+                      "required": ["status", "prUrl"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "const": "merged",
+                          "description": "Update PR was merged"
+                        },
+                        "prUrl": {
+                          "type": "string",
+                          "description": "URL of the PR"
+                        }
+                      },
+                      "required": ["status", "prUrl"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "const": "closed",
+                          "description": "Update PR was closed"
+                        },
+                        "prUrl": {
+                          "type": "string",
+                          "description": "URL of the PR"
+                        }
+                      },
+                      "required": ["status", "prUrl"],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

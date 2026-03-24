@@ -1,182 +1,150 @@
-import { getApiBaseUrl } from "./api-config";
+import type { paths } from "../generated/api";
+import { createApiClient } from "./api-client";
 
-// --- Request types (stdin-provided fields) ---
+// --- Types extracted from the generated schema ---
 
-/** The fields provided by the user via stdin */
-export interface RuleCreateRequest {
-  prompt: string;
-  language?: string;
-  successCase?: string;
-  failureCase?: string;
-}
-
-/** The full API request body including project config fields */
-export interface RuleApiRequest {
-  orgId: number;
-  repositoryUrl: string;
-  prompt: string;
-  language?: string;
-  successCase?: string;
-  failureCase?: string;
-}
-
-// --- Response types ---
-
-/** Initial response from POST /cli/api/rule */
-export interface RuleSubmitResponse {
-  ruleId: string;
-  status: "accepted";
-}
-
-/** ast-grep rule content */
-export interface RuleContent {
-  id: string;
-  language: string;
-  rule: Record<string, unknown>;
-  severity?: "hint" | "info" | "warning" | "error" | "off";
-  message?: string;
-  note?: string;
-  fix?: string | Record<string, unknown>;
-  constraints?: Record<string, unknown>;
-  utils?: Record<string, unknown>;
-  transform?: Record<string, unknown>;
-  metadata?: Record<string, unknown>;
-  files?: string[];
-  ignores?: string[];
-  url?: string;
-}
-
-/** Test cases for a generated rule */
-export interface RuleTestCase {
-  valid: string[];
-  invalid: string[];
-}
+type RuleStatusData =
+  paths["/cli/api/rule/{ruleId}"]["get"]["responses"]["200"]["content"]["application/json"];
 
 /** A single generated rule from the API */
-export interface GeneratedRule {
-  id: string;
-  content: RuleContent;
-  tests?: RuleTestCase;
+export type GeneratedRule = NonNullable<RuleStatusData["rules"]>[number];
+
+// --- Types for the --from JSON file (not in the API schema) ---
+
+/** Fields provided by the user via the --from JSON file for rule creation */
+export interface RuleCreateRequest {
+  prompt: string;
+  successCases?: string[];
+  failureCases?: string[];
 }
 
-/** Discriminated union for GET /cli/api/rule/:ruleId responses */
-export type RuleStatusResponse =
-  | { status: "accepted"; ruleId: string }
-  | { status: "building"; ruleId: string }
-  | {
-      status: "generated";
-      ruleId: string;
-      rules: GeneratedRule[];
+/** Fields provided by the user via the --from JSON file for rule improvement */
+export interface RuleImproveRequest {
+  ruleId: string;
+  guidance: string;
+  references?: Array<{ filename: string; content: string }>;
+}
+
+// --- Helpers ---
+
+/** Extract error details from an untyped error response body */
+function parseErrorBody(rawError: unknown): Record<string, unknown> {
+  if (rawError && typeof rawError === "object") {
+    return rawError as Record<string, unknown>;
+  }
+  return {};
+}
+
+// --- API functions ---
+
+/** Submit a new rule generation request */
+export async function submitRule(
+  token: string,
+  request: {
+    orgId: number;
+    repositoryUrl: string;
+    prompt: string;
+    successCases?: string[];
+    failureCases?: string[];
+  }
+) {
+  const client = createApiClient(token);
+  const { data, error, response } = await client.POST("/cli/api/rule", {
+    body: request,
+  });
+
+  if (!data) {
+    const errorData = parseErrorBody(error);
+    if (response.status === 400 && errorData.error === "validation_error") {
+      const details = (errorData.details as string[]) ?? [];
+      throw new Error(`Validation error: ${details.join(", ")}`);
     }
-  | { status: "failed"; ruleId: string; error: string }
-  | { status: "pr" | "merged" | "closed"; ruleId: string };
-
-// --- API error types ---
-
-export type RuleApiError =
-  | { error: "validation_error"; details: string[] }
-  | { error: "repository_not_accessible" }
-  | { error: "organization_not_found" }
-  | { error: "request_not_found" }
-  | { error: "access_denied" };
-
-// --- Provider interface ---
-
-/** Interface for rule generation API calls */
-export interface RuleApiProvider {
-  submitRule(
-    token: string,
-    request: RuleApiRequest
-  ): Promise<RuleSubmitResponse>;
-  pollRuleStatus(token: string, ruleId: string): Promise<RuleStatusResponse>;
-}
-
-// --- HTTP implementation ---
-
-class HttpRuleApiProvider implements RuleApiProvider {
-  async submitRule(
-    token: string,
-    request: RuleApiRequest
-  ): Promise<RuleSubmitResponse> {
-    const baseUrl = getApiBaseUrl();
-    const response = await fetch(`${baseUrl}/api/rule`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(request),
-    });
-
-    if (!response.ok) {
-      const data = (await response.json().catch(() => ({}))) as Record<
-        string,
-        unknown
-      >;
-
-      if (response.status === 400 && data.error === "validation_error") {
-        const details = (data.details as string[]) ?? [];
-        throw new Error(`Validation error: ${details.join(", ")}`);
-      }
-      if (
-        response.status === 403 &&
-        data.error === "repository_not_accessible"
-      ) {
-        throw new Error(
-          "Repository is not accessible to this organization. Check your orgId and repositoryUrl in .taskless/taskless.json."
-        );
-      }
-      if (response.status === 404 && data.error === "organization_not_found") {
-        throw new Error(
-          "Organization not found. Check the orgId in .taskless/taskless.json."
-        );
-      }
-
+    if (
+      response.status === 403 &&
+      errorData.error === "repository_not_accessible"
+    ) {
       throw new Error(
-        `Request submission failed (HTTP ${String(response.status)})`
+        "Repository is not accessible to this organization. Check your orgId and repositoryUrl in .taskless/taskless.json."
       );
     }
-
-    return (await response.json()) as RuleSubmitResponse;
-  }
-
-  async pollRuleStatus(
-    token: string,
-    ruleId: string
-  ): Promise<RuleStatusResponse> {
-    const baseUrl = getApiBaseUrl();
-    const response = await fetch(
-      `${baseUrl}/api/rule/${encodeURIComponent(ruleId)}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
+    if (
+      response.status === 404 &&
+      errorData.error === "organization_not_found"
+    ) {
+      throw new Error(
+        "Organization not found. Check the orgId in .taskless/taskless.json."
+      );
+    }
+    throw new Error(
+      `Request submission failed (HTTP ${String(response.status)})`
     );
-
-    if (!response.ok) {
-      const data = (await response.json().catch(() => ({}))) as Record<
-        string,
-        unknown
-      >;
-
-      if (response.status === 403 && data.error === "access_denied") {
-        throw new Error("Access denied to this request.");
-      }
-      if (response.status === 404 && data.error === "request_not_found") {
-        throw new Error("Request not found. It may have expired.");
-      }
-
-      throw new Error(
-        `Status polling failed (HTTP ${String(response.status)})`
-      );
-    }
-
-    return (await response.json()) as RuleStatusResponse;
   }
+
+  return data;
 }
 
-// --- Stub implementation ---
+/** Poll for rule generation status */
+export async function pollRuleStatus(token: string, ruleId: string) {
+  const client = createApiClient(token);
+  const { data, error, response } = await client.GET("/cli/api/rule/{ruleId}", {
+    params: { path: { ruleId } },
+  });
 
-/** Default provider instance */
-export const ruleApiProvider: RuleApiProvider = new HttpRuleApiProvider();
+  if (!data) {
+    const errorData = parseErrorBody(error);
+    if (response.status === 403 && errorData.error === "access_denied") {
+      throw new Error("Access denied to this request.");
+    }
+    if (response.status === 404 && errorData.error === "request_not_found") {
+      throw new Error("Request not found. It may have expired.");
+    }
+    throw new Error(`Status polling failed (HTTP ${String(response.status)})`);
+  }
+
+  return data;
+}
+
+/** Submit an improve/iterate request for an existing rule */
+export async function iterateRule(
+  token: string,
+  ruleId: string,
+  request: {
+    orgId: number;
+    guidance: string;
+    references?: Array<{ filename: string; content: string }>;
+  }
+) {
+  const client = createApiClient(token);
+  const { data, error, response } = await client.POST(
+    "/cli/api/rule/{ruleId}/iterate",
+    {
+      params: { path: { ruleId } },
+      body: request,
+    }
+  );
+
+  if (!data) {
+    const errorData = parseErrorBody(error);
+    if (response.status === 400 && errorData.error === "validation_error") {
+      const details = (errorData.details as string[]) ?? [];
+      throw new Error(`Validation error: ${details.join(", ")}`);
+    }
+    if (response.status === 403 && errorData.error === "access_denied") {
+      throw new Error("Access denied to this request.");
+    }
+    if (response.status === 404 && errorData.error === "request_not_found") {
+      throw new Error("Rule not found. It may have expired.");
+    }
+    if (
+      response.status === 404 &&
+      errorData.error === "organization_not_found"
+    ) {
+      throw new Error(
+        "Organization not found. Check the orgId in .taskless/taskless.json."
+      );
+    }
+    throw new Error(`Iterate request failed (HTTP ${String(response.status)})`);
+  }
+
+  return data;
+}

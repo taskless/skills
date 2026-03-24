@@ -4,11 +4,7 @@ import { defineCommand } from "citty";
 
 import { getToken } from "../actions/token";
 import { readProjectConfig } from "../actions/project-config";
-import {
-  updateApiProvider,
-  type UpdateSubmitResponse,
-  type UpdateStatusResponse,
-} from "../actions/update-api";
+import { submitUpdate, pollUpdateStatus } from "../actions/update-api";
 
 const POLL_INTERVAL_MS = 5_000;
 
@@ -77,9 +73,9 @@ export const updateEngineCommand = defineCommand({
     }
 
     // 3. Submit update request
-    let submitResponse: UpdateSubmitResponse;
+    let submitResponse: Awaited<ReturnType<typeof submitUpdate>>;
     try {
-      submitResponse = await updateApiProvider.submitUpdate(token, {
+      submitResponse = await submitUpdate(token, {
         orgId: config.orgId,
         repositoryUrl: config.repositoryUrl,
         version: config.version,
@@ -128,9 +124,9 @@ export const updateEngineCommand = defineCommand({
     while (true) {
       await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
 
-      let pollResponse: UpdateStatusResponse;
+      let pollResponse: Awaited<ReturnType<typeof pollUpdateStatus>>;
       try {
-        pollResponse = await updateApiProvider.pollStatus(token, requestId);
+        pollResponse = await pollUpdateStatus(token, requestId);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         if (args.json) {

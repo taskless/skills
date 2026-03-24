@@ -1,137 +1,94 @@
-import { getApiBaseUrl } from "./api-config";
+import type { paths } from "../generated/api";
+import { createApiClient } from "./api-client";
 
-// --- Request types ---
+// --- Response types extracted from the generated schema ---
 
-/** The request body for POST /cli/api/update-engine */
-export interface UpdateRequest {
-  orgId: number;
-  repositoryUrl: string;
-  version: string;
+type UpdateSubmitResponse =
+  paths["/cli/api/update-engine"]["post"]["responses"]["200"]["content"]["application/json"];
+
+type UpdateStatusResponse =
+  paths["/cli/api/update-engine/{requestId}"]["get"]["responses"]["200"]["content"]["application/json"];
+
+/** Extract error details from an untyped error response body */
+function parseErrorBody(rawError: unknown): Record<string, unknown> {
+  if (rawError && typeof rawError === "object") {
+    return rawError as Record<string, unknown>;
+  }
+  return {};
 }
 
-// --- Response types ---
+/** Submit a scaffold update request */
+export async function submitUpdate(
+  token: string,
+  request: {
+    orgId: number;
+    repositoryUrl: string;
+    version: string;
+  }
+): Promise<UpdateSubmitResponse> {
+  const client = createApiClient(token);
+  const { data, error, response } = await client.POST(
+    "/cli/api/update-engine",
+    {
+      body: request,
+    }
+  );
 
-/** Discriminated union for POST /cli/api/update-engine responses */
-export type UpdateSubmitResponse =
-  | { status: "current" }
-  | { status: "exists"; requestId: string; prUrl: string }
-  | { status: "accepted"; requestId: string };
-
-/** Discriminated union for GET /cli/api/update-engine/:requestId responses */
-export type UpdateStatusResponse =
-  | { status: "pending" }
-  | { status: "open"; prUrl: string }
-  | { status: "merged"; prUrl: string }
-  | { status: "closed"; prUrl: string };
-
-// --- API error types ---
-
-export type UpdateApiError =
-  | { error: "validation_error"; details: string[] }
-  | { error: "organization_not_found" }
-  | { error: "repository_not_found" }
-  | { error: "not_found" }
-  | { error: "unauthorized" };
-
-// --- Provider interface ---
-
-/** Interface for update-engine API calls */
-export interface UpdateApiProvider {
-  submitUpdate(
-    token: string,
-    request: UpdateRequest
-  ): Promise<UpdateSubmitResponse>;
-  pollStatus(token: string, requestId: string): Promise<UpdateStatusResponse>;
-}
-
-// --- HTTP implementation ---
-
-class HttpUpdateApiProvider implements UpdateApiProvider {
-  async submitUpdate(
-    token: string,
-    request: UpdateRequest
-  ): Promise<UpdateSubmitResponse> {
-    const baseUrl = getApiBaseUrl();
-    const response = await fetch(`${baseUrl}/api/update-engine`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(request),
-    });
-
-    if (!response.ok) {
-      const data = (await response.json().catch(() => ({}))) as Record<
-        string,
-        unknown
-      >;
-
-      if (response.status === 400 && data.error === "validation_error") {
-        const details = (data.details as string[]) ?? [];
-        throw new Error(`Validation error: ${details.join(", ")}`);
-      }
-      if (response.status === 401) {
-        throw new Error(
-          "Authentication required. Run `taskless auth login` first."
-        );
-      }
-      if (response.status === 404 && data.error === "organization_not_found") {
-        throw new Error(
-          "Organization not found. Check the orgId in .taskless/taskless.json."
-        );
-      }
-      if (response.status === 404 && data.error === "repository_not_found") {
-        throw new Error(
-          "Repository not found. Check the repositoryUrl in .taskless/taskless.json."
-        );
-      }
-
+  if (!data) {
+    const errorData = parseErrorBody(error);
+    if (response.status === 400 && errorData.error === "validation_error") {
+      const details = (errorData.details as string[]) ?? [];
+      throw new Error(`Validation error: ${details.join(", ")}`);
+    }
+    if (response.status === 401) {
       throw new Error(
-        `Update request failed (HTTP ${String(response.status)})`
+        "Authentication required. Run `taskless auth login` first."
       );
     }
-
-    return (await response.json()) as UpdateSubmitResponse;
-  }
-
-  async pollStatus(
-    token: string,
-    requestId: string
-  ): Promise<UpdateStatusResponse> {
-    const baseUrl = getApiBaseUrl();
-    const response = await fetch(
-      `${baseUrl}/api/update-engine/${encodeURIComponent(requestId)}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    if (!response.ok) {
-      const data = (await response.json().catch(() => ({}))) as Record<
-        string,
-        unknown
-      >;
-
-      if (response.status === 401) {
-        throw new Error(
-          "Authentication required. Run `taskless auth login` first."
-        );
-      }
-      if (response.status === 404 && data.error === "not_found") {
-        throw new Error("Update request not found. It may have expired.");
-      }
-
+    if (
+      response.status === 404 &&
+      errorData.error === "organization_not_found"
+    ) {
       throw new Error(
-        `Status polling failed (HTTP ${String(response.status)})`
+        "Organization not found. Check the orgId in .taskless/taskless.json."
       );
     }
-
-    return (await response.json()) as UpdateStatusResponse;
+    if (response.status === 404 && errorData.error === "repository_not_found") {
+      throw new Error(
+        "Repository not found. Check the repositoryUrl in .taskless/taskless.json."
+      );
+    }
+    throw new Error(`Update request failed (HTTP ${String(response.status)})`);
   }
+
+  return data;
 }
 
-/** Default provider instance */
-export const updateApiProvider: UpdateApiProvider = new HttpUpdateApiProvider();
+/** Poll for scaffold update status */
+export async function pollUpdateStatus(
+  token: string,
+  requestId: string
+): Promise<UpdateStatusResponse> {
+  const client = createApiClient(token);
+  const { data, error, response } = await client.GET(
+    "/cli/api/update-engine/{requestId}",
+    {
+      params: { path: { requestId } },
+    }
+  );
+
+  if (!data) {
+    const errorData = parseErrorBody(error);
+    if (response.status === 401) {
+      throw new Error(
+        "Authentication required. Run `taskless auth login` first."
+      );
+    }
+    if (response.status === 404 && errorData.error === "not_found") {
+      throw new Error("Update request not found. It may have expired.");
+    }
+    throw new Error(`Status polling failed (HTTP ${String(response.status)})`);
+  }
+
+  return data;
+}
