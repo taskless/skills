@@ -1,5 +1,13 @@
 # @taskless/cli
 
+## 0.2.0
+
+### Minor Changes
+
+- ecf338d: Add `rules improve` CLI subcommand and `taskless-improve-rule` skill for iterating on existing rules via the new `/cli/api/rule/{ruleId}/iterate` endpoint. The skill guides agents through a decision tree: iterate on a single rule, replace it entirely, or expand into multiple rules. Also updates `rules create` to accept `successCases`/`failureCases` as arrays (matching the updated API schema).
+- ecf338d: Rename skills from `use-taskless-*` to `taskless-*` and commands from `taskless:*` to `tskl:*`. Skill directories now follow the `taskless-<verb>-<noun>` convention (e.g., `taskless-create-rule`, `taskless-improve-rule`). Cross-references in skill instructions now use skill names instead of command names for compatibility with non-command agentic systems.
+- ecf338d: Replace hand-written fetch calls with a typed API client powered by `openapi-fetch` and `openapi-typescript`. Request and response types are now generated from the OpenAPI schema at `.generated/schema.json`, removing manual type definitions for API interactions. Rule file types (`GeneratedRule`, etc.) are now derived from the schema.
+
 ## 0.1.5
 
 ### Patch Changes

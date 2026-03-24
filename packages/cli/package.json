@@ -1,6 +1,6 @@
 {
   "name": "@taskless/cli",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -8,8 +8,8 @@
     "directory": "packages/cli"
   },
   "scripts": {
-    "generate:api": "openapi-typescript ../../.generated/schema.json -o src/generated/api.d.ts",
     "build": "vite build",
+    "generate:api": "openapi-typescript ../../.generated/schema.json -o src/generated/api.d.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

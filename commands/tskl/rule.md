@@ -6,7 +6,7 @@ tags:
   - taskless
 metadata:
   author: taskless
-  version: 0.1.5
+  version: 0.2.0
   commandName: tskl:rule
 ---
 
