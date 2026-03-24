@@ -25,7 +25,11 @@
       "WebFetch(domain:docs.taskless.io)",
       "Bash(git status -u)"
     ],
-    "deny": ["Bash(npx:*)", "Bash(pnpm dlx @taskless/cli*)"],
+    "deny": [
+      "Bash(npx:*)",
+      "Bash(pnpm dlx @taskless/cli*)",
+      "Bash(openspec:*)"
+    ],
     "additionalDirectories": ["openspec/*"]
   },
   "read": {
