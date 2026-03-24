@@ -1,13 +1,11 @@
 ---
-name: "Taskless: Info"
+name: taskless-info
 description: Confirms that the Taskless skills plugin is installed and working. Use when the user wants to verify their Taskless setup, check plugin status, test the connection, or run a health check. Trigger on "is taskless working", "check taskless", "taskless status", or "taskless info".
-category: Taskless
-tags:
-  - taskless
 metadata:
   author: taskless
   version: 0.1.5
-  commandName: taskless:info
+  commandName: tskl:info
+compatibility: Designed for Agents implementing the Agent Skills specification.
 ---
 
 # Taskless Info

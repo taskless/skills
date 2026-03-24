@@ -1,10 +1,10 @@
 ---
-name: use-taskless-update-engine
+name: taskless-update-engine
 description: Requests a scaffold upgrade for the .taskless/ engine directory. Use when the user needs to update their Taskless scaffold, upgrade their engine version, or when the CLI reports a stale scaffold version. Trigger on "update engine", "upgrade taskless", "taskless update-engine", or "scaffold is out of date".
 metadata:
   author: taskless
   version: 0.1.5
-  commandName: taskless:update-engine
+  commandName: tskl:update-engine
 compatibility: Designed for Agents implementing the Agent Skills specification.
 ---
 
@@ -32,6 +32,6 @@ When this skill is invoked, run the update-engine CLI command to request a scaff
    - `{ "status": "closed", "prUrl": "<url>" }` — Tell the user the PR was closed and suggest re-running the command.
 
 4. **Handle errors.** If the CLI exits with a non-zero code:
-   - **Authentication required**: Suggest running `taskless auth login` first.
-   - **Missing config**: Suggest running `taskless init` to set up the project.
+   - **Authentication required**: Suggest the `taskless-login` skill.
+   - **Missing config**: Suggest running `pnpm dlx @taskless/cli@latest init` to set up the project.
    - **API errors**: Report the error message and suggest trying again.

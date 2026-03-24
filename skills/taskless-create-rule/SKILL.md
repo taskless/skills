@@ -1,10 +1,10 @@
 ---
-name: use-taskless-rule-create
+name: taskless-create-rule
 description: Creates a new Taskless rule from a description. Use when the user wants to create a rule, add a lint rule, define a code pattern to detect, or generate an ast-grep rule. Trigger on "create a rule", "add a taskless rule", "new rule for", or "detect this pattern".
 metadata:
   author: taskless
   version: 0.1.5
-  commandName: taskless:rule
+  commandName: tskl:rule
 compatibility: Designed for Agents implementing the Agent Skills specification.
 ---
 
@@ -55,25 +55,30 @@ Your goal is to produce the best possible rule by enriching the user's initial d
 
 5. **Write the JSON payload to a file.** Build a JSON object with the gathered fields. Write the JSON to `.taskless/.tmp-rule-request.json`.
 
-   **Multiple examples:** The `successCase` and `failureCase` fields are single strings. When you have multiple examples, concatenate them into one string using fenced code blocks separated by blank lines:
+   **Multiple examples:** The `successCases` and `failureCases` fields are arrays of strings. Each example is a separate array element:
 
-   ````json
+   ```json
    {
      "prompt": "...",
-     "language": "typescript",
-     "failureCase": "```typescript\n/// <reference types=\"@cloudflare/workers-types\" />\nexport class MyWorker { ... }\n```\n\n```typescript\n/// <reference types=\"vite/client\" />\nconst x = import.meta.env.FOO;\n```",
-     "successCase": "```typescript\nimport type { DurableObjectState } from 'cloudflare:workers';\nexport class MyWorker { ... }\n```\n\n```typescript\n// .d.ts files are exempt — triple-slash is idiomatic there\n/// <reference types=\"@cloudflare/workers-types\" />\n```"
+     "failureCases": [
+       "/// <reference types=\"@cloudflare/workers-types\" />\nexport class MyWorker { ... }",
+       "/// <reference types=\"vite/client\" />\nconst x = import.meta.env.FOO;"
+     ],
+     "successCases": [
+       "import type { DurableObjectState } from 'cloudflare:workers';\nexport class MyWorker { ... }",
+       "// .d.ts files are exempt — triple-slash is idiomatic there\n/// <reference types=\"@cloudflare/workers-types\" />"
+     ]
    }
-   ````
+   ```
 
 6. **Invoke the CLI.** Run `pnpm dlx @taskless/cli@latest rules create --from .taskless/.tmp-rule-request.json --json`. The command may take 30-60 seconds as it polls the API.
 
 7. **Clean up.** After the command completes (success or failure), delete the `.taskless/.tmp-rule-request.json` file.
 
-8. **Report the results.** When the CLI completes, show the generated file paths and suggest running `taskless check` to test the new rule.
+8. **Report the results.** When the CLI completes, show the generated file paths and suggest running `taskless-check` to test the new rule.
 
 9. **Handle errors.** If the CLI fails:
-   - **Authentication required**: Suggest running `taskless auth login` first.
-   - **Missing config**: Suggest running `taskless init` to set up the project.
-   - **Stale scaffold version**: Suggest running `taskless update-engine` to update the `.taskless/` engine directory.
+   - **Authentication required**: Suggest the `taskless-login` skill.
+   - **Missing config**: Suggest running `pnpm dlx @taskless/cli@latest init` to set up the project.
+   - **Stale scaffold version**: Suggest the `taskless-update-engine` skill.
    - **API errors**: Report the error message and suggest trying again.

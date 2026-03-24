@@ -8,5 +8,5 @@
   "homepage": "https://taskless.io",
   "repository": "https://github.com/taskless/skills",
   "license": "MIT",
-  "commands": "./commands/taskless/"
+  "commands": "./commands/tskl/"
 }

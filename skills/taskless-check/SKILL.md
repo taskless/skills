@@ -1,13 +1,11 @@
 ---
-name: "Taskless: Check"
+name: taskless-check
 description: Checks a repository using the Taskless rules via the CLI. Use when the user wants to run a check, test rules, or validate code against taskless rules. Trigger on "check my code", "run taskless check", "test my rules", or "validate with taskless".
-category: Taskless
-tags:
-  - taskless
 metadata:
   author: taskless
   version: 0.1.5
-  commandName: taskless:check
+  commandName: tskl:check
+compatibility: Designed for Agents implementing the Agent Skills specification.
 ---
 
 # Taskless Check
@@ -22,4 +20,4 @@ When this skill is invoked, perform a check of the codebase using the Taskless C
 
 3. **Parse the response.** Parse the JSON output with `JSON.parse()`. Use the fields described in the help output to determine success or failure and report any issues found to the user.
 
-4. **Handle errors.** If the command exits with a non-zero code or the output is not valid JSON, report the error and suggest running `taskless init` if configuration is missing.
+4. **Handle errors.** If the command exits with a non-zero code or the output is not valid JSON, report the error and suggest running `pnpm dlx @taskless/cli@latest init` if configuration is missing.

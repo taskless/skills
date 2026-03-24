@@ -11,7 +11,7 @@ import { parse, stringify } from "yaml";
 const ROOT = resolve(import.meta.dirname, "..");
 const SKILLS_DIR = join(ROOT, "skills");
 const COMMANDS_DIR = join(ROOT, "commands");
-const PREFIX = "use-taskless-";
+const PREFIX = "taskless-";
 
 interface Frontmatter {
   data: Record<string, unknown>;
@@ -54,7 +54,7 @@ if (skillDirectories.length === 0) {
 }
 
 // Clean commands directory (remove generated subdirectories)
-rmSync(join(COMMANDS_DIR, "taskless"), { recursive: true, force: true });
+rmSync(join(COMMANDS_DIR, "tskl"), { recursive: true, force: true });
 
 let generated = 0;
 

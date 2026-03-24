@@ -1,13 +1,11 @@
 ---
-name: "Taskless: Logout"
+name: taskless-logout
 description: Explains how to remove saved Taskless authentication. Use when the user wants to log out, disconnect, remove credentials, or clear their Taskless session. Trigger on "taskless logout", "disconnect taskless", or "remove taskless auth".
-category: Taskless
-tags:
-  - taskless
 metadata:
   author: taskless
   version: 0.1.5
-  commandName: taskless:logout
+  commandName: tskl:logout
+compatibility: Designed for Agents implementing the Agent Skills specification.
 ---
 
 # Taskless Logout
