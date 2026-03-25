@@ -1,7 +1,9 @@
 import { execFile } from "node:child_process";
-import { resolve } from "node:path";
+import { mkdtemp, rm } from "node:fs/promises";
+import { resolve, join } from "node:path";
+import { tmpdir } from "node:os";
 import { promisify } from "node:util";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, beforeEach, afterEach } from "vitest";
 
 const execFileAsync = promisify(execFile);
 const binPath = resolve(import.meta.dirname, "../dist/index.js");
@@ -65,6 +67,16 @@ function parseSchemaOutput(stdout: string): {
 }
 
 describe("--schema flag", () => {
+  let temporaryDirectory: string;
+
+  beforeEach(async () => {
+    temporaryDirectory = await mkdtemp(join(tmpdir(), "taskless-schema-"));
+  });
+
+  afterEach(async () => {
+    await rm(temporaryDirectory, { recursive: true, force: true });
+  });
+
   describe("rules create --schema", () => {
     it("exits 0 and prints three schema blocks", async () => {
       const { stdout, exitCode } = await runCli([
@@ -127,7 +139,7 @@ describe("--schema flag", () => {
         "create",
         "--schema",
         "-d",
-        "/tmp",
+        temporaryDirectory,
       ]);
       expect(exitCode).toBe(0);
     });
@@ -204,7 +216,12 @@ describe("--schema flag", () => {
     });
 
     it("does not require .taskless/ directory", async () => {
-      const { exitCode } = await runCli(["check", "--schema", "-d", "/tmp"]);
+      const { exitCode } = await runCli([
+        "check",
+        "--schema",
+        "-d",
+        temporaryDirectory,
+      ]);
       expect(exitCode).toBe(0);
     });
   });

@@ -4,10 +4,12 @@ import { z } from "zod";
 export const inputSchema = z.object({
   ruleId: z
     .string()
+    .trim()
     .min(1, "ruleId must be a non-empty string")
     .describe("ID of the rule to improve"),
   guidance: z
     .string()
+    .trim()
     .min(1, "guidance must be a non-empty string")
     .describe("Feedback for iterating on the existing rule"),
   references: z

@@ -4,6 +4,7 @@ import { z } from "zod";
 export const inputSchema = z.object({
   prompt: z
     .string()
+    .trim()
     .min(1, "prompt must be a non-empty string")
     .describe("Description of the rule to generate"),
   successCases: z
