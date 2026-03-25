@@ -80,12 +80,23 @@ const createCommand = defineCommand({
 
     const cwd = resolve(args.dir ?? process.cwd());
 
+    /** Emit an error and exit, respecting --json mode */
+    function fail(message: string): never {
+      if (args.json) {
+        console.log(
+          JSON.stringify(createErrorSchema.parse({ error: message }))
+        );
+      } else {
+        console.error(`Error: ${message}`);
+      }
+      process.exit(1);
+    }
+
     // 1. Read and validate --from file
     if (!args.from) {
-      console.error(
-        "Error: --from is required. Provide a path to a JSON file.\n  Example: taskless rules create --from request.json"
+      fail(
+        "--from is required. Provide a path to a JSON file.\n  Example: taskless rules create --from request.json"
       );
-      process.exit(1);
     }
 
     const filePath = resolve(cwd, args.from);
@@ -93,32 +104,26 @@ const createCommand = defineCommand({
     try {
       fileContent = await readFile(filePath, "utf8");
     } catch {
-      console.error(`Error: Could not read file "${args.from}".`);
-      process.exit(1);
+      fail(`Could not read file "${args.from}".`);
     }
 
     let rawJson: unknown;
     try {
       rawJson = JSON.parse(fileContent) as unknown;
     } catch {
-      console.error(`Error: "${args.from}" is not valid JSON.`);
-      process.exit(1);
+      fail(`"${args.from}" is not valid JSON.`);
     }
 
-    let request;
+    let request: ReturnType<typeof createInputSchema.parse>;
     try {
       request = createInputSchema.parse(rawJson);
     } catch (error) {
       if (error instanceof ZodError) {
-        console.error(
-          `Error: Invalid input: ${error.issues.map((issue) => issue.message).join(", ")}`
-        );
-      } else {
-        console.error(
-          `Error: ${error instanceof Error ? error.message : String(error)}`
+        fail(
+          `Invalid input: ${error.issues.map((issue) => issue.message).join(", ")}`
         );
       }
-      process.exit(1);
+      fail(error instanceof Error ? error.message : String(error));
     }
 
     // 2. Read project config and validate for rules
@@ -126,25 +131,18 @@ const createCommand = defineCommand({
     try {
       config = await readProjectConfig(cwd);
     } catch (error) {
-      console.error(
-        `Error: ${error instanceof Error ? error.message : String(error)}`
-      );
-      process.exit(1);
+      fail(error instanceof Error ? error.message : String(error));
     }
 
     const validation = validateRulesConfig(config);
     if (!validation.valid) {
-      console.error(`Error: ${validation.error}`);
-      process.exit(1);
+      fail(validation.error);
     }
 
     // 3. Resolve auth token
     const token = await getToken();
     if (!token) {
-      console.error(
-        "Error: Authentication required. Run `taskless auth login` first."
-      );
-      process.exit(1);
+      fail("Authentication required. Run `taskless auth login` first.");
     }
 
     // 4. Submit rule to API
@@ -159,10 +157,7 @@ const createCommand = defineCommand({
       });
       ruleId = response.ruleId;
     } catch (error) {
-      console.error(
-        `Error: ${error instanceof Error ? error.message : String(error)}`
-      );
-      process.exit(1);
+      fail(error instanceof Error ? error.message : String(error));
     }
 
     // 5. Poll for results
@@ -281,12 +276,23 @@ const improveCommand = defineCommand({
 
     const cwd = resolve(args.dir ?? process.cwd());
 
+    /** Emit an error and exit, respecting --json mode */
+    function fail(message: string): never {
+      if (args.json) {
+        console.log(
+          JSON.stringify(improveErrorSchema.parse({ error: message }))
+        );
+      } else {
+        console.error(`Error: ${message}`);
+      }
+      process.exit(1);
+    }
+
     // 1. Read and validate --from file
     if (!args.from) {
-      console.error(
-        "Error: --from is required. Provide a path to a JSON file.\n  Example: taskless rules improve --from request.json"
+      fail(
+        "--from is required. Provide a path to a JSON file.\n  Example: taskless rules improve --from request.json"
       );
-      process.exit(1);
     }
 
     const filePath = resolve(cwd, args.from);
@@ -294,32 +300,26 @@ const improveCommand = defineCommand({
     try {
       fileContent = await readFile(filePath, "utf8");
     } catch {
-      console.error(`Error: Could not read file "${args.from}".`);
-      process.exit(1);
+      fail(`Could not read file "${args.from}".`);
     }
 
     let rawJson: unknown;
     try {
       rawJson = JSON.parse(fileContent) as unknown;
     } catch {
-      console.error(`Error: "${args.from}" is not valid JSON.`);
-      process.exit(1);
+      fail(`"${args.from}" is not valid JSON.`);
     }
 
-    let request;
+    let request: ReturnType<typeof improveInputSchema.parse>;
     try {
       request = improveInputSchema.parse(rawJson);
     } catch (error) {
       if (error instanceof ZodError) {
-        console.error(
-          `Error: Invalid input: ${error.issues.map((issue) => issue.message).join(", ")}`
-        );
-      } else {
-        console.error(
-          `Error: ${error instanceof Error ? error.message : String(error)}`
+        fail(
+          `Invalid input: ${error.issues.map((issue) => issue.message).join(", ")}`
         );
       }
-      process.exit(1);
+      fail(error instanceof Error ? error.message : String(error));
     }
 
     // 2. Read project config and validate for rules
@@ -327,25 +327,18 @@ const improveCommand = defineCommand({
     try {
       config = await readProjectConfig(cwd);
     } catch (error) {
-      console.error(
-        `Error: ${error instanceof Error ? error.message : String(error)}`
-      );
-      process.exit(1);
+      fail(error instanceof Error ? error.message : String(error));
     }
 
     const validation = validateRulesConfig(config);
     if (!validation.valid) {
-      console.error(`Error: ${validation.error}`);
-      process.exit(1);
+      fail(validation.error);
     }
 
     // 3. Resolve auth token
     const token = await getToken();
     if (!token) {
-      console.error(
-        "Error: Authentication required. Run `taskless auth login` first."
-      );
-      process.exit(1);
+      fail("Authentication required. Run `taskless auth login` first.");
     }
 
     // 4. Submit iterate request to API
@@ -358,10 +351,7 @@ const improveCommand = defineCommand({
       });
       requestId = response.requestId;
     } catch (error) {
-      console.error(
-        `Error: ${error instanceof Error ? error.message : String(error)}`
-      );
-      process.exit(1);
+      fail(error instanceof Error ? error.message : String(error));
     }
 
     // 5. Poll for results using the requestId

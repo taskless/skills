@@ -192,7 +192,7 @@ export const checkCommand = defineCommand({
       // Format output
       if (args.json) {
         const output = checkOutputSchema.parse({
-          success: true,
+          success: !hasErrors,
           results,
         });
         console.log(JSON.stringify(output));

@@ -34,13 +34,13 @@ export const checkResultSchema = z.object({
 
 /** Output schema for `taskless check --json` on success */
 export const outputSchema = z.object({
-  success: z.literal(true),
+  success: z.boolean(),
   results: z.array(checkResultSchema).describe("Check results"),
 });
 
 /** Error schema for `taskless check --json` on failure */
 export const errorSchema = z.object({
   success: z.literal(false),
-  error: z.string().optional().describe("Error message"),
+  error: z.string().describe("Error message"),
   results: z.array(checkResultSchema).describe("Check results (may be empty)"),
 });
