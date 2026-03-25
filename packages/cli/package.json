@@ -21,7 +21,9 @@
     "@ast-grep/cli": "^0.41.0",
     "citty": "^0.1.6",
     "openapi-fetch": "^0.17.0",
-    "yaml": "^2.8.2"
+    "yaml": "^2.8.2",
+    "zod": "^3.25.67",
+    "zod-to-json-schema": "^3.24.5"
   },
   "devDependencies": {
     "openapi-typescript": "^7.13.0",

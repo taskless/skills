@@ -4,11 +4,16 @@ import { stat, readdir, readFile } from "node:fs/promises";
 import { defineCommand } from "citty";
 
 import { runAstGrepScan } from "../actions/scan";
-import { formatText, formatJson } from "../actions/format";
+import { formatText } from "../actions/format";
 import {
   isValidSpecVersion,
   isScaffoldVersionSufficient,
 } from "../capabilities";
+import { printSchema } from "../actions/schema-output";
+import {
+  outputSchema as checkOutputSchema,
+  errorSchema as checkErrorSchema,
+} from "../schemas/check";
 
 export const checkCommand = defineCommand({
   meta: {
@@ -26,8 +31,22 @@ export const checkCommand = defineCommand({
       description: "Output as JSON",
       default: false,
     },
+    schema: {
+      type: "boolean",
+      description: "Print input/output/error JSON Schemas and exit",
+      default: false,
+    },
   },
   async run({ args }) {
+    // --schema short-circuits: print schemas and exit
+    if (args.schema) {
+      printSchema({
+        output: checkOutputSchema,
+        error: checkErrorSchema,
+      });
+      process.exit(0);
+    }
+
     const cwd = resolve(args.dir ?? process.cwd());
 
     // Validate .taskless/taskless.json exists
@@ -40,7 +59,15 @@ export const checkCommand = defineCommand({
       const message =
         "Error: .taskless/taskless.json not found. Run `taskless init` to set up your project.";
       if (args.json) {
-        console.log(formatJson([], { success: false, error: message }));
+        console.log(
+          JSON.stringify(
+            checkErrorSchema.parse({
+              success: false,
+              error: message,
+              results: [],
+            })
+          )
+        );
       } else {
         console.error(message);
       }
@@ -56,7 +83,15 @@ export const checkCommand = defineCommand({
         const message =
           'Error: .taskless/taskless.json is missing the "version" field.';
         if (args.json) {
-          console.log(formatJson([], { success: false, error: message }));
+          console.log(
+            JSON.stringify(
+              checkErrorSchema.parse({
+                success: false,
+                error: message,
+                results: [],
+              })
+            )
+          );
         } else {
           console.error(message);
         }
@@ -65,7 +100,15 @@ export const checkCommand = defineCommand({
       if (!isValidSpecVersion(config.version)) {
         const message = `Error: Invalid spec version "${config.version}" in .taskless/taskless.json. Expected YYYY-MM-DD format.`;
         if (args.json) {
-          console.log(formatJson([], { success: false, error: message }));
+          console.log(
+            JSON.stringify(
+              checkErrorSchema.parse({
+                success: false,
+                error: message,
+                results: [],
+              })
+            )
+          );
         } else {
           console.error(message);
         }
@@ -76,7 +119,15 @@ export const checkCommand = defineCommand({
       if (error instanceof SyntaxError) {
         const message = "Error: .taskless/taskless.json is not valid JSON.";
         if (args.json) {
-          console.log(formatJson([], { success: false, error: message }));
+          console.log(
+            JSON.stringify(
+              checkErrorSchema.parse({
+                success: false,
+                error: message,
+                results: [],
+              })
+            )
+          );
         } else {
           console.error(message);
         }
@@ -89,7 +140,15 @@ export const checkCommand = defineCommand({
     if (!isScaffoldVersionSufficient("check", projectVersion)) {
       const message = `Error: Scaffold version ${projectVersion} is below the minimum required for 'taskless check'. Run \`taskless update-engine\` to update.`;
       if (args.json) {
-        console.log(formatJson([], { success: false, error: message }));
+        console.log(
+          JSON.stringify(
+            checkErrorSchema.parse({
+              success: false,
+              error: message,
+              results: [],
+            })
+          )
+        );
       } else {
         console.error(message);
       }
@@ -108,7 +167,11 @@ export const checkCommand = defineCommand({
 
     if (ruleFiles.length === 0) {
       if (args.json) {
-        console.log(formatJson([], { success: true }));
+        console.log(
+          JSON.stringify(
+            checkOutputSchema.parse({ success: true, results: [] })
+          )
+        );
       } else {
         console.warn(
           "Warning: No rules found in .taskless/rules/. Nothing to check."
@@ -124,18 +187,30 @@ export const checkCommand = defineCommand({
     // Run scanner
     try {
       const { results } = await runAstGrepScan(cwd);
+      const hasErrors = results.some((r) => r.severity === "error");
 
       // Format output
-      const output = args.json ? formatJson(results) : formatText(results);
-      console.log(output);
+      if (args.json) {
+        const output = checkOutputSchema.parse({
+          success: true,
+          results,
+        });
+        console.log(JSON.stringify(output));
+      } else {
+        console.log(formatText(results));
+      }
 
       // Exit code: 1 if any errors, 0 otherwise
-      const hasErrors = results.some((r) => r.severity === "error");
       process.exit(hasErrors ? 1 : 0);
     } catch (error) {
       const message = `Error: ${error instanceof Error ? error.message : String(error)}`;
       if (args.json) {
-        console.log(formatJson([], { success: false, error: message }));
+        const output = checkErrorSchema.parse({
+          success: false,
+          error: message,
+          results: [],
+        });
+        console.log(JSON.stringify(output));
       } else {
         console.error(message);
       }

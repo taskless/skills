@@ -34,6 +34,11 @@ const main = defineCommand({
       description: "Output as JSON",
       default: false,
     },
+    schema: {
+      type: "boolean",
+      description: "Print input/output/error JSON Schemas and exit",
+      default: false,
+    },
   },
   subCommands: {
     ...subCommands,

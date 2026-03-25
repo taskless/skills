@@ -3,23 +3,30 @@ import { resolve } from "node:path";
 import { readFile } from "node:fs/promises";
 import { defineCommand } from "citty";
 
+import { ZodError } from "zod";
+
 import { getToken } from "../actions/token";
 import {
   readProjectConfig,
   validateRulesConfig,
 } from "../actions/project-config";
-import {
-  submitRule,
-  pollRuleStatus,
-  iterateRule,
-  type RuleCreateRequest,
-  type RuleImproveRequest,
-} from "../actions/rule-api";
+import { submitRule, pollRuleStatus, iterateRule } from "../actions/rule-api";
 import {
   writeRuleFile,
   writeRuleTestFile,
   deleteRuleFiles,
 } from "../actions/rule-files";
+import { printSchema } from "../actions/schema-output";
+import {
+  inputSchema as createInputSchema,
+  outputSchema as createOutputSchema,
+  errorSchema as createErrorSchema,
+} from "../schemas/rules-create";
+import {
+  inputSchema as improveInputSchema,
+  outputSchema as improveOutputSchema,
+  errorSchema as improveErrorSchema,
+} from "../schemas/rules-improve";
 
 /** Format today's date as YYYYMMDD */
 function getTimestamp(): string {
@@ -49,14 +56,28 @@ const createCommand = defineCommand({
       description: "Output as JSON",
       default: false,
     },
+    schema: {
+      type: "boolean",
+      description: "Print input/output/error JSON Schemas and exit",
+      default: false,
+    },
     from: {
       type: "string",
       description:
         "Path to a JSON file containing the rule request (required). Example: --from .taskless/.tmp-rule-request.json",
-      required: true,
     },
   },
   async run({ args }) {
+    // --schema short-circuits: print schemas and exit
+    if (args.schema) {
+      printSchema({
+        input: createInputSchema,
+        output: createOutputSchema,
+        error: createErrorSchema,
+      });
+      process.exit(0);
+    }
+
     const cwd = resolve(args.dir ?? process.cwd());
 
     // 1. Read and validate --from file
@@ -76,18 +97,27 @@ const createCommand = defineCommand({
       process.exit(1);
     }
 
-    let request: RuleCreateRequest;
+    let rawJson: unknown;
     try {
-      request = JSON.parse(fileContent) as RuleCreateRequest;
+      rawJson = JSON.parse(fileContent) as unknown;
     } catch {
       console.error(`Error: "${args.from}" is not valid JSON.`);
       process.exit(1);
     }
 
-    if (typeof request.prompt !== "string" || !request.prompt.trim()) {
-      console.error(
-        'Error: Missing required field "prompt" in the JSON payload.'
-      );
+    let request;
+    try {
+      request = createInputSchema.parse(rawJson);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        console.error(
+          `Error: Invalid input: ${error.issues.map((issue) => issue.message).join(", ")}`
+        );
+      } else {
+        console.error(
+          `Error: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
       process.exit(1);
     }
 
@@ -183,14 +213,13 @@ const createCommand = defineCommand({
 
           // 7. Output results
           if (args.json) {
-            console.log(
-              JSON.stringify({
-                success: true,
-                ruleId,
-                rules: rules.map((r) => r.id),
-                files: writtenFiles,
-              })
-            );
+            const output = createOutputSchema.parse({
+              success: true,
+              ruleId,
+              rules: rules.map((r) => r.id),
+              files: writtenFiles,
+            });
+            console.log(JSON.stringify(output));
           } else {
             console.log(`Generated ${String(rules.length)} rule(s):\n`);
             for (const filePath of writtenFiles) {
@@ -228,14 +257,28 @@ const improveCommand = defineCommand({
       description: "Output as JSON",
       default: false,
     },
+    schema: {
+      type: "boolean",
+      description: "Print input/output/error JSON Schemas and exit",
+      default: false,
+    },
     from: {
       type: "string",
       description:
         "Path to a JSON file containing { ruleId, guidance, references? }. Example: --from .taskless/.tmp-iterate-request.json",
-      required: true,
     },
   },
   async run({ args }) {
+    // --schema short-circuits: print schemas and exit
+    if (args.schema) {
+      printSchema({
+        input: improveInputSchema,
+        output: improveOutputSchema,
+        error: improveErrorSchema,
+      });
+      process.exit(0);
+    }
+
     const cwd = resolve(args.dir ?? process.cwd());
 
     // 1. Read and validate --from file
@@ -255,25 +298,27 @@ const improveCommand = defineCommand({
       process.exit(1);
     }
 
-    let request: RuleImproveRequest;
+    let rawJson: unknown;
     try {
-      request = JSON.parse(fileContent) as RuleImproveRequest;
+      rawJson = JSON.parse(fileContent) as unknown;
     } catch {
       console.error(`Error: "${args.from}" is not valid JSON.`);
       process.exit(1);
     }
 
-    if (typeof request.ruleId !== "string" || !request.ruleId.trim()) {
-      console.error(
-        'Error: Missing required field "ruleId" in the JSON payload.'
-      );
-      process.exit(1);
-    }
-
-    if (typeof request.guidance !== "string" || !request.guidance.trim()) {
-      console.error(
-        'Error: Missing required field "guidance" in the JSON payload.'
-      );
+    let request;
+    try {
+      request = improveInputSchema.parse(rawJson);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        console.error(
+          `Error: Invalid input: ${error.issues.map((issue) => issue.message).join(", ")}`
+        );
+      } else {
+        console.error(
+          `Error: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
       process.exit(1);
     }
 
@@ -369,14 +414,13 @@ const improveCommand = defineCommand({
 
           // 7. Output results
           if (args.json) {
-            console.log(
-              JSON.stringify({
-                success: true,
-                requestId,
-                rules: rules.map((r) => r.id),
-                files: writtenFiles,
-              })
-            );
+            const output = improveOutputSchema.parse({
+              success: true,
+              requestId,
+              rules: rules.map((r) => r.id),
+              files: writtenFiles,
+            });
+            console.log(JSON.stringify(output));
           } else {
             console.log(`Updated ${String(rules.length)} rule(s):\n`);
             for (const filePath of writtenFiles) {
