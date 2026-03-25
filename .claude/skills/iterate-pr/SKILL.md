@@ -125,6 +125,18 @@ After processing each inline review comment, reply on the PR thread to acknowled
 - Before replying, check if the thread already has a reply ending with `*- AI Coding Agent*` or `*— AI Coding Agent*` to avoid duplicates on re-loops
 - If the `gh api` call fails, log and continue — do not block the workflow
 
+**Resolving threads:** After replying, always resolve the thread using the `resolveReviewThread` GraphQL mutation with the same `threadId`. A reply alone does not mark the thread as resolved.
+
+```graphql
+mutation {
+  resolveReviewThread(input: { threadId: "<thread_id>" }) {
+    thread {
+      isResolved
+    }
+  }
+}
+```
+
 ### 4. Check CI Status
 
 Run `${CLAUDE_SKILL_ROOT}/scripts/fetch_pr_checks.py` to get structured failure data.
