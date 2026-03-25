@@ -16,12 +16,14 @@ When creating or modifying files, you **MUST** follow these conventions:
 
 When running Taskless CLI commands in this repo, use `pnpm cli` instead of `pnpm dlx @taskless/cli@latest`. This runs the locally built CLI at `./packages/cli/dist/index.js`.
 
-## Git Commits
+## Git Command Help for Agents
 
-When creating commit messages:
+- **ALWAYS** run `git commit` with the `-S` flag to ensure commits are GPG-signed. If signing fails, prompt the user to run `echo "test" | gpg --sign > /dev/null` to load their GPG signing key, then retry the commit.
 
-- **BE AWARE** `git commit` **MUST** run with the `-S` flag. When in some environments, this will fail. You should offer a commit message in that scenario.
-- **GPG Signing Workaround:** If signing fails due to no TTY available, prompt the user to run `echo "test" | gpg --sign > /dev/null` to load the GPG signing key, then retry the commit.
-- **NEVER** add "Generated with Claude Code" or similar attribution lines
-- **NEVER** add `Co-Authored-By: Claude` or any AI co-author attribution
-- Developers are 100% accountable for all code they commit, regardless of how it was created
+- **ALWAYS** prefer local directory paths when running git commands. For example, run `git status` from the repo root instead of `git -C /path/to/repo status`. This ensures that git's context is correct and avoids issues with submodules, worktrees, and nested repositories.
+
+- **ALWAYS** wait for confirmation before committing. After staging changes with `git add`, present a summary and pause for user approval before running the commit. This allows the user to review diffs and catch issues early.
+
+## OpenSpec Apply
+
+When implementing changes via `/opsx:apply`, **pause after each task group** for user review before continuing. Commit between groups and wait for confirmation.
