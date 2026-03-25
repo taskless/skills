@@ -1,5 +1,11 @@
 # @taskless/cli
 
+## 0.3.0
+
+### Minor Changes
+
+- 771a13b: Add `--schema` flag to CLI commands with `--json` support. When passed, prints Input Schema, Output Schema, and Error Schema as JSON Schema objects and exits. Introduces Zod as the single source of truth for CLI I/O validation and schema generation.
+
 ## 0.2.1
 
 ### Patch Changes
