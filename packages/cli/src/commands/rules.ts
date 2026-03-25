@@ -170,10 +170,9 @@ const createCommand = defineCommand({
       try {
         status = await pollRuleStatus(token, ruleId);
       } catch (error) {
-        console.error(
-          `Error: ${error instanceof Error ? error.message : String(error)}`
+        fail(
+          `Polling failed: ${error instanceof Error ? error.message : String(error)}`
         );
-        process.exit(1);
       }
 
       switch (status.status) {
@@ -186,8 +185,7 @@ const createCommand = defineCommand({
           break;
         }
         case "failed": {
-          console.error(`Error: Rule generation failed: ${status.error}`);
-          process.exit(1);
+          fail(`Rule generation failed: ${status.error}`);
           break;
         }
         case "generated": {
@@ -227,7 +225,17 @@ const createCommand = defineCommand({
         case "merged":
         case "closed": {
           // Terminal states beyond generation — treat as done without files
-          console.log(`Rule ${ruleId} is in state "${status.status}".`);
+          if (args.json) {
+            const output = createOutputSchema.parse({
+              success: true,
+              ruleId,
+              rules: [],
+              files: [],
+            });
+            console.log(JSON.stringify(output));
+          } else {
+            console.log(`Rule ${ruleId} is in state "${status.status}".`);
+          }
           return;
         }
       }
@@ -366,10 +374,9 @@ const improveCommand = defineCommand({
       try {
         status = await pollRuleStatus(token, requestId);
       } catch (error) {
-        console.error(
-          `Error: ${error instanceof Error ? error.message : String(error)}`
+        fail(
+          `Polling failed: ${error instanceof Error ? error.message : String(error)}`
         );
-        process.exit(1);
       }
 
       switch (status.status) {
@@ -382,8 +389,7 @@ const improveCommand = defineCommand({
           break;
         }
         case "failed": {
-          console.error(`Error: Rule iteration failed: ${status.error}`);
-          process.exit(1);
+          fail(`Rule iteration failed: ${status.error}`);
           break;
         }
         case "generated": {
@@ -422,7 +428,17 @@ const improveCommand = defineCommand({
         case "pr":
         case "merged":
         case "closed": {
-          console.log(`Request ${requestId} is in state "${status.status}".`);
+          if (args.json) {
+            const output = improveOutputSchema.parse({
+              success: true,
+              requestId,
+              rules: [],
+              files: [],
+            });
+            console.log(JSON.stringify(output));
+          } else {
+            console.log(`Request ${requestId} is in state "${status.status}".`);
+          }
           return;
         }
       }
