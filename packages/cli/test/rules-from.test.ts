@@ -101,7 +101,7 @@ describe("rules create --from", () => {
       expect.fail("should have exited with non-zero code");
     } catch (error) {
       const execError = error as { stderr: string };
-      expect(execError.stderr).toContain('Missing required field "prompt"');
+      expect(execError.stderr).toContain("Invalid input");
     }
   });
 });

@@ -21,11 +21,13 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(pnpm:*)",
       "Bash(git -C:*)",
+      "Bash(uv run:*)",
       "WebFetch(domain:api.reactrouter.com)",
       "WebFetch(domain:docs.taskless.io)",
       "Bash(git status -u)"
     ],
     "deny": [
+      "AskUserQuestion*",
       "Bash(npx:*)",
       "Bash(pnpm dlx @taskless/cli*)",
       "Bash(openspec:*)"

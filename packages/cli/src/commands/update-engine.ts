@@ -5,6 +5,11 @@ import { defineCommand } from "citty";
 import { getToken } from "../actions/token";
 import { readProjectConfig } from "../actions/project-config";
 import { submitUpdate, pollUpdateStatus } from "../actions/update-api";
+import { printSchema } from "../actions/schema-output";
+import {
+  outputSchema as updateOutputSchema,
+  errorSchema as updateErrorSchema,
+} from "../schemas/update-engine";
 
 const POLL_INTERVAL_MS = 5_000;
 
@@ -25,8 +30,22 @@ export const updateEngineCommand = defineCommand({
       description: "Output as JSON",
       default: false,
     },
+    schema: {
+      type: "boolean",
+      description: "Print input/output/error JSON Schemas and exit",
+      default: false,
+    },
   },
   async run({ args }) {
+    // --schema short-circuits: print schemas and exit
+    if (args.schema) {
+      printSchema({
+        output: updateOutputSchema,
+        error: updateErrorSchema,
+      });
+      process.exit(0);
+    }
+
     const cwd = resolve(args.dir ?? process.cwd());
 
     // 1. Read project config
@@ -36,9 +55,11 @@ export const updateEngineCommand = defineCommand({
     } catch (error) {
       if (args.json) {
         console.log(
-          JSON.stringify({
-            error: error instanceof Error ? error.message : String(error),
-          })
+          JSON.stringify(
+            updateErrorSchema.parse({
+              error: error instanceof Error ? error.message : String(error),
+            })
+          )
         );
       } else {
         console.error(
@@ -52,7 +73,9 @@ export const updateEngineCommand = defineCommand({
       const message =
         'Missing "orgId" or "repositoryUrl" in .taskless/taskless.json. Run `taskless init` to set up your project.';
       if (args.json) {
-        console.log(JSON.stringify({ error: message }));
+        console.log(
+          JSON.stringify(updateErrorSchema.parse({ error: message }))
+        );
       } else {
         console.error(`Error: ${message}`);
       }
@@ -65,7 +88,9 @@ export const updateEngineCommand = defineCommand({
       const message =
         "Authentication required. Run `taskless auth login` first.";
       if (args.json) {
-        console.log(JSON.stringify({ error: message }));
+        console.log(
+          JSON.stringify(updateErrorSchema.parse({ error: message }))
+        );
       } else {
         console.error(`Error: ${message}`);
       }
@@ -83,7 +108,9 @@ export const updateEngineCommand = defineCommand({
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (args.json) {
-        console.log(JSON.stringify({ error: message }));
+        console.log(
+          JSON.stringify(updateErrorSchema.parse({ error: message }))
+        );
       } else {
         console.error(`Error: ${message}`);
       }
@@ -93,7 +120,9 @@ export const updateEngineCommand = defineCommand({
     // 4. Handle immediate responses
     if (submitResponse.status === "current") {
       if (args.json) {
-        console.log(JSON.stringify({ status: "current" }));
+        console.log(
+          JSON.stringify(updateOutputSchema.parse({ status: "current" }))
+        );
       } else {
         console.log("Your project is already up to date.");
       }
@@ -103,11 +132,13 @@ export const updateEngineCommand = defineCommand({
     if (submitResponse.status === "exists") {
       if (args.json) {
         console.log(
-          JSON.stringify({
-            status: "exists",
-            requestId: submitResponse.requestId,
-            prUrl: submitResponse.prUrl,
-          })
+          JSON.stringify(
+            updateOutputSchema.parse({
+              status: "exists",
+              requestId: submitResponse.requestId,
+              prUrl: submitResponse.prUrl,
+            })
+          )
         );
       } else {
         console.log(
@@ -130,7 +161,9 @@ export const updateEngineCommand = defineCommand({
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         if (args.json) {
-          console.log(JSON.stringify({ error: message }));
+          console.log(
+            JSON.stringify(updateErrorSchema.parse({ error: message }))
+          );
         } else {
           console.error(`Error: ${message}`);
         }
@@ -145,7 +178,12 @@ export const updateEngineCommand = defineCommand({
         case "open": {
           if (args.json) {
             console.log(
-              JSON.stringify({ status: "open", prUrl: pollResponse.prUrl })
+              JSON.stringify(
+                updateOutputSchema.parse({
+                  status: "open",
+                  prUrl: pollResponse.prUrl,
+                })
+              )
             );
           } else {
             console.log(
@@ -157,7 +195,12 @@ export const updateEngineCommand = defineCommand({
         case "merged": {
           if (args.json) {
             console.log(
-              JSON.stringify({ status: "merged", prUrl: pollResponse.prUrl })
+              JSON.stringify(
+                updateOutputSchema.parse({
+                  status: "merged",
+                  prUrl: pollResponse.prUrl,
+                })
+              )
             );
           } else {
             console.log(
@@ -169,7 +212,12 @@ export const updateEngineCommand = defineCommand({
         case "closed": {
           if (args.json) {
             console.log(
-              JSON.stringify({ status: "closed", prUrl: pollResponse.prUrl })
+              JSON.stringify(
+                updateOutputSchema.parse({
+                  status: "closed",
+                  prUrl: pollResponse.prUrl,
+                })
+              )
             );
           } else {
             console.log(

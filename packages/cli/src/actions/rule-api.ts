@@ -9,22 +9,6 @@ type RuleStatusData =
 /** A single generated rule from the API */
 export type GeneratedRule = NonNullable<RuleStatusData["rules"]>[number];
 
-// --- Types for the --from JSON file (not in the API schema) ---
-
-/** Fields provided by the user via the --from JSON file for rule creation */
-export interface RuleCreateRequest {
-  prompt: string;
-  successCases?: string[];
-  failureCases?: string[];
-}
-
-/** Fields provided by the user via the --from JSON file for rule improvement */
-export interface RuleImproveRequest {
-  ruleId: string;
-  guidance: string;
-  references?: Array<{ filename: string; content: string }>;
-}
-
 // --- Helpers ---
 
 /** Extract error details from an untyped error response body */
