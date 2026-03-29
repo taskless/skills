@@ -18,13 +18,13 @@ This is a decision-making skill. You must evaluate the situation and choose the 
 
 1. **Read current command documentation.** Run `pnpm dlx @taskless/cli@latest help rules improve` and read the output. Use this to understand the improve command's `--from` JSON fields, options, and examples.
 
-2. **Inventory existing rules.** Scan the `.taskless/rules/` directory for `.yml` files. Read each rule file to understand what rules exist. For each rule, note:
+2. **Inventory existing rules.** If the user has already named a specific rule, skip to that rule directly. Otherwise, scan the `.taskless/rules/` directory for `.yml` files and present a summary. For each rule, note:
    - The rule ID (filename without `.yml`)
    - The language it targets
    - The pattern it detects (from the `message`, `note`, or `rule` fields)
-   - Any associated test files in `.taskless/tests/`
+   - Any associated test files in `.taskless/rule-tests/`
 
-   Present a summary of the existing rules to the user if they have not indicated a specific rule they want to improve.
+   Once a rule is selected, check for its sidecar metadata by running `pnpm dlx @taskless/cli@latest rules meta <rule-id> --json`. If metadata exists, note the `ticketId` — this is required for the iterate API.
 
 3. **Understand the improvement request.** Ask the user what they want to improve. Gather specifics:
    - Which rule(s) are problematic?
@@ -71,7 +71,7 @@ This is a decision-making skill. You must evaluate the situation and choose the 
    ### For Option A (iterate):
 
    a. **Build the JSON payload.** Create a JSON object with:
-   - `ruleId`: The rule ID to iterate on (this is the internal request ID from when the rule was generated — check the rule's YAML metadata for this, or use the rule filename as a fallback identifier). Providing the rule ID allows the API to understand the existing rule's logic and how to adjust it based on your guidance.
+   - `ruleId`: The ticket ID from the rule's sidecar metadata. Retrieve it by running `pnpm dlx @taskless/cli@latest rules meta <rule-id> --json` and reading the `ticketId` field. If no metadata file exists (rule was created before metadata support), fall back to using the rule filename as the identifier. Providing the ticket ID allows the API to understand the existing rule's logic and how to adjust it based on your guidance.
    - `guidance`: A clear, specific description of what should change. Include:
      - What the rule is doing wrong
      - What it should do instead
@@ -79,11 +79,11 @@ This is a decision-making skill. You must evaluate the situation and choose the 
      - Any exclusions or edge cases to handle
    - `references` (optional): Include the current rule file and test file contents so the API has full context. Each reference is `{ "filename": "<path relative to .taskless/>", "content": "<file contents>" }`.
 
-   Example payload:
+   Example payload (note: `ruleId` is the `ticketId` UUID from `rules meta --json`, not the rule filename):
 
    ```json
    {
-     "ruleId": "abc123-def456",
+     "ruleId": "d4f8e2a1-7b3c-4e9f-a5d6-1c2b3e4f5a6b",
      "guidance": "The rule currently flags console.log statements inside catch blocks, but these are intentional error logging. Exclude console.log/console.error/console.warn calls that appear inside catch blocks. Also exclude any console calls in files under src/scripts/ as those are CLI tools where console output is expected.",
      "references": [
        {
@@ -91,7 +91,7 @@ This is a decision-making skill. You must evaluate the situation and choose the 
          "content": "id: no-console-log\nlanguage: typescript\n..."
        },
        {
-         "filename": "tests/no-console-log-test.yml",
+         "filename": "rule-tests/no-console-log-20260328-test.yml",
          "content": "id: no-console-log\n..."
        }
      ]
@@ -104,20 +104,19 @@ This is a decision-making skill. You must evaluate the situation and choose the 
 
    d. **Clean up.** After the command completes (success or failure), delete `.taskless/.tmp-improve-request.json`.
 
-   e. **Report results.** Show the updated file paths.
+   e. **Report results.** Show the updated file paths and suggest running `taskless-check` to test the changes. The CLI also updates the sidecar metadata in `.taskless/rule-metadata/`.
 
    ### For Option B (replace):
 
    a. Note the old rule ID for deletion.
-   b. Work with the user to create a new rule following the same process as the `taskless-create-rule` skill (gather prompt, examples, exclusions, etc.).
-   c. Run the create command: `pnpm dlx @taskless/cli@latest rules create --from .taskless/.tmp-rule-request.json --json`.
-   d. After the new rule is generated, delete the old rule: `pnpm dlx @taskless/cli@latest rules delete <old-rule-id>`.
-   e. Clean up temp files and report results.
+   b. Invoke the `taskless-create-rule` skill (command name `tskl:rule`) to create the replacement rule. This ensures the full enrichment workflow (examples, exclusions, confirmation) is followed.
+   c. After the new rule is generated, delete the old rule: `pnpm dlx @taskless/cli@latest rules delete <old-rule-id>`.
+   d. Report results.
 
    ### For Option C (expand):
 
-   a. For each new rule needed, follow the `taskless-create-rule` process.
-   b. If any old rules are being superseded, delete them after the new rules are created.
+   a. For each new rule needed, invoke the `taskless-create-rule` skill (command name `tskl:rule`).
+   b. If any old rules are being superseded, delete them after the new rules are created: `pnpm dlx @taskless/cli@latest rules delete <old-rule-id>`.
    c. Report all changes.
 
 7. **Suggest testing.** After any approach, suggest running `taskless-check` to test the updated rules against the codebase.
