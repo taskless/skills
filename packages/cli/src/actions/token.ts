@@ -21,7 +21,16 @@ export async function getToken(): Promise<string | undefined> {
   try {
     const filePath = join(getConfigDirectory(), AUTH_FILE);
     const raw = await readFile(filePath, "utf8");
-    const data = JSON.parse(raw) as { access_token?: string };
+    const data = JSON.parse(raw) as {
+      access_token?: string;
+      expires_at?: number;
+    };
+
+    // If an expiry timestamp is stored, check it
+    if (data.expires_at !== undefined && Date.now() >= data.expires_at) {
+      return undefined;
+    }
+
     return data.access_token;
   } catch {
     return undefined;
@@ -38,7 +47,14 @@ export async function saveToken(data: {
   const directory = getConfigDirectory();
   await mkdir(directory, { recursive: true });
   const filePath = join(directory, AUTH_FILE);
-  await writeFile(filePath, JSON.stringify(data, null, 2) + "\n", {
+
+  // Convert relative expires_in (seconds) to absolute expires_at (ms epoch)
+  const persisted: Record<string, unknown> = { ...data };
+  if (data.expires_in !== undefined) {
+    persisted.expires_at = Date.now() + data.expires_in * 1000;
+  }
+
+  await writeFile(filePath, JSON.stringify(persisted, null, 2) + "\n", {
     mode: 0o600,
   });
 }
