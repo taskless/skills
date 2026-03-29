@@ -26,8 +26,13 @@ export async function getToken(): Promise<string | undefined> {
       expires_at?: number;
     };
 
-    // If an expiry timestamp is stored, check it
-    if (data.expires_at !== undefined && Date.now() >= data.expires_at) {
+    // If a valid numeric expiry timestamp is stored, check it
+    const expiresAt = data.expires_at;
+    if (
+      typeof expiresAt === "number" &&
+      Number.isFinite(expiresAt) &&
+      Date.now() >= expiresAt
+    ) {
       return undefined;
     }
 
@@ -50,7 +55,11 @@ export async function saveToken(data: {
 
   // Convert relative expires_in (seconds) to absolute expires_at (ms epoch)
   const persisted: Record<string, unknown> = { ...data };
-  if (data.expires_in !== undefined) {
+  if (
+    typeof data.expires_in === "number" &&
+    Number.isFinite(data.expires_in) &&
+    data.expires_in > 0
+  ) {
     persisted.expires_at = Date.now() + data.expires_in * 1000;
   }
 

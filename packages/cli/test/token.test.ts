@@ -14,6 +14,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  vi.useRealTimers();
   vi.unstubAllEnvs();
   await rm(temporaryDirectory, { recursive: true, force: true });
 });
@@ -61,13 +62,13 @@ describe("getToken", () => {
 
     it("returns undefined when expires_at is exactly now", async () => {
       const now = Date.now();
+      vi.useFakeTimers();
       vi.setSystemTime(now);
       await writeAuthFile({
         access_token: "edge-token",
         expires_at: now,
       });
       expect(await getToken()).toBeUndefined();
-      vi.useRealTimers();
     });
   });
 
@@ -97,13 +98,12 @@ describe("getToken", () => {
       expect(await getToken()).toBeUndefined();
     });
 
-    it("returns undefined when expires_at is not a number", async () => {
+    it("returns token when expires_at is not a number (treated as no expiry)", async () => {
       await writeAuthFile({
         access_token: "bad-expiry",
         expires_at: "not-a-number",
       });
-      // NaN comparison: Date.now() >= NaN is false, so token is returned
-      // This is acceptable — a non-numeric expires_at is treated as "no expiry"
+      // Non-numeric expires_at fails the typeof guard, so token is returned
       expect(await getToken()).toBe("bad-expiry");
     });
   });
