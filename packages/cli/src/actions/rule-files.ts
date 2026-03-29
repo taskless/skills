@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 import { stringify } from "yaml";
 
-import type { GeneratedRule } from "./rule-api";
+import type { GeneratedRule, RuleMetadata } from "./rule-api";
 
 /** Write a generated rule's content to .taskless/rules/{kebab-id}.yml */
 export async function writeRuleFile(
@@ -35,6 +35,22 @@ export async function writeRuleTestFile(
   return filePath;
 }
 
+/** Write sidecar metadata files to .taskless/rule-metadata/{key}.yml */
+export async function writeRuleMetaFiles(
+  cwd: string,
+  meta: RuleMetadata
+): Promise<string[]> {
+  const directory = join(cwd, ".taskless", "rule-metadata");
+  await mkdir(directory, { recursive: true });
+  const writtenFiles: string[] = [];
+  for (const [key, value] of Object.entries(meta)) {
+    const filePath = join(directory, `${key}.yml`);
+    await writeFile(filePath, stringify(value, { lineWidth: 0 }), "utf8");
+    writtenFiles.push(filePath);
+  }
+  return writtenFiles;
+}
+
 /** Delete a rule file and any matching test files. Returns whether the rule file existed. */
 export async function deleteRuleFiles(
   cwd: string,
@@ -63,6 +79,14 @@ export async function deleteRuleFiles(
     );
   } catch {
     // rule-tests directory doesn't exist, nothing to clean up
+  }
+
+  // Remove matching metadata file
+  const metaDirectory = join(cwd, ".taskless", "rule-metadata");
+  try {
+    await rm(join(metaDirectory, `${id}.yml`));
+  } catch {
+    // metadata file doesn't exist, nothing to clean up
   }
 
   return ruleExisted;

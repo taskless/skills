@@ -9,6 +9,9 @@ type RuleStatusData =
 /** A single generated rule from the API */
 export type GeneratedRule = NonNullable<RuleStatusData["rules"]>[number];
 
+/** Sidecar metadata keyed by rule filename */
+export type RuleMetadata = NonNullable<RuleStatusData["meta"]>;
+
 // --- Helpers ---
 
 /** Extract error details from an untyped error response body */

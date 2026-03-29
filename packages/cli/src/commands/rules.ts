@@ -14,6 +14,7 @@ import { submitRule, pollRuleStatus, iterateRule } from "../actions/rule-api";
 import {
   writeRuleFile,
   writeRuleTestFile,
+  writeRuleMetaFiles,
   deleteRuleFiles,
 } from "../actions/rule-files";
 import { printSchema } from "../actions/schema-output";
@@ -202,6 +203,11 @@ const createCommand = defineCommand({
               const testFile = await writeRuleTestFile(cwd, rule, timestamp);
               writtenFiles.push(testFile);
             }
+          }
+
+          if (status.meta) {
+            const metaFiles = await writeRuleMetaFiles(cwd, status.meta);
+            writtenFiles.push(...metaFiles);
           }
 
           // 7. Output results
@@ -406,6 +412,11 @@ const improveCommand = defineCommand({
               const testFile = await writeRuleTestFile(cwd, rule, timestamp);
               writtenFiles.push(testFile);
             }
+          }
+
+          if (status.meta) {
+            const metaFiles = await writeRuleMetaFiles(cwd, status.meta);
+            writtenFiles.push(...metaFiles);
           }
 
           // 7. Output results
