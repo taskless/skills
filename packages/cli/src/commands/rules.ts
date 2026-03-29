@@ -517,7 +517,17 @@ const metaCommand = defineCommand({
     }
 
     if (args.json) {
-      const output = metaOutputSchema.parse({ id: args.id, ...meta });
+      let output;
+      try {
+        output = metaOutputSchema.parse({ id: args.id, ...meta });
+      } catch (error) {
+        if (error instanceof ZodError) {
+          fail(
+            `Invalid metadata for rule "${args.id}": ${error.issues.map((issue) => issue.message).join(", ")}`
+          );
+        }
+        fail(error instanceof Error ? error.message : String(error));
+      }
       console.log(JSON.stringify(output));
     } else {
       console.log(`Metadata for rule "${args.id}":\n`);

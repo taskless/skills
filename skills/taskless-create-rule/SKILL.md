@@ -83,8 +83,7 @@ Your goal is to produce the best possible rule by enriching the user's initial d
 9. **Report the results.** When the CLI completes, show the generated file paths and suggest running `taskless-check` to test the new rule. The CLI also writes sidecar metadata to `.taskless/rule-metadata/<rule-id>.yml` containing the `ticketId` used for future iterations. You can retrieve this with `pnpm dlx @taskless/cli@latest rules meta <rule-id> --json`.
 
 10. **Handle errors.** If the CLI fails:
-
-- **Authentication required**: Suggest the `taskless-login` skill.
-- **Missing config**: Suggest running `pnpm dlx @taskless/cli@latest init` to set up the project.
-- **Stale scaffold version**: Suggest the `taskless-update-engine` skill.
-- **API errors**: Report the error message and suggest trying again.
+    - **Authentication required**: Suggest the `taskless-login` skill.
+    - **Missing config**: Suggest running `pnpm dlx @taskless/cli@latest init` to set up the project.
+    - **Stale scaffold version**: Suggest the `taskless-update-engine` skill.
+    - **API errors**: Report the error message and suggest trying again.
