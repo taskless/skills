@@ -23,7 +23,8 @@
       "Bash(uv run:*)",
       "WebFetch(domain:api.reactrouter.com)",
       "WebFetch(domain:docs.taskless.io)",
-      "Bash(git status -u)"
+      "Bash(git status -u)",
+      "mcp__linear__*"
     ],
     "deny": [
       "AskUserQuestion*",
