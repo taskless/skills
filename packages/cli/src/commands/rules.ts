@@ -15,6 +15,7 @@ import {
   writeRuleFile,
   writeRuleTestFile,
   writeRuleMetaFiles,
+  readRuleMetaFile,
   deleteRuleFiles,
 } from "../actions/rule-files";
 import { printSchema } from "../actions/schema-output";
@@ -28,6 +29,10 @@ import {
   outputSchema as improveOutputSchema,
   errorSchema as improveErrorSchema,
 } from "../schemas/rules-improve";
+import {
+  outputSchema as metaOutputSchema,
+  errorSchema as metaErrorSchema,
+} from "../schemas/rules-meta";
 
 /** Format today's date as YYYYMMDD */
 function getTimestamp(): string {
@@ -457,6 +462,72 @@ const improveCommand = defineCommand({
   },
 });
 
+const metaCommand = defineCommand({
+  meta: {
+    name: "meta",
+    description: "Show sidecar metadata for a rule",
+  },
+  args: {
+    dir: {
+      type: "string",
+      alias: "d",
+      description: "Working directory",
+    },
+    json: {
+      type: "boolean",
+      description: "Output as JSON",
+      default: false,
+    },
+    schema: {
+      type: "boolean",
+      description: "Print output/error JSON Schemas and exit",
+      default: false,
+    },
+    id: {
+      type: "positional",
+      description: "Rule ID to look up",
+      required: true,
+    },
+  },
+  async run({ args }) {
+    if (args.schema) {
+      printSchema({
+        output: metaOutputSchema,
+        error: metaErrorSchema,
+      });
+      process.exit(0);
+    }
+
+    const cwd = resolve(args.dir ?? process.cwd());
+
+    function fail(message: string): never {
+      if (args.json) {
+        console.log(JSON.stringify(metaErrorSchema.parse({ error: message })));
+      } else {
+        console.error(`Error: ${message}`);
+      }
+      process.exit(1);
+    }
+
+    const meta = await readRuleMetaFile(cwd, args.id);
+    if (!meta) {
+      fail(
+        `No metadata found for rule "${args.id}". Expected .taskless/rule-metadata/${args.id}.yml`
+      );
+    }
+
+    if (args.json) {
+      const output = metaOutputSchema.parse({ id: args.id, ...meta });
+      console.log(JSON.stringify(output));
+    } else {
+      console.log(`Metadata for rule "${args.id}":\n`);
+      for (const [key, value] of Object.entries(meta)) {
+        console.log(`  ${key}: ${String(value)}`);
+      }
+    }
+  },
+});
+
 const deleteCommand = defineCommand({
   meta: {
     name: "delete",
@@ -498,6 +569,7 @@ export const rulesCommand = defineCommand({
   subCommands: {
     create: createCommand,
     improve: improveCommand,
+    meta: metaCommand,
     delete: deleteCommand,
   },
 });

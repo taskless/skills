@@ -1,7 +1,7 @@
-import { mkdir, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { stringify } from "yaml";
+import { parse, stringify } from "yaml";
 
 import type { GeneratedRule, RuleMetadata } from "./rule-api";
 
@@ -49,6 +49,20 @@ export async function writeRuleMetaFiles(
     writtenFiles.push(filePath);
   }
   return writtenFiles;
+}
+
+/** Read a rule's sidecar metadata from .taskless/rule-metadata/{id}.yml. Returns null if not found. */
+export async function readRuleMetaFile(
+  cwd: string,
+  id: string
+): Promise<Record<string, unknown> | null> {
+  const filePath = join(cwd, ".taskless", "rule-metadata", `${id}.yml`);
+  try {
+    const content = await readFile(filePath, "utf8");
+    return parse(content) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
 }
 
 /** Delete a rule file and any matching test files. Returns whether the rule file existed. */
