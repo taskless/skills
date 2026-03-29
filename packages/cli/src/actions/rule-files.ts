@@ -1,5 +1,5 @@
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, join, resolve } from "node:path";
 
 import { parse, stringify } from "yaml";
 
@@ -44,7 +44,11 @@ export async function writeRuleMetaFiles(
   await mkdir(directory, { recursive: true });
   const writtenFiles: string[] = [];
   for (const [key, value] of Object.entries(meta)) {
-    const filePath = join(directory, `${key}.yml`);
+    const sanitized = basename(key);
+    const filePath = resolve(directory, `${sanitized}.yml`);
+    if (!filePath.startsWith(directory)) {
+      continue;
+    }
     await writeFile(filePath, stringify(value, { lineWidth: 0 }), "utf8");
     writtenFiles.push(filePath);
   }
@@ -60,8 +64,16 @@ export async function readRuleMetaFile(
   try {
     const content = await readFile(filePath, "utf8");
     return parse(content) as Record<string, unknown>;
-  } catch {
-    return null;
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error as NodeJS.ErrnoException).code === "ENOENT"
+    ) {
+      return null;
+    }
+    throw error;
   }
 }
 

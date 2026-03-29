@@ -1,0 +1,20 @@
+Show sidecar metadata for a rule
+
+Reads the metadata file for a generated rule from .taskless/rule-metadata/
+and displays its contents. Metadata includes the ticket ID used for
+iterating on the rule, generation timestamp, and schema version.
+
+Usage:
+  taskless rules meta <id> [options]
+
+Options:
+  -d, --dir <path>   Set working directory (default: current directory)
+  --json             Output results as JSON
+  --schema           Print output/error JSON Schemas and exit
+
+Output:
+  Displays the rule's sidecar metadata fields (ticketId, generatedAt, etc.).
+
+Examples:
+  taskless rules meta no-console-log
+  taskless rules meta no-console-log --json
