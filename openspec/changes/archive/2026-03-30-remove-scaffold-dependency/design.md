@@ -128,11 +128,10 @@ _Mitigation_: The CLI checks whether `.env.local.json` is tracked by git on ever
    - Add JWT decoding for `orgId` extraction
    - Add git remote inference for `repositoryUrl`
    - Update `rules create` and `rules improve` to use new identity resolution
-   - Add legacy `taskless.json` fallback for `orgId`
+   - Treat missing `orgId` in the decoded JWT as a stale token and require re-login (no `taskless.json` fallback)
 
 3. **Phase 3 (future CLI major version)**:
-   - Remove `taskless.json` fallback
-   - Remove any remaining scaffold-era code
+   - Remove any remaining scaffold-era and deprecated auth code
 
 ## Open Questions
 
