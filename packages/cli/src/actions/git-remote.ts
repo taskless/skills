@@ -36,7 +36,8 @@ const SSH_PATTERN = /^git@github\.com:(?<path>[^/]+\/[^/]+?)(?:\.git)?$/;
 const HTTPS_PATTERN =
   /^https:\/\/github\.com\/(?<path>[^/]+\/[^/]+?)(?:\.git)?$/;
 
-function canonicalizeGitHubUrl(rawUrl: string): string {
+/** @internal Exported for testing only */
+export function canonicalizeGitHubUrl(rawUrl: string): string {
   const sshMatch = SSH_PATTERN.exec(rawUrl);
   if (sshMatch?.groups?.path) {
     return `https://github.com/${sshMatch.groups.path}`;
