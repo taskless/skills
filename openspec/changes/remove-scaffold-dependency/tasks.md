@@ -39,26 +39,26 @@
 
 ## 6. Add per-repo token storage
 
-- [ ] 6.1 Update `packages/cli/src/actions/token.ts` `getToken()` to check `.taskless/.env.local.json` before the global auth file (after env var check)
-- [ ] 6.2 Update `saveToken()` to write to both `.taskless/.env.local.json` (if in a git repo) and the global XDG location
-- [ ] 6.3 Call `ensureTasklessGitignore()` before writing `.env.local.json`
-- [ ] 6.4 Update `removeToken()` to delete both per-repo and global token files
-- [ ] 6.5 Add a `warnIfTracked(cwd: string)` check that runs `git ls-files .taskless/.env.local.json` and prints a warning to stderr if the file is tracked
-- [ ] 6.6 Verify typecheck and lint pass
+- [x] 6.1 Update `packages/cli/src/actions/token.ts` `getToken()` to check `.taskless/.env.local.json` before the global auth file (after env var check)
+- [x] 6.2 Update `saveToken()` to write to both `.taskless/.env.local.json` (if in a git repo) and the global XDG location
+- [x] 6.3 Call `ensureTasklessGitignore()` before writing `.env.local.json`
+- [x] 6.4 Update `removeToken()` to delete both per-repo and global token files
+- [x] 6.5 Add a `warnIfTracked(cwd: string)` check that runs `git ls-files .taskless/.env.local.json` and prints a warning to stderr if the file is tracked
+- [x] 6.6 Verify typecheck and lint pass
 
 ## 7. Add identity resolution function
 
-- [ ] 7.1 Create `packages/cli/src/actions/identity.ts` with `resolveIdentity(cwd: string): Promise<{ orgId: number, repositoryUrl: string }>`
-- [ ] 7.2 Implement the resolution chain: get token → decode JWT for orgId (if missing, error with re-login prompt) → infer repositoryUrl from git remote
-- [ ] 7.3 Verify typecheck and lint pass
+- [x] 7.1 Create `packages/cli/src/actions/identity.ts` with `resolveIdentity(cwd: string): Promise<{ orgId: number, repositoryUrl: string }>`
+- [x] 7.2 Implement the resolution chain: get token → decode JWT for orgId (if missing, error with re-login prompt) → infer repositoryUrl from git remote
+- [x] 7.3 Verify typecheck and lint pass
 
 ## 8. Update rules commands to use identity resolution
 
-- [ ] 8.1 Update `packages/cli/src/commands/rules.ts` `rules create` to use `resolveIdentity()` instead of `readProjectConfig()` + `validateRulesConfig()`
-- [ ] 8.2 Update `rules improve` to use `resolveIdentity()` for `orgId` instead of project config
-- [ ] 8.3 Stop sending `orgId` in the API request body — the backend reads it from the JWT (body `orgId` is deprecated but still accepted)
-- [ ] 8.4 Remove the `readProjectConfig()` and `validateRulesConfig()` imports from rules commands
-- [ ] 8.5 Verify typecheck and lint pass
+- [x] 8.1 Update `packages/cli/src/commands/rules.ts` `rules create` to use `resolveIdentity()` instead of `readProjectConfig()` + `validateRulesConfig()`
+- [x] 8.2 Update `rules improve` to use `resolveIdentity()` for `orgId` instead of project config
+- [x] 8.3 Stop sending `orgId` in the API request body — the backend reads it from the JWT (body `orgId` is deprecated but still accepted)
+- [x] 8.4 Remove the `readProjectConfig()` and `validateRulesConfig()` imports from rules commands
+- [x] 8.5 Verify typecheck and lint pass
 
 ## 9. Clean up obsolete code
 

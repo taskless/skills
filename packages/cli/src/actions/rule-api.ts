@@ -50,16 +50,14 @@ export async function submitRule(
       response.status === 403 &&
       errorData.error === "repository_not_accessible"
     ) {
-      throw new Error(
-        "Repository is not accessible to this organization. Check your orgId and repositoryUrl in .taskless/taskless.json."
-      );
+      throw new Error("Repository is not accessible to this organization.");
     }
     if (
       response.status === 404 &&
       errorData.error === "organization_not_found"
     ) {
       throw new Error(
-        "Organization not found. Check the orgId in .taskless/taskless.json."
+        "Organization not found. Try running `taskless auth login` to re-authenticate."
       );
     }
     throw new Error(
@@ -127,7 +125,7 @@ export async function iterateRule(
       errorData.error === "organization_not_found"
     ) {
       throw new Error(
-        "Organization not found. Check the orgId in .taskless/taskless.json."
+        "Organization not found. Try running `taskless auth login` to re-authenticate."
       );
     }
     throw new Error(`Iterate request failed (HTTP ${String(response.status)})`);

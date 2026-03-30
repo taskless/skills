@@ -5,11 +5,7 @@ import { defineCommand } from "citty";
 
 import { ZodError } from "zod";
 
-import { getToken } from "../actions/token";
-import {
-  readProjectConfig,
-  validateRulesConfig,
-} from "../actions/project-config";
+import { resolveIdentity } from "../actions/identity";
 import { submitRule, pollRuleStatus, iterateRule } from "../actions/rule-api";
 import {
   writeRuleFile,
@@ -132,31 +128,20 @@ const createCommand = defineCommand({
       fail(error instanceof Error ? error.message : String(error));
     }
 
-    // 2. Read project config and validate for rules
-    let config;
+    // 2. Resolve identity (orgId from JWT, repositoryUrl from git remote)
+    let identity;
     try {
-      config = await readProjectConfig(cwd);
+      identity = await resolveIdentity(cwd);
     } catch (error) {
       fail(error instanceof Error ? error.message : String(error));
     }
 
-    const validation = validateRulesConfig(config);
-    if (!validation.valid) {
-      fail(validation.error);
-    }
-
-    // 3. Resolve auth token
-    const token = await getToken();
-    if (!token) {
-      fail("Authentication required. Run `taskless auth login` first.");
-    }
-
-    // 4. Submit rule to API
+    // 3. Submit rule to API
     let ruleId: string;
     try {
-      const response = await submitRule(token, {
-        orgId: config.orgId!,
-        repositoryUrl: config.repositoryUrl!,
+      const response = await submitRule(identity.token, {
+        orgId: identity.orgId,
+        repositoryUrl: identity.repositoryUrl,
         prompt: request.prompt,
         successCases: request.successCases,
         failureCases: request.failureCases,
@@ -166,7 +151,7 @@ const createCommand = defineCommand({
       fail(error instanceof Error ? error.message : String(error));
     }
 
-    // 5. Poll for results
+    // 4. Poll for results
     console.error(`Rule submitted (${ruleId}). Waiting for generation...`);
 
     while (true) {
@@ -174,7 +159,7 @@ const createCommand = defineCommand({
 
       let status;
       try {
-        status = await pollRuleStatus(token, ruleId);
+        status = await pollRuleStatus(identity.token, ruleId);
       } catch (error) {
         fail(
           `Polling failed: ${error instanceof Error ? error.message : String(error)}`
@@ -341,30 +326,19 @@ const improveCommand = defineCommand({
       fail(error instanceof Error ? error.message : String(error));
     }
 
-    // 2. Read project config and validate for rules
-    let config;
+    // 2. Resolve identity (orgId from JWT, repositoryUrl from git remote)
+    let identity;
     try {
-      config = await readProjectConfig(cwd);
+      identity = await resolveIdentity(cwd);
     } catch (error) {
       fail(error instanceof Error ? error.message : String(error));
     }
 
-    const validation = validateRulesConfig(config);
-    if (!validation.valid) {
-      fail(validation.error);
-    }
-
-    // 3. Resolve auth token
-    const token = await getToken();
-    if (!token) {
-      fail("Authentication required. Run `taskless auth login` first.");
-    }
-
-    // 4. Submit iterate request to API
+    // 3. Submit iterate request to API
     let requestId: string;
     try {
-      const response = await iterateRule(token, request.ruleId, {
-        orgId: config.orgId!,
+      const response = await iterateRule(identity.token, request.ruleId, {
+        orgId: identity.orgId,
         guidance: request.guidance,
         references: request.references,
       });
@@ -373,7 +347,7 @@ const improveCommand = defineCommand({
       fail(error instanceof Error ? error.message : String(error));
     }
 
-    // 5. Poll for results using the requestId
+    // 4. Poll for results using the requestId
     console.error(
       `Iterate request submitted (${requestId}). Waiting for generation...`
     );
@@ -383,7 +357,7 @@ const improveCommand = defineCommand({
 
       let status;
       try {
-        status = await pollRuleStatus(token, requestId);
+        status = await pollRuleStatus(identity.token, requestId);
       } catch (error) {
         fail(
           `Polling failed: ${error instanceof Error ? error.message : String(error)}`
