@@ -56,7 +56,7 @@
 
 - [x] 8.1 Update `packages/cli/src/commands/rules.ts` `rules create` to use `resolveIdentity()` instead of `readProjectConfig()` + `validateRulesConfig()`
 - [x] 8.2 Update `rules improve` to use `resolveIdentity()` for `orgId` instead of project config
-- [x] 8.3 Stop sending `orgId` in the API request body — the backend reads it from the JWT (body `orgId` is deprecated but still accepted)
+- [x] 8.3 Ensure `submitRule` and `iterateRule` continue to send `orgId` in the API request body during the transition, even though the backend can also read it from the JWT (body `orgId` is deprecated but still accepted)
 - [x] 8.4 Remove the `readProjectConfig()` and `validateRulesConfig()` imports from rules commands
 - [x] 8.5 Verify typecheck and lint pass
 

@@ -172,7 +172,7 @@ The CLI SHALL infer the repository URL by running `git remote get-url origin` an
 
 ### Requirement: CLI resolves orgId from JWT
 
-The CLI SHALL extract the `orgId` claim from the stored JWT by decoding it with `jose`'s `decodeJwt()` function. No signature verification SHALL be performed. If the JWT does not contain an `orgId` claim, the CLI SHALL fall back to reading `orgId` from `.taskless/taskless.json` if present.
+The CLI SHALL extract the `orgId` claim from the stored JWT by decoding it with `jose`'s `decodeJwt()` function. No signature verification SHALL be performed. If the JWT does not contain an `orgId` claim, the token is stale and the CLI SHALL prompt the user to re-authenticate.
 
 #### Scenario: JWT contains orgId claim
 

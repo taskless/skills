@@ -35,7 +35,7 @@ describe("cli", () => {
       expect(stdout).toContain("taskless");
       expect(stdout).toContain("info");
       expect(stdout).toContain("init");
-      expect(stdout).toContain("update-engine");
+      expect(stdout).not.toContain("update-engine");
     });
   });
 
