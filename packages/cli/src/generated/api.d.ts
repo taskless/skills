@@ -74,8 +74,6 @@ export interface paths {
       requestBody?: {
         content: {
           "application/json": {
-            /** @description GitHub organization ID */
-            orgId: number;
             /** @description Full repository URL */
             repositoryUrl: string;
             /** @description Description of the rule to generate */
@@ -260,8 +258,6 @@ export interface paths {
       requestBody?: {
         content: {
           "application/json": {
-            /** @description GitHub organization ID */
-            orgId: number;
             /** @description Feedback for iterating on the existing rule */
             guidance: string;
             /** @description Reference files to include as context (optional) */
@@ -294,189 +290,6 @@ export interface paths {
         };
       };
     };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/cli/api/update-engine": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Request a scaffold update PR for a repository */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      /** @description OK */
-      requestBody?: {
-        content: {
-          "application/json": {
-            /** @description GitHub organization ID */
-            orgId: number;
-            /** @description Full repository URL */
-            repositoryUrl: string;
-            /** @description Current scaffold version from taskless.json */
-            version: string;
-          };
-        };
-      };
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json":
-              | {
-                  /**
-                   * @description Scaffold is already up to date
-                   * @constant
-                   */
-                  status: "current";
-                }
-              | {
-                  /**
-                   * @description An update PR already exists
-                   * @constant
-                   */
-                  status: "exists";
-                  /** @description Request ID for polling */
-                  requestId: string;
-                  /** @description URL of the existing PR */
-                  prUrl: string;
-                }
-              | {
-                  /**
-                   * @description Update enqueued for processing
-                   * @constant
-                   */
-                  status: "accepted";
-                  /** @description Request ID for polling */
-                  requestId: string;
-                };
-          };
-        };
-        /** @description Update enqueued for processing */
-        202: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json":
-              | {
-                  /**
-                   * @description Scaffold is already up to date
-                   * @constant
-                   */
-                  status: "current";
-                }
-              | {
-                  /**
-                   * @description An update PR already exists
-                   * @constant
-                   */
-                  status: "exists";
-                  /** @description Request ID for polling */
-                  requestId: string;
-                  /** @description URL of the existing PR */
-                  prUrl: string;
-                }
-              | {
-                  /**
-                   * @description Update enqueued for processing
-                   * @constant
-                   */
-                  status: "accepted";
-                  /** @description Request ID for polling */
-                  requestId: string;
-                };
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/cli/api/update-engine/{requestId}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Get update engine status for a scaffold update (poll until terminal state) */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          requestId: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json":
-              | {
-                  /**
-                   * @description Update is in progress
-                   * @constant
-                   */
-                  status: "pending";
-                }
-              | {
-                  /**
-                   * @description Update PR is open
-                   * @constant
-                   */
-                  status: "open";
-                  /** @description URL of the PR */
-                  prUrl: string;
-                }
-              | {
-                  /**
-                   * @description Update PR was merged
-                   * @constant
-                   */
-                  status: "merged";
-                  /** @description URL of the PR */
-                  prUrl: string;
-                }
-              | {
-                  /**
-                   * @description Update PR was closed
-                   * @constant
-                   */
-                  status: "closed";
-                  /** @description URL of the PR */
-                  prUrl: string;
-                };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
     delete?: never;
     options?: never;
     head?: never;
