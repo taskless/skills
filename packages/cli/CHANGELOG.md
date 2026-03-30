@@ -1,5 +1,17 @@
 # @taskless/cli
 
+## 0.4.0
+
+### Minor Changes
+
+- Remove scaffold dependency from CLI. Identity is now resolved from JWT (`orgId`) and git remote (`repositoryUrl`) instead of `taskless.json`. Add per-repo token storage in `.taskless/.env.local.json`, ephemeral `sgconfig.yml` generation for check command, and fetch OpenAPI schema from live URL.
+
+### Patch Changes
+
+- 48991e6: Fix CLI auth to check token expiry instead of just token existence, preventing commands from reporting a logged-in state with an expired JWT
+- 7397516: Write sidecar metadata files from generator API response to `.taskless/rule-metadata/`, fixing metadata not being persisted during rule create and improve flows
+- 7397516: Add `rules meta` CLI subcommand to read sidecar metadata for a rule. Update create-rule skill to check for similar existing rules before creating, and improve-rule skill to use `ticketId` from metadata for the iterate API. Fix test directory references and skill-to-skill handoff in both skills.
+
 ## 0.3.0
 
 ### Minor Changes

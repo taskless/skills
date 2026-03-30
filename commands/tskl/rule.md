@@ -6,7 +6,7 @@ tags:
   - taskless
 metadata:
   author: taskless
-  version: 0.3.0
+  version: 0.4.0
   commandName: tskl:rule
 ---
 
@@ -22,7 +22,13 @@ Your goal is to produce the best possible rule by enriching the user's initial d
 
 2. **Gather the rule description.** Ask the user what pattern they want to detect. This becomes the `prompt` field (required).
 
-3. **Enrich the request.** After receiving the initial description, actively work with the user to strengthen the rule. Do all of the following:
+3. **Check for existing similar rules.** Once you have the user's description, scan `.taskless/rules/` for existing rule files. Read each rule's `message`, `note`, and `rule` fields to understand what patterns are already covered. If any existing rule appears to overlap with the user's request:
+   - Show the user the similar rule(s) and explain the overlap.
+   - Ask: "It looks like you already have a rule that covers something similar. Would you like to **improve the existing rule** instead of creating a new one?"
+   - If the user wants to improve, stop this skill and invoke the `taskless-improve-rule` skill (command name `tskl:improve`) with context about which rule to iterate on.
+   - If the user confirms they want a separate new rule, proceed with creation.
+
+4. **Enrich the request.** After receiving the initial description, actively work with the user to strengthen the rule. Do all of the following:
 
    a. **Search the codebase for real examples.** Proactively scan the codebase for instances of the pattern they want to detect. Show them what you found and ask:
    - "I found N instances of this pattern in your codebase. Should I include some as examples in the rule request?"
@@ -45,17 +51,16 @@ Your goal is to produce the best possible rule by enriching the user's initial d
    - "Are there any files or directories where this pattern should be allowed? (e.g., `.d.ts` files, test files, generated code)"
    - Incorporate both the default ignores and user-specified exclusions into the `prompt` field so the rule generator understands the boundaries.
 
-   e. **Infer the language.** Detect the language from the codebase or the user's examples. Confirm your assumption with the user.
+   e. **Infer the language.** Detect the primary language from the codebase or the user's examples. Confirm your assumption with the user. Include the target language in the `prompt` field (e.g., "Detect X in TypeScript files") so the rule generator knows what language to target.
 
-4. **Confirm the enriched request.** Before submitting, present a summary of what you'll send to the API:
-   - The full prompt (including any exclusion notes)
-   - The language
+5. **Confirm the enriched request.** Before submitting, present a summary of what you'll send to the API:
+   - The full prompt (including language and any exclusion notes)
    - The success case(s)
    - The failure case(s)
 
    Ask the user to confirm or adjust before proceeding.
 
-5. **Write the JSON payload to a file.** Build a JSON object with the gathered fields. Write the JSON to `.taskless/.tmp-rule-request.json`.
+6. **Write the JSON payload to a file.** Build a JSON object with the gathered fields. Write the JSON to `.taskless/.tmp-rule-request.json`.
 
    **Multiple examples:** The `successCases` and `failureCases` fields are arrays of strings. Each example is a separate array element:
 
@@ -73,14 +78,13 @@ Your goal is to produce the best possible rule by enriching the user's initial d
    }
    ```
 
-6. **Invoke the CLI.** Run `pnpm dlx @taskless/cli@latest rules create --from .taskless/.tmp-rule-request.json --json`. The command may take 30-60 seconds as it polls the API.
+7. **Invoke the CLI.** Run `pnpm dlx @taskless/cli@latest rules create --from .taskless/.tmp-rule-request.json --json`. The command may take 30-60 seconds as it polls the API.
 
-7. **Clean up.** After the command completes (success or failure), delete the `.taskless/.tmp-rule-request.json` file.
+8. **Clean up.** After the command completes (success or failure), delete the `.taskless/.tmp-rule-request.json` file.
 
-8. **Report the results.** When the CLI completes, show the generated file paths and suggest running `taskless-check` to test the new rule.
+9. **Report the results.** When the CLI completes, show the generated file paths and suggest running `taskless-check` to test the new rule. The CLI also writes sidecar metadata to `.taskless/rule-metadata/<rule-id>.yml` containing the `ticketId` used for future iterations. You can retrieve this with `pnpm dlx @taskless/cli@latest rules meta <rule-id> --json`.
 
-9. **Handle errors.** If the CLI fails:
-   - **Authentication required**: Suggest the `taskless-login` skill.
-   - **Missing config**: Suggest running `pnpm dlx @taskless/cli@latest init` to set up the project.
-   - **Stale scaffold version**: Suggest the `taskless-update-engine` skill.
-   - **API errors**: Report the error message and suggest trying again.
+10. **Handle errors.** If the CLI fails:
+    - **Authentication required**: Suggest the `taskless-login` skill.
+    - **Missing organization info**: Suggest running `taskless auth login` to re-authenticate.
+    - **API errors**: Report the error message and suggest trying again.
