@@ -50,7 +50,15 @@ export async function submitRule(
       response.status === 403 &&
       errorData.error === "repository_not_accessible"
     ) {
-      throw new Error("Repository is not accessible to this organization.");
+      throw new Error(
+        [
+          "Repository is not accessible to this organization.",
+          "",
+          "- Verify that your local `origin` remote points to the intended GitHub repository.",
+          "- Confirm that your GitHub user/organization has access to that repository.",
+          "- If you recently changed access or remotes, try re-authenticating with `taskless auth login`.",
+        ].join("\n")
+      );
     }
     if (
       response.status === 404 &&
