@@ -123,7 +123,6 @@ This is a decision-making skill. You must evaluate the situation and choose the 
 
 8. **Handle errors.** If the CLI fails:
    - **Authentication required**: Suggest the `taskless-login` skill.
-   - **Missing config**: Suggest running `pnpm dlx @taskless/cli@latest init` to set up the project.
-   - **Stale scaffold version**: Suggest the `taskless-update-engine` skill.
+   - **Missing organization info**: Suggest running `taskless auth login` to re-authenticate.
    - **Rule not found**: The ruleId may be incorrect. Check the rule's metadata or suggest creating a new rule instead.
    - **API errors**: Report the error message and suggest trying again.

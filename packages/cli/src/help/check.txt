@@ -3,8 +3,7 @@ Run Taskless rules against your codebase
 Scans your project using ast-grep rules defined in .taskless/rules/.
 
 Prerequisites:
-  Run `taskless init` to set up your project first.
-  A .taskless/taskless.json config file must exist.
+  Rules must exist in .taskless/rules/. Create one with `taskless rules create`.
 
 Usage:
   taskless check [options]

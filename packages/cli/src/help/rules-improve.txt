@@ -6,7 +6,7 @@ it to the Taskless API, and writes the updated rule and test files to
 
 Prerequisites:
   Run `taskless auth login` to authenticate first.
-  A .taskless/taskless.json config file with orgId and repositoryUrl is required.
+  Your repository must have a GitHub origin remote.
 
 Usage:
   taskless rules improve --from <file> [options]
