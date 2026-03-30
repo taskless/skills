@@ -44,33 +44,28 @@ describe("check", () => {
     await rm(temporaryDirectory, { recursive: true, force: true });
   });
 
-  it("errors when .taskless/taskless.json is missing", async () => {
-    const { stderr, exitCode } = await runCli([
-      "check",
-      "-d",
-      temporaryDirectory,
-    ]);
-    expect(exitCode).toBe(1);
-    expect(stderr).toContain("taskless.json not found");
-  });
-
-  it("warns and exits 0 when rules directory is empty", async () => {
-    // Create .taskless with taskless.json but empty rules
-    await mkdir(join(temporaryDirectory, ".taskless", "rules"), {
-      recursive: true,
-    });
-    await writeFile(
-      join(temporaryDirectory, ".taskless", "taskless.json"),
-      JSON.stringify({ version: "2026-03-01" })
-    );
-
-    const { stderr, exitCode } = await runCli([
+  it("exits 0 with friendly message when .taskless/ does not exist", async () => {
+    const { stdout, exitCode } = await runCli([
       "check",
       "-d",
       temporaryDirectory,
     ]);
     expect(exitCode).toBe(0);
-    expect(stderr).toContain("No rules found");
+    expect(stdout).toContain("No rules configured");
+  });
+
+  it("exits 0 with friendly message when rules directory is empty", async () => {
+    await mkdir(join(temporaryDirectory, ".taskless", "rules"), {
+      recursive: true,
+    });
+
+    const { stdout, exitCode } = await runCli([
+      "check",
+      "-d",
+      temporaryDirectory,
+    ]);
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("No rules configured");
   });
 
   it("runs scanner and produces human output for rule matches", async () => {
@@ -133,14 +128,6 @@ describe("check", () => {
       recursive: true,
     });
     await writeFile(
-      join(temporaryDirectory, ".taskless", "taskless.json"),
-      JSON.stringify({ version: "2026-03-01" })
-    );
-    await writeFile(
-      join(temporaryDirectory, ".taskless", "sgconfig.yml"),
-      "ruleDirs:\n  - rules\n"
-    );
-    await writeFile(
       join(temporaryDirectory, ".taskless", "rules", "warn-only.yml"),
       [
         "id: no-console-warn",
@@ -160,55 +147,19 @@ describe("check", () => {
     expect(exitCode).toBe(0); // warnings only → exit 0
   });
 
-  it("accepts versions within a compatibility range", async () => {
-    // 2026-02-25 falls between 2026-02-18 and 2026-03-01 — should be supported
-    await mkdir(join(temporaryDirectory, ".taskless", "rules"), {
-      recursive: true,
+  it("does not require taskless.json to run", async () => {
+    await cp(fixturesDirectory, temporaryDirectory, { recursive: true });
+    // Remove taskless.json if it exists — check should still work with just rules
+    await rm(join(temporaryDirectory, ".taskless", "taskless.json"), {
+      force: true,
     });
-    await writeFile(
-      join(temporaryDirectory, ".taskless", "taskless.json"),
-      JSON.stringify({ version: "2026-02-25" })
-    );
 
-    const { stderr, exitCode } = await runCli([
+    const { stdout, exitCode } = await runCli([
       "check",
       "-d",
       temporaryDirectory,
     ]);
-    expect(exitCode).toBe(0);
-    expect(stderr).toContain("No rules found");
-    expect(stderr).not.toContain("not supported");
-  });
-
-  it("errors for versions before earliest supported range", async () => {
-    await mkdir(join(temporaryDirectory, ".taskless"), { recursive: true });
-    await writeFile(
-      join(temporaryDirectory, ".taskless", "taskless.json"),
-      JSON.stringify({ version: "2026-02-17" })
-    );
-
-    const { stderr, exitCode } = await runCli([
-      "check",
-      "-d",
-      temporaryDirectory,
-    ]);
-    expect(exitCode).toBe(1);
-    expect(stderr).toContain("below the minimum");
-  });
-
-  it("errors when version field is missing from taskless.json", async () => {
-    await mkdir(join(temporaryDirectory, ".taskless"), { recursive: true });
-    await writeFile(
-      join(temporaryDirectory, ".taskless", "taskless.json"),
-      JSON.stringify({})
-    );
-
-    const { stderr, exitCode } = await runCli([
-      "check",
-      "-d",
-      temporaryDirectory,
-    ]);
-    expect(exitCode).toBe(1);
-    expect(stderr).toContain("missing");
+    expect(exitCode).toBe(1); // has error-severity match (no-eval)
+    expect(stdout).toContain("no-eval");
   });
 });

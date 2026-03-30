@@ -300,31 +300,4 @@ describe("--schema flag", () => {
       expect(exitCode).toBe(0);
     });
   });
-
-  describe("update-engine --schema", () => {
-    it("exits 0 and prints three schema blocks", async () => {
-      const { stdout, exitCode } = await runCli(["update-engine", "--schema"]);
-      expect(exitCode).toBe(0);
-      expect(stdout).toContain("Input Schema:");
-      expect(stdout).toContain("Output Schema:");
-      expect(stdout).toContain("Error Schema:");
-    });
-
-    it("has no JSON input schema", async () => {
-      const { stdout } = await runCli(["update-engine", "--schema"]);
-      const schemas = parseSchemaOutput(stdout);
-
-      expect(typeof schemas.input).toBe("string");
-      expect(schemas.input).toContain("does not accept JSON input");
-    });
-
-    it("has output schema describing status variants", async () => {
-      const { stdout } = await runCli(["update-engine", "--schema"]);
-      const schemas = parseSchemaOutput(stdout);
-
-      const output = schemas.output;
-      // discriminatedUnion produces anyOf/oneOf
-      expect(output.anyOf ?? output.oneOf).toBeDefined();
-    });
-  });
 });
