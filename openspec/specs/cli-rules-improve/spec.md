@@ -45,7 +45,7 @@ The `taskless rules improve` command SHALL require a valid auth token resolved v
 
 ### Requirement: Rules improve submits to iterate API and polls for results
 
-The `taskless rules improve` command SHALL POST to `/cli/api/rule/{ruleId}/iterate` with `orgId` (from project config), `guidance`, and optional `references`. It SHALL receive a `requestId` in the response and poll `GET /cli/api/rule/{requestId}` at a 15-second interval until the status reaches `generated` or `failed`.
+The `taskless rules improve` command SHALL POST to `/cli/api/rule/{ruleId}/iterate` with `orgId` resolved from the JWT's `orgId` claim (via `resolveIdentity()`), `guidance`, and optional `references`. It SHALL receive a `requestId` in the response and poll `GET /cli/api/rule/{requestId}` at a 15-second interval until the status reaches `generated` or `failed`.
 
 #### Scenario: Successful rule iteration
 
@@ -57,6 +57,12 @@ The `taskless rules improve` command SHALL POST to `/cli/api/rule/{ruleId}/itera
 - **WHEN** the request status returns `failed` with an error message
 - **THEN** the CLI SHALL print the error message
 - **AND** the CLI SHALL exit with a non-zero exit code
+
+#### Scenario: Identity resolved from JWT and git remote
+
+- **WHEN** the `rules improve` command resolves identity
+- **THEN** it SHALL use `resolveIdentity()` to obtain `orgId` from the JWT claim
+- **AND** it SHALL NOT read `orgId` from `taskless.json`
 
 ### Requirement: Rules improve writes updated files to disk
 

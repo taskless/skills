@@ -6,20 +6,42 @@ TBD — Defines the `taskless check` subcommand that validates project setup and
 
 ## Requirements
 
-### Requirement: Check subcommand validates .taskless project setup
+### Requirement: Check subcommand works without taskless.json
 
-The CLI SHALL support a `taskless check` subcommand that validates the `.taskless/` directory exists and contains a valid `taskless.json` file before proceeding with any scanning.
+The `check` command SHALL NOT require `.taskless/taskless.json` to exist. The command SHALL only require the presence of rule files in `.taskless/rules/`.
 
-#### Scenario: Check fails when .taskless/taskless.json is missing
+#### Scenario: Check succeeds without taskless.json
 
-- **WHEN** a user runs `taskless check` in a directory without `.taskless/taskless.json`
-- **THEN** the CLI SHALL print an error message indicating the project is not set up
-- **AND** the CLI SHALL exit with code 1
+- **WHEN** a user runs `taskless check` in a directory with `.taskless/rules/*.yml` files but no `taskless.json`
+- **THEN** the CLI SHALL proceed to generate `sgconfig.yml` and run the scanner
 
-#### Scenario: Check succeeds when .taskless/taskless.json exists
+#### Scenario: Check exits cleanly with no .taskless/ directory
 
-- **WHEN** a user runs `taskless check` in a directory with a valid `.taskless/taskless.json`
-- **THEN** the CLI SHALL proceed to scan for rules
+- **WHEN** a user runs `taskless check` in a directory without a `.taskless/` directory
+- **THEN** the CLI SHALL print a message: "No rules configured. Create one with `taskless rules create`."
+- **AND** the CLI SHALL exit with code 0
+
+#### Scenario: Check exits cleanly with empty rules directory
+
+- **WHEN** a user runs `taskless check` and `.taskless/rules/` contains no `.yml` files
+- **THEN** the CLI SHALL print a warning that no rules were found
+- **AND** the CLI SHALL exit with code 0
+
+### Requirement: Check subcommand generates ephemeral sgconfig.yml
+
+The `check` command SHALL generate an `sgconfig.yml` file in `.taskless/` before invoking ast-grep. The generated config SHALL set `ruleDirs` to `['rules']` and `testConfigs` to `[{testDir: 'rule-tests'}]`. The file SHALL be written to `.taskless/sgconfig.yml` which is gitignored via `.taskless/.gitignore`. If `.taskless/.gitignore` does not exist, the CLI SHALL create it before writing the config.
+
+#### Scenario: sgconfig.yml is generated at check time
+
+- **WHEN** a user runs `taskless check`
+- **AND** `.taskless/rules/` contains rule files
+- **THEN** the CLI SHALL write `.taskless/sgconfig.yml` with `ruleDirs: ['rules']`
+- **AND** the CLI SHALL pass `--config .taskless/sgconfig.yml` to ast-grep
+
+#### Scenario: Existing sgconfig.yml is overwritten
+
+- **WHEN** `.taskless/sgconfig.yml` already exists (from a previous run or legacy scaffold)
+- **THEN** the CLI SHALL overwrite it with the freshly generated content
 
 ### Requirement: Check subcommand warns when no rules exist
 
@@ -38,12 +60,13 @@ The CLI SHALL check for the presence of YAML rule files in the `.taskless/rules/
 
 ### Requirement: Check subcommand executes ast-grep scan
 
-The CLI SHALL execute `sg scan --config .taskless/sgconfig.yml --json=stream` using `child_process.spawn` with `shell: true` for cross-platform binary resolution. The `sg` binary SHALL be resolved from the `@ast-grep/cli` dependency via PATH.
+The CLI SHALL generate an ephemeral `sgconfig.yml` in `.taskless/` and execute `sg scan --config .taskless/sgconfig.yml --json=stream` using `child_process.spawn` with `shell: true` for cross-platform binary resolution. The `sg` binary SHALL be resolved from the `@ast-grep/cli` dependency via PATH.
 
-#### Scenario: ast-grep scan runs with correct config
+#### Scenario: ast-grep scan runs with generated config
 
 - **WHEN** the CLI executes the scanner
-- **THEN** it SHALL invoke `sg scan` with `--config .taskless/sgconfig.yml` and `--json=stream`
+- **THEN** it SHALL first write `.taskless/sgconfig.yml` with `ruleDirs: ['rules']`
+- **AND** it SHALL invoke `sg scan` with `--config .taskless/sgconfig.yml` and `--json=stream`
 - **AND** the working directory for the spawned process SHALL be the resolved project directory
 
 #### Scenario: ast-grep binary is not found

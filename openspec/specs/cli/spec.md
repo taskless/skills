@@ -69,22 +69,23 @@ The CLI SHALL have a `packages/cli/tsconfig.json` that extends `../../tsconfig.b
 
 ### Requirement: CLI stub entry point
 
-The CLI entry point SHALL use citty to define a main command with subcommand support and a global `-d` (alias `--dir`) argument that sets the working directory, a global `--json` boolean argument for machine-readable output, and a global `--schema` boolean argument for printing JSON Schema definitions. When invoked with no arguments, the CLI SHALL display help text listing available subcommands. The CLI SHALL externalize Node.js built-in modules and bundle all other dependencies. The `check` subcommand, the `auth` subcommand group, the `rules` subcommand group, the `update-engine` subcommand, and the `help` subcommand SHALL be registered alongside existing subcommands. The `update` alias for `init` SHALL be removed.
+The CLI entry point SHALL use citty to define a main command with subcommand support and a global `-d` (alias `--dir`) argument that sets the working directory, a global `--json` boolean argument for machine-readable output, and a global `--schema` boolean argument for printing JSON Schema definitions. When invoked with no arguments, the CLI SHALL display help text listing available subcommands. The CLI SHALL externalize Node.js built-in modules and bundle all other dependencies. The `check` subcommand, the `auth` subcommand group, the `rules` subcommand group, and the `help` subcommand SHALL be registered alongside existing subcommands. The `update-engine` subcommand SHALL NOT be registered.
 
 #### Scenario: Running the CLI with no arguments shows help
 
 - **WHEN** the CLI is executed with no arguments
 - **THEN** it SHALL print help text to stdout listing available subcommands including `help`
+- **AND** the help text SHALL NOT list `update-engine`
 
 #### Scenario: Running the CLI with an unknown subcommand shows help
 
 - **WHEN** the CLI is executed with an unrecognized subcommand
 - **THEN** it SHALL print help text to stdout
 
-#### Scenario: Update-engine subcommand is registered
+#### Scenario: Update-engine subcommand is not registered
 
 - **WHEN** a user runs `taskless update-engine`
-- **THEN** the CLI SHALL route to the update-engine subcommand handler
+- **THEN** the CLI SHALL print help text (unrecognized subcommand)
 
 #### Scenario: Init subcommand remains unchanged
 
@@ -153,86 +154,81 @@ The CLI entry point SHALL use citty to define a main command with subcommand sup
 - **WHEN** a user runs `taskless help`
 - **THEN** the CLI SHALL route to the help subcommand handler
 
-### Requirement: Per-subcommand minimum scaffold version map
+### Requirement: CLI manages .taskless/.gitignore
 
-The CLI SHALL maintain a `MIN_SCAFFOLD_VERSION` map that declares the minimum `.taskless/taskless.json` version required for each subcommand. The map SHALL be a `Record<string, string>` keyed by subcommand name (e.g., `'rules create'`, `'check'`). This map replaces the `COMPATIBILITY` ranges, `RULES_MIN_SPEC_VERSION`, and `isRulesCompatibleVersion()`.
+The CLI SHALL proactively create and maintain a `.taskless/.gitignore` file that ignores local-only files. The gitignore SHALL contain entries for `.env.local.json` and `sgconfig.yml`. Any CLI command that writes to `.taskless/` SHALL ensure the `.gitignore` file exists with these entries before writing.
 
-#### Scenario: Map contains entry for rules create
+#### Scenario: .gitignore is created when .taskless/ is first written to
 
-- **WHEN** inspecting `MIN_SCAFFOLD_VERSION`
-- **THEN** the entry for `'rules create'` SHALL be `'2026-03-02'`
+- **WHEN** the CLI creates any file in `.taskless/` (e.g., during `auth login`, `rules create`, or `check`)
+- **AND** `.taskless/.gitignore` does not exist
+- **THEN** the CLI SHALL create `.taskless/.gitignore` containing `.env.local.json` and `sgconfig.yml`
 
-#### Scenario: Map contains entry for check
+#### Scenario: Existing .gitignore is preserved
 
-- **WHEN** inspecting `MIN_SCAFFOLD_VERSION`
-- **THEN** the entry for `'check'` SHALL be `'2026-02-18'`
+- **WHEN** `.taskless/.gitignore` already exists with additional user entries
+- **AND** the CLI needs to ensure its entries are present
+- **THEN** the CLI SHALL append any missing entries without removing existing content
 
-#### Scenario: New subcommands raise the floor as needed
+#### Scenario: .gitignore entries are idempotent
 
-- **WHEN** a new subcommand requires a newer scaffold version
-- **THEN** a new entry SHALL be added to `MIN_SCAFFOLD_VERSION` with the appropriate minimum
+- **WHEN** `.taskless/.gitignore` already contains `.env.local.json` and `sgconfig.yml`
+- **THEN** the CLI SHALL NOT duplicate the entries
 
-### Requirement: Subcommand scaffold version validation is purely local
+### Requirement: CLI infers repositoryUrl from git remote
 
-On every subcommand invocation that has an entry in `MIN_SCAFFOLD_VERSION`, the CLI SHALL read `version` from `.taskless/taskless.json` and compare it against the subcommand's minimum using string comparison. If the version is below the minimum, the CLI SHALL fast-fail with a message identifying the current version, the required version, and the subcommand name, and SHALL direct the user to run `taskless update-engine`.
+The CLI SHALL infer the repository URL by running `git remote get-url origin` and canonicalizing the result to `https://github.com/{owner}/{repo}` format. Both SSH (`git@github.com:owner/repo.git`) and HTTPS (`https://github.com/owner/repo.git`) URLs SHALL be supported.
 
-#### Scenario: Version below minimum
+#### Scenario: HTTPS remote URL is canonicalized
 
-- **WHEN** a user runs `taskless rules create` and `.taskless/taskless.json` has version `2026-03-01`
-- **THEN** the CLI SHALL print: "Scaffold version 2026-03-01 is below the minimum 2026-03-02 required for 'taskless rules create'. Run 'taskless update-engine' to update."
+- **WHEN** `git remote get-url origin` returns `https://github.com/acme/widgets.git`
+- **THEN** the CLI SHALL resolve `repositoryUrl` as `https://github.com/acme/widgets`
+
+#### Scenario: SSH remote URL is canonicalized
+
+- **WHEN** `git remote get-url origin` returns `git@github.com:acme/widgets.git`
+- **THEN** the CLI SHALL resolve `repositoryUrl` as `https://github.com/acme/widgets`
+
+#### Scenario: No origin remote
+
+- **WHEN** `git remote get-url origin` fails (no remote named `origin`)
+- **THEN** the CLI SHALL print an error: "Could not determine repository URL from git remote. Ensure your repository has an 'origin' remote pointing to GitHub."
 - **AND** the CLI SHALL exit with a non-zero exit code
 
-#### Scenario: Version at minimum
+#### Scenario: Non-GitHub remote URL
 
-- **WHEN** a user runs `taskless rules create` and `.taskless/taskless.json` has version `2026-03-02`
-- **THEN** the CLI SHALL proceed normally
+- **WHEN** `git remote get-url origin` returns a URL that is not a GitHub URL
+- **THEN** the CLI SHALL print an error indicating only GitHub repositories are supported
+- **AND** the CLI SHALL exit with a non-zero exit code
 
-#### Scenario: Version above minimum
+### Requirement: CLI resolves orgId from JWT
 
-- **WHEN** a user runs `taskless rules create` and `.taskless/taskless.json` has version `2026-04-01`
-- **THEN** the CLI SHALL proceed normally
+The CLI SHALL extract the `orgId` claim from the stored JWT by decoding it with `jose`'s `decodeJwt()` function. No signature verification SHALL be performed. If the JWT does not contain an `orgId` claim, the token is stale and the CLI SHALL prompt the user to re-authenticate.
 
-#### Scenario: No API calls for version checking
+#### Scenario: JWT contains orgId claim
 
-- **WHEN** the CLI validates the scaffold version for any subcommand
-- **THEN** the CLI SHALL NOT make any network requests to determine compatibility
+- **WHEN** the stored JWT contains an `orgId` claim
+- **THEN** the CLI SHALL use the JWT's `orgId` value
 
-### Requirement: COMPATIBILITY ranges and RULES_MIN_SPEC_VERSION are removed
+#### Scenario: JWT lacks orgId claim (stale token)
 
-The `COMPATIBILITY` array, `RULES_MIN_SPEC_VERSION` constant, `isRulesCompatibleVersion()` function, and `isSupportedSpecVersion()` function SHALL be removed from `capabilities.ts`. The `isValidSpecVersion()` function SHALL be retained as it validates the YYYY-MM-DD format independently.
+- **WHEN** the stored JWT does not contain an `orgId` claim
+- **THEN** the CLI SHALL print an error: "Your auth token is missing organization info. Run `taskless auth login` to re-authenticate."
+- **AND** the CLI SHALL exit with a non-zero exit code
 
-#### Scenario: Old compatibility exports are removed
+### Requirement: CLI identity resolution function
 
-- **WHEN** inspecting `packages/cli/src/capabilities.ts`
-- **THEN** it SHALL NOT export `COMPATIBILITY`, `RULES_MIN_SPEC_VERSION`, `isRulesCompatibleVersion`, or `isSupportedSpecVersion`
+The CLI SHALL provide a `resolveIdentity(cwd: string)` function that returns `{ orgId: number, repositoryUrl: string }`. This function combines JWT-based `orgId` resolution with git remote-based `repositoryUrl` inference. All commands that previously read identity from `taskless.json` SHALL use this function instead.
 
-#### Scenario: isValidSpecVersion is retained
+#### Scenario: Full identity resolved from JWT and git remote
 
-- **WHEN** inspecting `packages/cli/src/capabilities.ts`
-- **THEN** it SHALL continue to export `isValidSpecVersion()`
+- **WHEN** the JWT contains an `orgId` claim and `git remote get-url origin` returns a valid GitHub URL
+- **THEN** `resolveIdentity()` SHALL return both `orgId` and `repositoryUrl`
 
-### Requirement: validateRulesConfig uses per-subcommand version check
+#### Scenario: Auth token not available
 
-The `validateRulesConfig()` function in `project-config.ts` SHALL use the per-subcommand minimum version check instead of `isRulesCompatibleVersion()`. The error message SHALL reference `taskless update-engine` and include the current and required versions.
-
-#### Scenario: Stale version error message includes versions
-
-- **WHEN** `validateRulesConfig()` detects a version below the minimum for `'rules create'`
-- **THEN** the error message SHALL include the current version, the required version, and "Run 'taskless update-engine' to update."
-
-### Requirement: taskless.json supports orgId and repositoryUrl
-
-The `.taskless/taskless.json` config file SHALL support `orgId` (number) and `repositoryUrl` (string) fields alongside the existing `version` field. These fields are required for API-dependent commands (`rules create`).
-
-#### Scenario: taskless.json with all fields
-
-- **WHEN** `.taskless/taskless.json` contains `{ "version": "...", "orgId": 12345, "repositoryUrl": "https://github.com/org/repo" }`
-- **THEN** the CLI SHALL read all three fields successfully
-
-#### Scenario: taskless.json with only version (legacy)
-
-- **WHEN** `.taskless/taskless.json` contains only `{ "version": "..." }`
-- **THEN** `taskless check` SHALL work but `taskless rules create` SHALL fail with a clear error
+- **WHEN** no token is available (no env var, no `.env.local.json`, no global auth file)
+- **THEN** `resolveIdentity()` SHALL throw an error indicating authentication is required
 
 ### Requirement: CLI info subcommand outputs version as JSON
 
