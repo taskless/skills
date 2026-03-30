@@ -48,41 +48,26 @@ The `taskless rules create` command SHALL read a JSON request payload from a fil
 - **THEN** the CLI SHALL print an error indicating the missing field
 - **AND** the CLI SHALL exit with a non-zero exit code
 
-### Requirement: Rules create resolves orgId and repositoryUrl from project config
+### Requirement: Rules create resolves identity from JWT and git remote
 
-The `taskless rules create` command SHALL read `orgId` (number) and `repositoryUrl` (string) from `.taskless/taskless.json`. These fields are required by the API and SHALL NOT be provided via stdin. If either field is missing from `taskless.json`, the CLI SHALL print an error and exit with a non-zero exit code.
+The `taskless rules create` command SHALL resolve `orgId` and `repositoryUrl` using the `resolveIdentity()` function. `orgId` SHALL be extracted from the JWT's `orgId` claim (decoded via `jose`). `repositoryUrl` SHALL be inferred from `git remote get-url origin`, canonicalized to `https://github.com/{owner}/{repo}`. If identity resolution fails, the CLI SHALL print a descriptive error and exit with a non-zero exit code.
 
-#### Scenario: Both fields present in taskless.json
+#### Scenario: Identity resolved from JWT and git remote
 
-- **WHEN** `.taskless/taskless.json` contains `orgId` and `repositoryUrl`
-- **THEN** the CLI SHALL use these values in the API request
+- **WHEN** the stored JWT contains an `orgId` claim and the repository has a valid GitHub `origin` remote
+- **THEN** the CLI SHALL use the JWT's `orgId` and the inferred `repositoryUrl` in the API request
 
-#### Scenario: orgId missing from taskless.json
+#### Scenario: JWT lacks orgId (stale token)
 
-- **WHEN** `.taskless/taskless.json` does not contain `orgId`
-- **THEN** the CLI SHALL print an error indicating `orgId` is required in `taskless.json`
+- **WHEN** the stored JWT does not contain an `orgId` claim
+- **THEN** the CLI SHALL print an error: "Your auth token is missing organization info. Run `taskless auth login` to re-authenticate."
 - **AND** the CLI SHALL exit with a non-zero exit code
 
-#### Scenario: repositoryUrl missing from taskless.json
+#### Scenario: Git remote not available
 
-- **WHEN** `.taskless/taskless.json` does not contain `repositoryUrl`
-- **THEN** the CLI SHALL print an error indicating `repositoryUrl` is required in `taskless.json`
+- **WHEN** `git remote get-url origin` fails
+- **THEN** the CLI SHALL print an error about the missing git remote
 - **AND** the CLI SHALL exit with a non-zero exit code
-
-### Requirement: Rules create requires a minimum scaffold version
-
-The `taskless rules create` command SHALL validate the scaffold version from `.taskless/taskless.json` against its entry in `MIN_SCAFFOLD_VERSION`. If below the minimum, the CLI SHALL fast-fail with a message showing the current version, required version, and directing the user to run `taskless update-engine`.
-
-#### Scenario: Scaffold version too old
-
-- **WHEN** `.taskless/taskless.json` has a version below the `'rules create'` entry in `MIN_SCAFFOLD_VERSION`
-- **THEN** the CLI SHALL print: "Scaffold version <current> is below the minimum <required> required for 'taskless rules create'. Run 'taskless update-engine' to update."
-- **AND** the CLI SHALL exit with a non-zero exit code
-
-#### Scenario: Scaffold version is sufficient
-
-- **WHEN** `.taskless/taskless.json` has a version at or above the `'rules create'` minimum
-- **THEN** the CLI SHALL proceed normally
 
 ### Requirement: Rules create requires authentication
 
