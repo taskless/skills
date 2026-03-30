@@ -74,6 +74,9 @@ importers:
       citty:
         specifier: ^0.1.6
         version: 0.1.6
+      jose:
+        specifier: ^6.2.2
+        version: 6.2.2
       openapi-fetch:
         specifier: ^0.17.0
         version: 0.17.0
@@ -1451,6 +1454,9 @@ packages:
   jiti@2.6.1:
     resolution: {integrity: sha512-ekilCSN1jwRvIbgeg/57YFh8qQDNbwDb9xT/qu2DAHbFFZUicIl4ygVaAvzveMhMVr3LnpSKTNnwt8PoOfmKhQ==}
     hasBin: true
+
+  jose@6.2.2:
+    resolution: {integrity: sha512-d7kPDd34KO/YnzaDOlikGpOurfF0ByC2sEV4cANCtdqLlTfBlw2p14O/5d/zv40gJPbIQxfES3nSx1/oYNyuZQ==}
 
   js-levenshtein@1.1.6:
     resolution: {integrity: sha512-X2BB11YZtrRqY4EnQcLX5Rh373zbK4alC1FW7D7MBhL2gtcC17cTnr6DmfHZeS0s2rTHjUTMMHfG7gO8SSdw+g==}
@@ -3636,6 +3642,8 @@ snapshots:
 
   jiti@2.6.1:
     optional: true
+
+  jose@6.2.2: {}
 
   js-levenshtein@1.1.6: {}
 

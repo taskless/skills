@@ -1,10 +1,11 @@
 /* eslint-disable unicorn/no-process-exit */
 import { resolve, join } from "node:path";
-import { stat, readdir } from "node:fs/promises";
+import { readdir } from "node:fs/promises";
 import { defineCommand } from "citty";
 
 import { runAstGrepScan } from "../actions/scan";
 import { formatText } from "../actions/format";
+import { generateSgConfig } from "../actions/sgconfig";
 import { printSchema } from "../actions/schema-output";
 import {
   outputSchema as checkOutputSchema,
@@ -45,31 +46,6 @@ export const checkCommand = defineCommand({
 
     const cwd = resolve(args.dir ?? process.cwd());
 
-    // Validate .taskless/taskless.json exists
-    const tasklessJsonPath = join(cwd, ".taskless", "taskless.json");
-    const tasklessJsonExists = await stat(tasklessJsonPath)
-      .then((s) => s.isFile())
-      .catch(() => false);
-
-    if (!tasklessJsonExists) {
-      const message =
-        "Error: .taskless/taskless.json not found. Run `taskless init` to set up your project.";
-      if (args.json) {
-        console.log(
-          JSON.stringify(
-            checkErrorSchema.parse({
-              success: false,
-              error: message,
-              results: [],
-            })
-          )
-        );
-      } else {
-        console.error(message);
-      }
-      process.exit(1);
-    }
-
     // Check for rule files
     const rulesDirectory = join(cwd, ".taskless", "rules");
     let ruleFiles: string[] = [];
@@ -77,7 +53,7 @@ export const checkCommand = defineCommand({
       const entries = await readdir(rulesDirectory);
       ruleFiles = entries.filter((f) => f.endsWith(".yml"));
     } catch {
-      // rules directory doesn't exist
+      // .taskless/ or rules/ directory doesn't exist
     }
 
     if (ruleFiles.length === 0) {
@@ -88,19 +64,16 @@ export const checkCommand = defineCommand({
           )
         );
       } else {
-        console.warn(
-          "Warning: No rules found in .taskless/rules/. Nothing to check."
-        );
-        console.warn(`  directory: ${rulesDirectory}`);
-        console.warn(
-          "  If you expected rules here, check that your Taskless skills have generated .yml rule files."
+        console.log(
+          "No rules configured. Create one with `taskless rules create`."
         );
       }
       process.exit(0);
     }
 
-    // Run scanner
+    // Generate ephemeral sgconfig.yml and run scanner
     try {
+      await generateSgConfig(cwd);
       const { results } = await runAstGrepScan(cwd);
       const hasErrors = results.some((r) => r.severity === "error");
 
