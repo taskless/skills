@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import { defineCommand } from "citty";
 
 import { deviceFlowProvider } from "../actions/device-flow";
@@ -8,8 +9,17 @@ const loginCommand = defineCommand({
     name: "login",
     description: "Authenticate with taskless.io",
   },
-  async run() {
-    const existing = await getToken();
+  args: {
+    dir: {
+      type: "string",
+      alias: "d",
+      description: "Working directory",
+    },
+  },
+  async run({ args }) {
+    const cwd = resolve(args.dir ?? process.cwd());
+
+    const existing = await getToken(cwd);
     if (existing) {
       console.log("You are already logged in.");
       console.log("Run `taskless auth logout` first to re-authenticate.");
@@ -39,7 +49,7 @@ const loginCommand = defineCommand({
 
         switch (result.status) {
           case "success": {
-            await saveToken(result.token);
+            await saveToken(result.token, cwd);
             console.log("Logged in successfully.");
             return;
           }
@@ -79,8 +89,17 @@ const logoutCommand = defineCommand({
     name: "logout",
     description: "Remove saved authentication",
   },
-  async run() {
-    const removed = await removeToken();
+  args: {
+    dir: {
+      type: "string",
+      alias: "d",
+      description: "Working directory",
+    },
+  },
+  async run({ args }) {
+    const cwd = resolve(args.dir ?? process.cwd());
+
+    const removed = await removeToken(cwd);
     if (removed) {
       console.log("Logged out.");
     } else {

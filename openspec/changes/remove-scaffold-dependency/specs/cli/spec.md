@@ -30,7 +30,7 @@
 
 **Reason**: `taskless.json` is obsolete. `orgId` comes from the JWT claim, `repositoryUrl` is inferred from `git remote get-url origin`.
 
-**Migration**: The `ProjectConfig` interface and `readProjectConfig()` function are removed. A legacy fallback reads `orgId` from `taskless.json` if the JWT lacks the claim, but this is a transitional path only.
+**Migration**: The `ProjectConfig` interface and `readProjectConfig()` function are removed. `orgId` MUST be supplied by the JWT claim; if the claim is missing, the token is treated as stale and the user MUST re-authenticate. `taskless.json` is no longer read as a fallback source for `orgId`.
 
 ## MODIFIED Requirements
 
