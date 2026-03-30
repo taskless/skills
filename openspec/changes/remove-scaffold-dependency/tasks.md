@@ -9,33 +9,33 @@
 
 ## 2. Add .taskless/.gitignore management
 
-- [ ] 2.1 Create `packages/cli/src/actions/gitignore.ts` with an `ensureTasklessGitignore(cwd: string)` function that creates/updates `.taskless/.gitignore` with entries for `.env.local.json` and `sgconfig.yml`
-- [ ] 2.2 Ensure the function is idempotent — appends missing entries without duplicating existing ones
-- [ ] 2.3 Verify typecheck and lint pass
+- [x] 2.1 Create `packages/cli/src/actions/gitignore.ts` with an `ensureTasklessGitignore(cwd: string)` function that creates/updates `.taskless/.gitignore` with entries for `.env.local.json` and `sgconfig.yml`
+- [x] 2.2 Ensure the function is idempotent — appends missing entries without duplicating existing ones
+- [x] 2.3 Verify typecheck and lint pass
 
 ## 3. Make check command scaffold-independent
 
-- [ ] 3.1 Create `packages/cli/src/actions/sgconfig.ts` with a `generateSgConfig(cwd: string)` function that writes ephemeral `sgconfig.yml` to `.taskless/` with `ruleDirs: ['rules']`
-- [ ] 3.2 Call `ensureTasklessGitignore()` before writing `sgconfig.yml`
-- [ ] 3.3 Rewrite `packages/cli/src/commands/check.ts` to remove all `taskless.json` validation — replace with direct check for `.taskless/rules/*.yml`
-- [ ] 3.4 Update check to call `generateSgConfig()` before `runAstGrepScan()`
-- [ ] 3.5 Handle the "no `.taskless/` directory" case: print "No rules configured" message and exit 0
-- [ ] 3.6 Remove `readProjectConfig()` import and scaffold version checks from check command
-- [ ] 3.7 Verify typecheck and lint pass
+- [x] 3.1 Create `packages/cli/src/actions/sgconfig.ts` with a `generateSgConfig(cwd: string)` function that writes ephemeral `sgconfig.yml` to `.taskless/` with `ruleDirs: ['rules']`
+- [x] 3.2 Call `ensureTasklessGitignore()` before writing `sgconfig.yml`
+- [x] 3.3 Rewrite `packages/cli/src/commands/check.ts` to remove all `taskless.json` validation — replace with direct check for `.taskless/rules/*.yml`
+- [x] 3.4 Update check to call `generateSgConfig()` before `runAstGrepScan()`
+- [x] 3.5 Handle the "no `.taskless/` directory" case: print "No rules configured" message and exit 0
+- [x] 3.6 Remove `readProjectConfig()` import and scaffold version checks from check command
+- [x] 3.7 Verify typecheck and lint pass
 
 ## 4. Add git remote inference
 
-- [ ] 4.1 Create `packages/cli/src/actions/git-remote.ts` with a `resolveRepositoryUrl(cwd: string)` function that runs `git remote get-url origin` and canonicalizes to `https://github.com/{owner}/{repo}`
-- [ ] 4.2 Handle SSH URLs (`git@github.com:owner/repo.git`), HTTPS URLs (`https://github.com/owner/repo.git`), and trailing `.git` removal
-- [ ] 4.3 Return clear error messages for missing origin remote and non-GitHub URLs
-- [ ] 4.4 Verify typecheck and lint pass
+- [x] 4.1 Create `packages/cli/src/actions/git-remote.ts` with a `resolveRepositoryUrl(cwd: string)` function that runs `git remote get-url origin` and canonicalizes to `https://github.com/{owner}/{repo}`
+- [x] 4.2 Handle SSH URLs (`git@github.com:owner/repo.git`), HTTPS URLs (`https://github.com/owner/repo.git`), and trailing `.git` removal
+- [x] 4.3 Return clear error messages for missing origin remote and non-GitHub URLs
+- [x] 4.4 Verify typecheck and lint pass
 
 ## 5. Add jose dependency and JWT decoding
 
-- [ ] 5.1 Add `jose` as a dependency in `packages/cli/package.json`
-- [ ] 5.2 Create `packages/cli/src/actions/jwt.ts` with a `decodeOrgId(token: string)` function that uses `jose`'s `decodeJwt()` to extract the `orgId` claim
-- [ ] 5.3 Return `undefined` if the claim is missing (no throw — callers handle fallback)
-- [ ] 5.4 Verify typecheck and lint pass
+- [x] 5.1 Add `jose` as a dependency in `packages/cli/package.json`
+- [x] 5.2 Create `packages/cli/src/actions/jwt.ts` with a `decodeOrgId(token: string)` function that uses `jose`'s `decodeJwt()` to extract the `orgId` claim
+- [x] 5.3 Return `undefined` if the claim is missing (no throw — callers handle fallback)
+- [x] 5.4 Verify typecheck and lint pass
 
 ## 6. Add per-repo token storage
 
