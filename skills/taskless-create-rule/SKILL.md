@@ -84,6 +84,5 @@ Your goal is to produce the best possible rule by enriching the user's initial d
 
 10. **Handle errors.** If the CLI fails:
     - **Authentication required**: Suggest the `taskless-login` skill.
-    - **Missing config**: Suggest running `pnpm dlx @taskless/cli@latest init` to set up the project.
-    - **Stale scaffold version**: Suggest the `taskless-update-engine` skill.
+    - **Missing organization info**: Suggest running `taskless auth login` to re-authenticate.
     - **API errors**: Report the error message and suggest trying again.

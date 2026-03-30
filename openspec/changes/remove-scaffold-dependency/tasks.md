@@ -62,16 +62,16 @@
 
 ## 9. Clean up obsolete code
 
-- [ ] 9.1 Delete `packages/cli/src/actions/project-config.ts` entirely — no fallback needed
-- [ ] 9.2 Remove scaffold version references from any remaining help text or error messages
-- [ ] 9.3 Update `packages/cli/src/commands/check.ts` error messages to reference `taskless rules create` instead of `taskless init`
-- [ ] 9.4 Verify typecheck and lint pass
+- [x] 9.1 Delete `packages/cli/src/actions/project-config.ts` entirely — no fallback needed
+- [x] 9.2 Remove scaffold version references from any remaining help text or error messages
+- [x] 9.3 Update `packages/cli/src/commands/check.ts` error messages to reference `taskless rules create` instead of `taskless init`
+- [x] 9.4 Verify typecheck and lint pass
 
 ## 10. Update skills and documentation
 
-- [ ] 10.1 Remove the `taskless-update-engine` skill directory and its entry in skill distribution
-- [ ] 10.2 Update `skill-auth-login` and `skill-auth-logout` to reflect per-repo token storage
-- [ ] 10.3 Update `taskless-check` skill to remove scaffold prerequisite language
-- [ ] 10.4 Update `taskless-create-rule` skill to remove `taskless.json` dependency language
-- [ ] 10.5 Verify the CLI builds successfully (`pnpm build` in `packages/cli/`)
-- [ ] 10.6 Run full typecheck and lint across all packages
+- [x] 10.1 Remove the `taskless-update-engine` skill directory and its entry in skill distribution
+- [x] 10.2 Update `skill-auth-login` and `skill-auth-logout` to reflect per-repo token storage
+- [x] 10.3 Update `taskless-check` skill to remove scaffold prerequisite language
+- [x] 10.4 Update `taskless-create-rule` skill to remove `taskless.json` dependency language
+- [x] 10.5 Verify the CLI builds successfully (`pnpm build` in `packages/cli/`)
+- [x] 10.6 Run full typecheck and lint across all packages
