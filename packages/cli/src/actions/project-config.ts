@@ -1,11 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import {
-  isValidSpecVersion,
-  isScaffoldVersionSufficient,
-  MIN_SCAFFOLD_VERSION,
-} from "../capabilities";
+import { isValidSpecVersion } from "../capabilities";
 
 /** Typed project configuration from .taskless/taskless.json */
 export interface ProjectConfig {
@@ -46,19 +42,6 @@ export async function readProjectConfig(cwd: string): Promise<ProjectConfig> {
     );
   }
 
-  // Check that the version is at least the lowest minimum across all subcommands
-  let lowestMinimum: string | undefined;
-  for (const minimum of Object.values(MIN_SCAFFOLD_VERSION)) {
-    if (lowestMinimum === undefined || minimum < lowestMinimum) {
-      lowestMinimum = minimum;
-    }
-  }
-  if (lowestMinimum && config.version < lowestMinimum) {
-    throw new Error(
-      `Spec version ${config.version} is not supported by this CLI. Run \`taskless update-engine\` to update.`
-    );
-  }
-
   return {
     version: config.version,
     orgId: typeof config.orgId === "number" ? config.orgId : undefined,
@@ -73,14 +56,6 @@ export async function readProjectConfig(cwd: string): Promise<ProjectConfig> {
 export function validateRulesConfig(
   config: ProjectConfig
 ): { valid: true } | { valid: false; error: string } {
-  if (!isScaffoldVersionSufficient("rules create", config.version)) {
-    const required = MIN_SCAFFOLD_VERSION["rules create"]!;
-    return {
-      valid: false,
-      error: `Scaffold version ${config.version} is below the minimum ${required} required for 'taskless rules create'. Run \`taskless update-engine\` to update.`,
-    };
-  }
-
   if (config.orgId === undefined) {
     return {
       valid: false,

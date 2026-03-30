@@ -1,14 +1,10 @@
 /* eslint-disable unicorn/no-process-exit */
 import { resolve, join } from "node:path";
-import { stat, readdir, readFile } from "node:fs/promises";
+import { stat, readdir } from "node:fs/promises";
 import { defineCommand } from "citty";
 
 import { runAstGrepScan } from "../actions/scan";
 import { formatText } from "../actions/format";
-import {
-  isValidSpecVersion,
-  isScaffoldVersionSufficient,
-} from "../capabilities";
 import { printSchema } from "../actions/schema-output";
 import {
   outputSchema as checkOutputSchema,
@@ -58,87 +54,6 @@ export const checkCommand = defineCommand({
     if (!tasklessJsonExists) {
       const message =
         "Error: .taskless/taskless.json not found. Run `taskless init` to set up your project.";
-      if (args.json) {
-        console.log(
-          JSON.stringify(
-            checkErrorSchema.parse({
-              success: false,
-              error: message,
-              results: [],
-            })
-          )
-        );
-      } else {
-        console.error(message);
-      }
-      process.exit(1);
-    }
-
-    // Read and validate spec version
-    let projectVersion: string;
-    try {
-      const raw = await readFile(tasklessJsonPath, "utf8");
-      const config = JSON.parse(raw) as { version?: string };
-      if (!config.version) {
-        const message =
-          'Error: .taskless/taskless.json is missing the "version" field.';
-        if (args.json) {
-          console.log(
-            JSON.stringify(
-              checkErrorSchema.parse({
-                success: false,
-                error: message,
-                results: [],
-              })
-            )
-          );
-        } else {
-          console.error(message);
-        }
-        process.exit(1);
-      }
-      if (!isValidSpecVersion(config.version)) {
-        const message = `Error: Invalid spec version "${config.version}" in .taskless/taskless.json. Expected YYYY-MM-DD format.`;
-        if (args.json) {
-          console.log(
-            JSON.stringify(
-              checkErrorSchema.parse({
-                success: false,
-                error: message,
-                results: [],
-              })
-            )
-          );
-        } else {
-          console.error(message);
-        }
-        process.exit(1);
-      }
-      projectVersion = config.version;
-    } catch (error) {
-      if (error instanceof SyntaxError) {
-        const message = "Error: .taskless/taskless.json is not valid JSON.";
-        if (args.json) {
-          console.log(
-            JSON.stringify(
-              checkErrorSchema.parse({
-                success: false,
-                error: message,
-                results: [],
-              })
-            )
-          );
-        } else {
-          console.error(message);
-        }
-        process.exit(1);
-      }
-      throw error;
-    }
-
-    // Check scaffold version meets minimum for check command
-    if (!isScaffoldVersionSufficient("check", projectVersion)) {
-      const message = `Error: Scaffold version ${projectVersion} is below the minimum required for 'taskless check'. Run \`taskless update-engine\` to update.`;
       if (args.json) {
         console.log(
           JSON.stringify(

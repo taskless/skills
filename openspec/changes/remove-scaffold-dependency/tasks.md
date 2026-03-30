@@ -1,11 +1,11 @@
 ## 1. Remove update-engine command and scaffold version gating
 
-- [ ] 1.1 Delete `packages/cli/src/commands/update-engine.ts` and remove its registration from the main CLI entry point
-- [ ] 1.2 Delete `packages/cli/src/actions/update-api.ts` (backend API interaction for update-engine)
-- [ ] 1.3 Remove `MIN_SCAFFOLD_VERSION`, `isScaffoldVersionSufficient()` from `packages/cli/src/capabilities.ts` (retain `isValidSpecVersion()`)
-- [ ] 1.4 Delete the `update-engine` help file from `packages/cli/src/help/`
-- [ ] 1.5 Remove or update the `taskless-update-engine` skill and its `tskl:update-engine` command
-- [ ] 1.6 Verify typecheck and lint pass after removals
+- [x] 1.1 Delete `packages/cli/src/commands/update-engine.ts` and remove its registration from the main CLI entry point
+- [x] 1.2 Delete `packages/cli/src/actions/update-api.ts` (backend API interaction for update-engine)
+- [x] 1.3 Remove `MIN_SCAFFOLD_VERSION`, `isScaffoldVersionSufficient()` from `packages/cli/src/capabilities.ts` (retain `isValidSpecVersion()`)
+- [x] 1.4 Delete the `update-engine` help file from `packages/cli/src/help/`
+- [x] 1.5 Remove or update the `taskless-update-engine` skill and its `tskl:update-engine` command
+- [x] 1.6 Verify typecheck and lint pass after removals
 
 ## 2. Add .taskless/.gitignore management
 
