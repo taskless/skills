@@ -214,6 +214,12 @@ async function runTests(cwd: string, ruleId: string): Promise<TestLayerResult> {
         if (stderr && failed === 0) {
           errors.push(stderr);
         }
+        if (errors.length === 0) {
+          const snippet = output.trim().slice(0, 200);
+          errors.push(
+            `sg test exited with code ${String(code)}${snippet ? `: ${snippet}` : ""}`
+          );
+        }
         resolve({ valid: false, errors, passed, failed });
       }
     });

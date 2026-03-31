@@ -70,8 +70,8 @@ export async function runMigrations(tasklessDirectory: string): Promise<void> {
   }
 
   const pending = sorted.filter(([version]) => version > manifest.version);
+  console.error("Migrating to latest .taskless/ schema...");
   for (const [version, migrate] of pending) {
-    console.error(`Running migration: ${String(version)}`);
     try {
       await migrate(tasklessDirectory);
     } catch (error) {
