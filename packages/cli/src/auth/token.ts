@@ -5,7 +5,6 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 
 import { addToGitignore } from "../filesystem/gitignore";
 
-const AUTH_FILE = "auth.json";
 const PER_REPO_AUTH_FILE = ".env.local.json";
 
 /** Resolve the XDG-compliant config directory for taskless */
@@ -16,7 +15,7 @@ export function getConfigDirectory(): string {
 
 /**
  * Resolve the current access token.
- * Priority: TASKLESS_TOKEN env var > per-repo .env.local.json > global auth.json
+ * Priority: TASKLESS_TOKEN env var > per-repo .taskless/.env.local.json
  */
 export async function getToken(cwd?: string): Promise<string | undefined> {
   const envToken = process.env.TASKLESS_TOKEN;
@@ -31,31 +30,10 @@ export async function getToken(cwd?: string): Promise<string | undefined> {
     }
   }
 
-  // Global token
-  try {
-    const filePath = join(getConfigDirectory(), AUTH_FILE);
-    const raw = await readFile(filePath, "utf8");
-    const data = JSON.parse(raw) as {
-      access_token?: string;
-      expires_at?: number;
-    };
-
-    const expiresAt = data.expires_at;
-    if (
-      typeof expiresAt === "number" &&
-      Number.isFinite(expiresAt) &&
-      Date.now() >= expiresAt
-    ) {
-      return undefined;
-    }
-
-    return data.access_token;
-  } catch {
-    return undefined;
-  }
+  return undefined;
 }
 
-/** Save token data to both per-repo and global locations */
+/** Save token data to per-repo .taskless/.env.local.json */
 export async function saveToken(
   data: {
     access_token: string;
@@ -65,6 +43,8 @@ export async function saveToken(
   },
   cwd?: string
 ): Promise<void> {
+  if (!cwd) return;
+
   // Convert relative expires_in (seconds) to absolute expires_at (ms epoch)
   const persisted: Record<string, unknown> = { ...data };
   if (
@@ -77,45 +57,24 @@ export async function saveToken(
 
   const content = JSON.stringify(persisted, null, 2) + "\n";
 
-  // Global XDG location
-  const globalDirectory = getConfigDirectory();
-  await mkdir(globalDirectory, { recursive: true });
-  await writeFile(join(globalDirectory, AUTH_FILE), content, { mode: 0o600 });
-
-  // Per-repo location
-  if (cwd) {
-    const tasklessDirectory = join(cwd, ".taskless");
-    await mkdir(tasklessDirectory, { recursive: true });
-    await addToGitignore(cwd, [".env.local.json"]);
-    await writeFile(join(tasklessDirectory, PER_REPO_AUTH_FILE), content, {
-      mode: 0o600,
-    });
-  }
+  const tasklessDirectory = join(cwd, ".taskless");
+  await mkdir(tasklessDirectory, { recursive: true });
+  await addToGitignore(cwd, [".env.local.json"]);
+  await writeFile(join(tasklessDirectory, PER_REPO_AUTH_FILE), content, {
+    mode: 0o600,
+  });
 }
 
-/** Remove saved tokens from both per-repo and global locations */
+/** Remove saved token from per-repo .taskless/.env.local.json */
 export async function removeToken(cwd?: string): Promise<boolean> {
-  let removed = false;
+  if (!cwd) return false;
 
-  // Per-repo
-  if (cwd) {
-    try {
-      await rm(join(cwd, ".taskless", PER_REPO_AUTH_FILE));
-      removed = true;
-    } catch {
-      // File doesn't exist
-    }
-  }
-
-  // Global
   try {
-    await rm(join(getConfigDirectory(), AUTH_FILE));
-    removed = true;
+    await rm(join(cwd, ".taskless", PER_REPO_AUTH_FILE));
+    return true;
   } catch {
-    // File doesn't exist
+    return false;
   }
-
-  return removed;
 }
 
 async function readPerRepoToken(cwd: string): Promise<string | undefined> {
