@@ -3,6 +3,7 @@ import { defineCommand } from "citty";
 
 import { deviceFlowProvider } from "../auth/device-flow";
 import { getToken, removeToken, saveToken } from "../auth/token";
+import { resolveRepositoryUrl } from "../util/git-remote";
 
 const loginCommand = defineCommand({
   meta: {
@@ -27,7 +28,15 @@ const loginCommand = defineCommand({
     }
 
     try {
-      const deviceCode = await deviceFlowProvider.requestDeviceCode();
+      let repositoryUrl: string | undefined;
+      try {
+        repositoryUrl = await resolveRepositoryUrl(cwd);
+      } catch {
+        // Not a git repo or no origin — proceed without hint
+      }
+
+      const deviceCode =
+        await deviceFlowProvider.requestDeviceCode(repositoryUrl);
 
       console.log(`\nOpen this URL in your browser:\n`);
       console.log(

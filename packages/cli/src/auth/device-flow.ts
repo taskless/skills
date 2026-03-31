@@ -30,17 +30,21 @@ export type TokenPollResult =
 
 /** Interface for the Device Flow HTTP calls */
 export interface DeviceFlowProvider {
-  requestDeviceCode(): Promise<DeviceCodeResponse>;
+  requestDeviceCode(repositoryUrl?: string): Promise<DeviceCodeResponse>;
   pollForToken(deviceCode: string): Promise<TokenPollResult>;
 }
 
 class HttpDeviceFlowProvider implements DeviceFlowProvider {
-  async requestDeviceCode(): Promise<DeviceCodeResponse> {
+  async requestDeviceCode(repositoryUrl?: string): Promise<DeviceCodeResponse> {
     const baseUrl = getApiBaseUrl();
+    const body: Record<string, string> = { client_id: CLIENT_ID };
+    if (repositoryUrl) {
+      body.repository_url = repositoryUrl;
+    }
     const response = await fetch(`${baseUrl}/auth/device`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ client_id: CLIENT_ID }),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
