@@ -22,7 +22,7 @@ Your goal is to produce the best possible rule by enriching the user's initial d
 
 2. **Read current command documentation.** Run `pnpm dlx @taskless/cli@latest help rules create` and read the output. Use this to understand the command's `--from` JSON fields, options, and examples.
 
-3. **Gather the rule description.** Ask the user what pattern they want to detect. This becomes the `prompt` field (required).
+3. **Gather the rule description.** Even if the user provided a description with their command, you MUST ask clarifying questions before proceeding. Do NOT skip to rule generation. Ask what specific code pattern should be flagged, with concrete examples. This becomes the `prompt` field (required).
 
 4. **Check for existing similar rules.** Once you have the user's description, scan `.taskless/rules/` for existing rule files. Read each rule's `message`, `note`, and `rule` fields to understand what patterns are already covered. If any existing rule appears to overlap with the user's request:
    - Show the user the similar rule(s) and explain the overlap.

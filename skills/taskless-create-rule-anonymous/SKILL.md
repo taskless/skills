@@ -20,11 +20,13 @@ This skill creates ast-grep rules locally without requiring Taskless authenticat
 
    Study the examples carefully — they show how `pattern`, `kind`, `regex`, `any`, `all`, `has`, `inside`, and other combinators work.
 
-2. **Gather the rule description.** Ask the user what pattern they want to detect. Understand:
-   - What code should be flagged?
+2. **Gather the rule description.** Even if the user provided a description with their command, you MUST ask clarifying questions before proceeding. Do NOT skip to rule generation. Ask the user:
+   - What specific code pattern should be flagged? Get concrete examples.
    - What language is it in?
-   - Are there exceptions or edge cases?
+   - Are there exceptions or edge cases where the pattern is acceptable?
    - Can they show examples of code that should and shouldn't trigger?
+
+   Wait for the user's responses before moving to step 3.
 
 3. **Check for existing similar rules.** Scan `.taskless/rules/` for existing rule files. If any overlap with the user's request, point it out and ask if they want to improve an existing rule instead (via `taskless-improve-rule-anonymous`).
 
