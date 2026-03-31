@@ -1,6 +1,6 @@
 import { getToken } from "./token";
 import { decodeOrgId } from "./jwt";
-import { resolveRepositoryUrl } from "./git-remote";
+import { resolveRepositoryUrl } from "../util/git-remote";
 
 export interface Identity {
   token: string;

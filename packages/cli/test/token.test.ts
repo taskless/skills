@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getToken, saveToken, removeToken } from "../src/actions/token";
+import { getToken, saveToken, removeToken } from "../src/auth/token";
 
 let temporaryDirectory: string;
 

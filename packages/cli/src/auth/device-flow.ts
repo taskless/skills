@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from "./api-config";
+import { getApiBaseUrl } from "../api/config";
 
 const CLIENT_ID = "taskless-cli";
 

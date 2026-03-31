@@ -3,8 +3,8 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 
-import { generateSgConfig } from "../src/actions/sgconfig";
-import { ensureTasklessGitignore } from "../src/actions/gitignore";
+import { generateSgConfig } from "../src/rules/sgconfig";
+import { ensureTasklessGitignore } from "../src/rules/gitignore";
 
 describe("generateSgConfig", () => {
   let temporaryDirectory: string;

@@ -3,10 +3,10 @@ import { resolve, join } from "node:path";
 import { readdir } from "node:fs/promises";
 import { defineCommand } from "citty";
 
-import { runAstGrepScan } from "../actions/scan";
-import { formatText } from "../actions/format";
-import { generateSgConfig } from "../actions/sgconfig";
-import { printSchema } from "../actions/schema-output";
+import { runAstGrepScan } from "../rules/scan";
+import { formatText } from "../util/format";
+import { generateSgConfig } from "../rules/sgconfig";
+import { printSchema } from "../util/schema-output";
 import {
   outputSchema as checkOutputSchema,
   errorSchema as checkErrorSchema,

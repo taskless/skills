@@ -1,5 +1,5 @@
 import type { paths } from "../generated/api";
-import { createApiClient } from "./api-client";
+import { createApiClient } from "./client";
 
 // --- Types extracted from the generated schema ---
 

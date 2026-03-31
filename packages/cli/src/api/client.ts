@@ -1,7 +1,7 @@
 import createClient from "openapi-fetch";
 
 import type { paths } from "../generated/api";
-import { getApiBaseUrl } from "./api-config";
+import { getApiBaseUrl } from "./config";
 
 /** Create a typed API client for the Taskless CLI API */
 export function createApiClient(token: string) {
