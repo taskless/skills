@@ -13,12 +13,24 @@ import { generateSgConfig } from "../filesystem/sgconfig";
 import { findSgBinary, buildPath } from "./scan";
 import astGrepJsonSchema from "../generated/ast-grep-rule-schema.json";
 import { RULE_EXAMPLES } from "./verify-examples";
+import { isValidRuleId } from "./validate-id";
+
+// --- Helpers ---
+
+/** Escape special regex characters so a string can be used as a literal pattern */
+function escapeRegExp(s: string): string {
+  return s.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+}
 
 // --- Types ---
 
 interface LayerResult {
   valid: boolean;
   errors: string[];
+}
+
+interface RequirementsResult extends LayerResult {
+  hasTestFile: boolean;
 }
 
 interface TestLayerResult extends LayerResult {
@@ -72,7 +84,7 @@ async function validateRequirements(
   cwd: string,
   ruleId: string,
   ruleData: Record<string, unknown>
-): Promise<LayerResult> {
+): Promise<RequirementsResult> {
   const errors: string[] = [];
 
   // Check required fields
@@ -134,7 +146,7 @@ async function validateRequirements(
     );
   }
 
-  return { valid: errors.length === 0, errors };
+  return { valid: errors.length === 0, errors, hasTestFile };
 }
 
 // --- Layer 3: Test execution ---
@@ -143,7 +155,6 @@ async function runTests(cwd: string, ruleId: string): Promise<TestLayerResult> {
   await generateSgConfig(cwd);
 
   const sgBinary = findSgBinary();
-  const useShell = sgBinary === "sg";
 
   return new Promise((resolve) => {
     const child = spawn(
@@ -154,10 +165,9 @@ async function runTests(cwd: string, ruleId: string): Promise<TestLayerResult> {
         ".taskless/sgconfig.yml",
         "--skip-snapshot-tests",
         "--filter",
-        `^${ruleId}$`,
+        `^${escapeRegExp(ruleId)}$`,
       ],
       {
-        shell: useShell,
         cwd,
         stdio: ["ignore", "pipe", "pipe"],
         env: { ...process.env, PATH: buildPath() },
@@ -216,6 +226,17 @@ export async function verifyRule(
   cwd: string,
   ruleId: string
 ): Promise<VerifyResult> {
+  if (!isValidRuleId(ruleId)) {
+    const errorMessage = `Invalid rule ID "${ruleId}". Rule IDs must be lowercase alphanumeric with hyphens.`;
+    return {
+      success: false,
+      ruleId,
+      schema: { valid: false, errors: [errorMessage] },
+      requirements: { valid: false, errors: [errorMessage] },
+      tests: { valid: false, errors: [errorMessage], passed: 0, failed: 0 },
+    };
+  }
+
   const rulePath = join(cwd, ".taskless", "rules", `${ruleId}.yml`);
 
   let ruleContent: string;
@@ -278,10 +299,7 @@ export async function verifyRule(
   );
 
   // Layer 3 — only if test file exists (Layer 2 checks this)
-  const hasTestFile = !requirementsResult.errors.some((error) =>
-    error.includes("No test file found")
-  );
-  const testResult = hasTestFile
+  const testResult = requirementsResult.hasTestFile
     ? await runTests(cwd, ruleId)
     : {
         valid: false,

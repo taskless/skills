@@ -5,12 +5,16 @@ import { parse, stringify } from "yaml";
 
 import { ensureTasklessDirectory } from "../filesystem/directory";
 import type { GeneratedRule, RuleMetadata } from "../api/rules";
+import { isValidRuleId } from "./validate-id";
 
 /** Write a generated rule's content to .taskless/rules/{kebab-id}.yml */
 export async function writeRuleFile(
   cwd: string,
   rule: GeneratedRule
 ): Promise<string> {
+  if (!isValidRuleId(rule.id)) {
+    throw new Error(`Invalid rule ID "${rule.id}"`);
+  }
   await ensureTasklessDirectory(cwd);
   const directory = join(cwd, ".taskless", "rules");
   const filePath = join(directory, `${rule.id}.yml`);
@@ -24,6 +28,9 @@ export async function writeRuleTestFile(
   rule: GeneratedRule,
   timestamp: string
 ): Promise<string> {
+  if (!isValidRuleId(rule.id)) {
+    throw new Error(`Invalid rule ID "${rule.id}"`);
+  }
   await ensureTasklessDirectory(cwd);
   const directory = join(cwd, ".taskless", "rule-tests");
   const filePath = join(directory, `${rule.id}-${timestamp}-test.yml`);
@@ -61,6 +68,9 @@ export async function readRuleMetaFile(
   cwd: string,
   id: string
 ): Promise<Record<string, unknown> | null> {
+  if (!isValidRuleId(id)) {
+    return null;
+  }
   const filePath = join(cwd, ".taskless", "rule-metadata", `${id}.yml`);
   try {
     const content = await readFile(filePath, "utf8");
@@ -83,6 +93,9 @@ export async function deleteRuleFiles(
   cwd: string,
   id: string
 ): Promise<boolean> {
+  if (!isValidRuleId(id)) {
+    return false;
+  }
   const rulesDirectory = join(cwd, ".taskless", "rules");
   const ruleFilePath = join(rulesDirectory, `${id}.yml`);
 
