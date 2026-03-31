@@ -8,11 +8,7 @@ export const checkResultSchema = z.object({
     .enum(["error", "warning", "info", "hint"])
     .describe("Severity level"),
   message: z.string().describe("Message explaining why the rule fired"),
-  note: z
-    .string()
-    .nullish()
-    .transform((v) => v ?? undefined)
-    .describe("Additional notes"),
+  note: z.string().nullable().optional().describe("Additional notes"),
   file: z.string().describe("File path where the match was found"),
   range: z.object({
     start: z.object({
@@ -25,11 +21,7 @@ export const checkResultSchema = z.object({
     }),
   }),
   matchedText: z.string().describe("The code that matched the rule"),
-  fix: z
-    .string()
-    .nullish()
-    .transform((v) => v ?? undefined)
-    .describe("Suggested fix replacement"),
+  fix: z.string().nullable().optional().describe("Suggested fix replacement"),
 });
 
 /** Output schema for `taskless check --json` on success */
