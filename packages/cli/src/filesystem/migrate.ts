@@ -29,8 +29,16 @@ async function readManifest(directory: string): Promise<TasklessManifest> {
     const parsed = JSON.parse(content) as Record<string, unknown>;
     const version = Number(parsed.version);
     return { version: Number.isFinite(version) ? version : 0 };
-  } catch {
-    return { version: 0 };
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error as NodeJS.ErrnoException).code === "ENOENT"
+    ) {
+      return { version: 0 };
+    }
+    throw error;
   }
 }
 
@@ -64,7 +72,18 @@ export async function runMigrations(tasklessDirectory: string): Promise<void> {
   const pending = sorted.filter(([version]) => version > manifest.version);
   for (const [version, migrate] of pending) {
     console.error(`Running migration: ${String(version)}`);
-    await migrate(tasklessDirectory);
+    try {
+      await migrate(tasklessDirectory);
+    } catch (error) {
+      console.error(
+        `Migration ${String(version)} failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+      // Write manifest at last successful version so we don't re-run completed migrations
+      if (version > manifest.version + 1) {
+        await writeManifest(tasklessDirectory, { version: version - 1 });
+      }
+      throw error;
+    }
   }
 
   await writeManifest(tasklessDirectory, { version: maxVersion });

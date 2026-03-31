@@ -220,6 +220,70 @@ describe("verifyRule", () => {
     }
   });
 
+  it("reports error for invalid YAML in rule file", async () => {
+    const rulesDirectory = join(temporaryDirectory, ".taskless", "rules");
+    await mkdir(rulesDirectory, { recursive: true });
+
+    await writeFile(
+      join(rulesDirectory, "bad-yaml.yml"),
+      "id: bad-yaml\nlanguage: typescript\nrule:\n  - invalid: [\n    unclosed bracket",
+      "utf8"
+    );
+
+    const result = await verifyRule(temporaryDirectory, "bad-yaml");
+
+    expect(result.success).toBe(false);
+    expect(result.schema.valid).toBe(false);
+    expect(result.schema.errors).toContainEqual(
+      expect.stringContaining("Invalid YAML")
+    );
+    expect(result.requirements.errors).toContainEqual(
+      expect.stringContaining("invalid YAML")
+    );
+    expect(result.tests.errors).toContainEqual(
+      expect.stringContaining("invalid YAML")
+    );
+  });
+
+  it("reports regex-without-kind violation", async () => {
+    const rulesDirectory = join(temporaryDirectory, ".taskless", "rules");
+    const testsDirectory = join(temporaryDirectory, ".taskless", "rule-tests");
+    await mkdir(rulesDirectory, { recursive: true });
+    await mkdir(testsDirectory, { recursive: true });
+
+    await writeFile(
+      join(rulesDirectory, "regex-no-kind.yml"),
+      stringify({
+        id: "regex-no-kind",
+        language: "typescript",
+        severity: "error",
+        message: "Bad regex usage",
+        rule: { regex: "foo.*bar" },
+      }),
+      "utf8"
+    );
+
+    await writeFile(
+      join(testsDirectory, "regex-no-kind-20260330-test.yml"),
+      stringify({
+        id: "regex-no-kind",
+        valid: ["const x = 1;"],
+        invalid: ["foobar"],
+      }),
+      "utf8"
+    );
+
+    const result = await verifyRule(temporaryDirectory, "regex-no-kind");
+
+    expect(result.requirements.valid).toBe(false);
+    expect(result.requirements.errors).toContainEqual(
+      expect.stringContaining("regex")
+    );
+    expect(result.requirements.errors).toContainEqual(
+      expect.stringContaining("kind")
+    );
+  });
+
   it("reports missing required Taskless fields", async () => {
     const rulesDirectory = join(temporaryDirectory, ".taskless", "rules");
     await mkdir(rulesDirectory, { recursive: true });
