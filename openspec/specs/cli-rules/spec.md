@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD — Defines the `rules` subcommand group for the Taskless CLI, including `create`, `improve`, and `delete` subcommands for managing ast-grep rules via the Taskless API.
+Defines the `rules` subcommand group for the Taskless CLI, including `create`, `improve`, `delete`, and `verify` subcommands for managing ast-grep rules. Also documents the server-side API contract for rule generation endpoints.
 
 ## Requirements
 
@@ -128,12 +128,6 @@ The `taskless rules create` command SHALL POST to `POST /cli/api/request` with `
 - **WHEN** the CLI is polling and the status transitions from `accepted` to `building`
 - **THEN** the CLI SHALL update the progress message to reflect the current status
 
-#### Scenario: API not yet available (stub)
-
-- **WHEN** the network layer is stubbed (API not yet implemented)
-- **THEN** the CLI SHALL print a clear message indicating that rule generation is not yet available
-- **AND** the CLI SHALL exit with a non-zero exit code
-
 ### Requirement: Rules create uses a network interface with stub
 
 The API calls for rule generation (`POST /cli/api/request` and `GET /cli/api/request/:requestId`) SHALL be defined as a TypeScript interface. The initial implementation SHALL use a stub that returns an error indicating the API is not yet available. This allows the CLI UX to be built and tested independently of the API.
@@ -210,6 +204,91 @@ While polling for the request result, the CLI SHALL display a waiting message to
 - **WHEN** the CLI is polling for a request result
 - **THEN** the CLI SHALL print a waiting/progress message to stderr indicating the current status
 
+### Requirement: Rules improve reads request from file
+
+The `taskless rules improve` command SHALL read a JSON request payload from a file specified by the `--from <file>` argument. The payload SHALL conform to the shape `{ ruleId: string, guidance: string, references?: Array<{ filename: string, content: string }> }`. The `ruleId` and `guidance` fields are required. If `--from` is not provided, the CLI SHALL print an error message with usage examples and exit with a non-zero exit code.
+
+#### Scenario: Valid JSON from file
+
+- **WHEN** a user runs `taskless rules improve --from request.json` and `request.json` contains valid JSON with `ruleId` and `guidance` fields
+- **THEN** the CLI SHALL read the file, parse the JSON, and proceed to submit it to the API
+
+#### Scenario: Missing --from flag
+
+- **WHEN** a user runs `taskless rules improve` without the `--from` flag
+- **THEN** the CLI SHALL print an error indicating `--from <file>` is required with a usage example
+- **AND** the CLI SHALL exit with a non-zero exit code
+
+#### Scenario: Missing required ruleId field
+
+- **WHEN** a user provides a file missing the `ruleId` field
+- **THEN** the CLI SHALL print an error indicating the missing field
+- **AND** the CLI SHALL exit with a non-zero exit code
+
+#### Scenario: Missing required guidance field
+
+- **WHEN** a user provides a file missing the `guidance` field
+- **THEN** the CLI SHALL print an error indicating the missing field
+- **AND** the CLI SHALL exit with a non-zero exit code
+
+### Requirement: Rules improve requires authentication
+
+The `taskless rules improve` command SHALL require a valid auth token resolved via `getToken()`. If no token is available, the CLI SHALL print an error directing the user to run `taskless auth login` and exit with a non-zero exit code.
+
+#### Scenario: No token available
+
+- **WHEN** a user runs `taskless rules improve` with no token available
+- **THEN** the CLI SHALL print an error indicating authentication is required
+- **AND** the CLI SHALL exit with a non-zero exit code
+
+### Requirement: Rules improve submits to iterate API and polls for results
+
+The `taskless rules improve` command SHALL POST to `/cli/api/rule/{ruleId}/iterate` with `orgId` resolved from the JWT's `orgId` claim (via `resolveIdentity()`), `guidance`, and optional `references`. It SHALL receive a `requestId` in the response and poll `GET /cli/api/rule/{requestId}` at a 15-second interval until the status reaches `generated` or `failed`.
+
+#### Scenario: Successful rule iteration
+
+- **WHEN** the API accepts the iterate request and generation completes
+- **THEN** the CLI SHALL receive a `requestId`, poll until status is `generated`, and proceed to write files
+
+#### Scenario: Rule iteration fails
+
+- **WHEN** the request status returns `failed` with an error message
+- **THEN** the CLI SHALL print the error message
+- **AND** the CLI SHALL exit with a non-zero exit code
+
+#### Scenario: Identity resolved from JWT and git remote
+
+- **WHEN** the `rules improve` command resolves identity
+- **THEN** it SHALL use `resolveIdentity()` to obtain `orgId` from the JWT claim
+- **AND** it SHALL NOT read `orgId` from `taskless.json`
+
+### Requirement: Rules improve writes updated files to disk
+
+When iteration completes, the CLI SHALL write each rule to `.taskless/rules/{kebab-id}.yml` and test files to `.taskless/rule-tests/{kebab-id}-{timestamp}-test.yml`, overwriting existing files. This uses the same file-writing logic as `rules create`.
+
+#### Scenario: Updated rule overwrites existing file
+
+- **WHEN** the API returns an updated rule with id `no-console-log`
+- **THEN** the CLI SHALL overwrite `.taskless/rules/no-console-log.yml` with the new content
+
+### Requirement: Rules improve outputs results
+
+After writing files, the CLI SHALL output a summary. In text mode, it SHALL list written file paths. In JSON mode (`--json`), it SHALL output a JSON object with `requestId`, `rules` array, and `files` array.
+
+#### Scenario: JSON output
+
+- **WHEN** `taskless rules improve` completes with `--json`
+- **THEN** stdout SHALL contain a JSON object with `success`, `requestId`, `rules`, and `files` fields
+
+### Requirement: Rules improve has a help entry
+
+The `rules improve` subcommand SHALL have a help file at `packages/cli/src/help/rules-improve.txt` describing usage, options, and JSON file fields. The rules help index SHALL list `improve` alongside `create` and `delete`.
+
+#### Scenario: Help is accessible
+
+- **WHEN** a user runs `taskless help rules improve`
+- **THEN** the CLI SHALL display the improve help text with usage, options, and JSON field descriptions
+
 ### Requirement: Rules delete removes rule and test files
 
 The `taskless rules delete <id>` command SHALL remove `.taskless/rules/{id}.yml` and any matching files in `.taskless/rule-tests/` that begin with `{id}-`. If the rule file does not exist, the CLI SHALL print an error and exit with a non-zero exit code.
@@ -244,3 +323,168 @@ The `taskless rules delete` command SHALL accept a positional argument specifyin
 
 - **WHEN** a user runs `taskless rules delete no-console-log`
 - **THEN** the CLI SHALL look for `.taskless/rules/no-console-log.yml`
+
+## API Contract
+
+### Requirement: Rule generation request endpoint accepts a request and returns a requestId
+
+The server SHALL expose `POST /cli/api/rule` that accepts an authenticated request with a JSON body containing `orgId` (number, required), `repositoryUrl` (string, required), `prompt` (string, required), `successCases` (array of strings, optional), and `failureCases` (array of strings, optional). The endpoint SHALL return a JSON response containing `ruleId` (string) and `status` set to `"accepted"`.
+
+#### Scenario: Valid request returns a ruleId
+
+- **WHEN** an authenticated client sends a POST to `/cli/api/rule` with valid `orgId`, `repositoryUrl`, and `prompt`
+- **THEN** the server SHALL return HTTP 200 with `{ ruleId: string, status: "accepted" }`
+
+#### Scenario: Request with example arrays
+
+- **WHEN** an authenticated client includes `successCases` and `failureCases` arrays
+- **THEN** the server SHALL accept the arrays and use them for rule generation context
+
+#### Scenario: Missing required fields
+
+- **WHEN** a client sends a POST missing `orgId`, `repositoryUrl`, or `prompt`
+- **THEN** the server SHALL return HTTP 400 with `{ error: "validation_error", details: string[] }`
+
+#### Scenario: Unauthenticated request
+
+- **WHEN** a client sends a POST without a valid `Authorization: Bearer <token>` header
+- **THEN** the server SHALL return HTTP 401
+
+#### Scenario: Repository not accessible
+
+- **WHEN** the `repositoryUrl` is not accessible to the specified organization
+- **THEN** the server SHALL return HTTP 403 with `{ error: "repository_not_accessible" }`
+
+#### Scenario: Organization not found
+
+- **WHEN** the `orgId` does not match a known organization
+- **THEN** the server SHALL return HTTP 404 with `{ error: "organization_not_found" }`
+
+### Requirement: Iterate endpoint accepts guidance and returns a requestId
+
+The server SHALL expose `POST /cli/api/rule/{ruleId}/iterate` that accepts an authenticated request with a JSON body containing `orgId` (number, required), `guidance` (string, required), and `references` (array of `{ filename: string, content: string }`, optional). The endpoint SHALL return a JSON response containing `requestId` (string) and `status` set to `"accepted"`. The `requestId` SHALL be usable with the existing `GET /cli/api/rule/{requestId}` polling endpoint.
+
+#### Scenario: Valid iterate request returns a requestId
+
+- **WHEN** an authenticated client sends a POST to `/cli/api/rule/{ruleId}/iterate` with valid `orgId` and `guidance`
+- **THEN** the server SHALL return HTTP 200 with `{ requestId: string, status: "accepted" }`
+
+#### Scenario: Missing required fields
+
+- **WHEN** a client sends a POST missing `orgId` or `guidance`
+- **THEN** the server SHALL return HTTP 400 with `{ error: "validation_error", details: string[] }`
+
+#### Scenario: Rule not found
+
+- **WHEN** the `ruleId` does not match a known rule generation request
+- **THEN** the server SHALL return HTTP 404 with `{ error: "request_not_found" }`
+
+#### Scenario: Access denied
+
+- **WHEN** the authenticated user does not have access to the specified rule
+- **THEN** the server SHALL return HTTP 403 with `{ error: "access_denied" }`
+
+#### Scenario: Organization not found
+
+- **WHEN** the `orgId` does not match a known organization
+- **THEN** the server SHALL return HTTP 404 with `{ error: "organization_not_found" }`
+
+### Requirement: Request status endpoint returns generation progress
+
+The server SHALL expose `GET /cli/api/request/:requestId` that accepts an authenticated request and returns the current status of the rule generation job. The status SHALL progress through `accepted` → `building` → `generated` (or `failed`).
+
+#### Scenario: Generation accepted
+
+- **WHEN** the rule generation job has been queued but not started
+- **THEN** the server SHALL return `{ requestId, status: "accepted" }`
+
+#### Scenario: Generation building
+
+- **WHEN** the rule generation job is actively processing
+- **THEN** the server SHALL return `{ requestId, status: "building" }`
+
+#### Scenario: Generation complete
+
+- **WHEN** the rule generation job has completed successfully
+- **THEN** the server SHALL return `{ requestId, status: "generated", rules: GeneratedRule[] }`
+
+#### Scenario: Generation failed
+
+- **WHEN** the rule generation job has failed
+- **THEN** the server SHALL return `{ requestId, status: "failed", error: string }`
+
+#### Scenario: Unknown requestId
+
+- **WHEN** a client requests a requestId that does not exist
+- **THEN** the server SHALL return HTTP 404 with `{ error: "request_not_found" }`
+
+#### Scenario: Access denied
+
+- **WHEN** the authenticated user does not have access to the specified request
+- **THEN** the server SHALL return HTTP 403 with `{ error: "access_denied" }`
+
+#### Scenario: Unauthenticated request
+
+- **WHEN** a client sends a GET without a valid `Authorization: Bearer <token>` header
+- **THEN** the server SHALL return HTTP 401
+
+### Requirement: Generated rule content follows ast-grep schema
+
+Each rule in the `rules` array SHALL contain an `id` (string), a `content` object matching the ast-grep rule schema, and an optional `tests` object. The `content` object SHALL include at minimum `id` (string), `language` (string), and `rule` (object). It MAY include `severity`, `message`, `note`, `fix`, `constraints`, `utils`, `transform`, `metadata`, `files`, `ignores`, and `url`.
+
+#### Scenario: Minimal rule content
+
+- **WHEN** a rule is generated with minimal configuration
+- **THEN** `content` SHALL contain `id`, `language`, and `rule`
+
+#### Scenario: Full rule content
+
+- **WHEN** a rule is generated with all optional fields
+- **THEN** `content` SHALL contain all applicable fields from the ast-grep schema
+
+### Requirement: Generated rules may include test cases
+
+Each rule in the `rules` array MAY include a `tests` object containing `valid` (array of strings — code that should NOT trigger the rule) and `invalid` (array of strings — code that SHOULD trigger the rule).
+
+#### Scenario: Rule with test cases
+
+- **WHEN** the generator produces test cases for a rule
+- **THEN** the rule SHALL include `tests` with non-empty `valid` and `invalid` arrays
+
+#### Scenario: Rule without test cases
+
+- **WHEN** the generator does not produce test cases
+- **THEN** the `tests` field SHALL be absent or undefined
+
+### Requirement: Whoami endpoint returns user identity and organizations
+
+The server SHALL expose `GET /cli/api/whoami` that accepts an authenticated request and returns the user's identity and associated organizations.
+
+#### Scenario: Authenticated user
+
+- **WHEN** an authenticated client sends a GET to `/cli/api/whoami`
+- **THEN** the server SHALL return `{ user: string, email?: string, orgs: [{ orgId: number, name: string, installationId: number }] }`
+
+#### Scenario: Unauthenticated request
+
+- **WHEN** a client sends a GET without a valid `Authorization: Bearer <token>` header
+- **THEN** the server SHALL return HTTP 401 with `{ error: "unauthorized" }`
+
+### Requirement: API manifest endpoint lists available endpoints
+
+The server SHALL expose `GET /cli/api` that requires no authentication and returns an array of available CLI API endpoints with their paths, methods, and descriptions.
+
+#### Scenario: Manifest is accessible without auth
+
+- **WHEN** a client sends a GET to `/cli/api`
+- **THEN** the server SHALL return HTTP 200 with an array of endpoint descriptors
+
+### Requirement: API endpoints support schema introspection
+
+All `/cli/api/*` endpoints SHALL support an `x-explain: 1` request header. When present, the endpoint SHALL return the JSON schema of its request/response instead of executing, and SHALL NOT require authentication.
+
+#### Scenario: Schema introspection with x-explain header
+
+- **WHEN** a client sends a request to any `/cli/api/*` endpoint with the `x-explain: 1` header
+- **THEN** the server SHALL return the JSON schema for that endpoint's request and response
+- **AND** the server SHALL NOT require authentication
