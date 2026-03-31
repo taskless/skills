@@ -36,15 +36,13 @@ Fetch `https://raw.githubusercontent.com/ast-grep/ast-grep/{VERSION}/schemas/rul
 
 **Alternative considered:** Bundling a hand-written subset of the schema. Rejected because the full schema covers edge cases (rewriters, transformations, fix configs) that a subset would miss, leading to false validation passes.
 
-### 2. Validation library: Zod for schema validation
+### 2. Validation library: Zod 4 with `z.fromJSONSchema()`
 
-Convert the fetched ast-grep JSON Schema into a Zod schema at codegen time using `json-schema-to-zod` or a hand-maintained Zod schema derived from the official JSON Schema. This keeps the CLI on a single validation library. The Zod schema is the runtime validator; the JSON Schema is still fetched and embedded for `--schema` output (agent consumption), but Ajv is not needed.
+Upgraded from Zod 3 to Zod 4, which provides native `z.fromJSONSchema()` and `z.toJSONSchema()`. The ast-grep rule schema is converted at runtime via `z.fromJSONSchema(astGrepSchema)` — no codegen step needed for the Zod schema itself. The raw JSON Schema is still embedded for `--schema` agent output. Removed the `zod-to-json-schema` dependency in favor of native `z.toJSONSchema()`.
 
-**Why Zod over Ajv?** The CLI already uses Zod everywhere. Adding a second validation library increases bundle size and cognitive overhead. Zod provides excellent error messages and integrates with the existing `--schema` flag infrastructure via `zod-to-json-schema`.
+Taskless-specific checks (required fields, regex-requires-kind) are implemented as separate Layer 2 validation functions rather than `.refine()` calls, for clearer per-layer error reporting.
 
-**Approach:** Generate a Zod schema from the official ast-grep JSON Schema during codegen. The Taskless overlay (required fields, regex-requires-kind) is layered on top as `.refine()` calls. If `json-schema-to-zod` can't handle the full complexity, a hand-maintained Zod schema covering the fields Taskless cares about (with `.passthrough()` for unknown fields) is acceptable — the `sg test` layer catches what schema validation misses.
-
-**Alternative considered:** Using Ajv for JSON Schema validation alongside Zod. Rejected to avoid a second validation library — Zod can cover the needed validation surface, and `sg test` provides the ultimate correctness check.
+**Alternative considered:** Keeping Zod 3 with a hand-maintained schema or Ajv. Rejected — Zod 4's native JSON Schema support handles the full ast-grep schema complexity without a second library.
 
 ### 3. `rules verify` command design
 
@@ -86,33 +84,48 @@ Output includes per-layer pass/fail with structured error messages the agent can
 
 Instead of a static bootstrap function, use a migration-based approach inspired by database migrations. `taskless.json` stores an integer `version` (default 0), and a registry of named migrations brings the directory up to date.
 
+```
+src/filesystem/
+├── directory.ts          ← ensureTasklessDirectory(cwd), the public API
+├── migrate.ts            ← runMigrations(), registry, manifest read/write
+├── types.ts              ← Migration, Migrations type exports
+├── gitignore.ts          ← addToGitignore(cwd, globs[]) — generic FS utility
+├── sgconfig.ts           ← generateSgConfig(cwd) — ephemeral sgconfig.yml
+└── migrations/
+    └── 0001-init.ts      ← first migration
+```
+
 ```ts
-type Migration = (dir: string) => Promise<undefined>;
+type Migration = (directory: string) => Promise<void>;
 type Migrations = Record<string, Migration>;
 
+// In migrate.ts — migrations keyed by numeric string
 const migrations: Migrations = {
-  "001-init": async (dir) => {
-    /* create README.md, .gitignore, rules/, rule-tests/ */
-  },
-  "002-something-future": async (dir) => {
-    /* future migration */
-  },
+  "1": init,
 };
 ```
 
-The `ensureTasklessDirectory(cwd)` function:
+The migration runner (`runMigrations`):
 
-1. Reads `taskless.json` → `{ "version": 0 }` (or creates it with version 0 if missing)
-2. Counts total migrations; if `version` >= count, returns early (already current)
-3. Runs all migrations from the current version index forward
-4. Each migration is idempotent (checks before writing)
-5. Writes the new version to `taskless.json`
+1. Sorts migrations numerically (keys cast to `Number`, then `toSorted`)
+2. Reads `taskless.json` → extracts `version` as a number (non-numeric values like v0's `"2026-03-02"` date string fall back to 0 via `Number.isFinite()` check)
+3. Finds the max migration version from the sorted keys
+4. If current version >= max, returns early
+5. Runs only migrations whose version > current version
+6. Writes `{ "version": <max> }` to `taskless.json`
 
-Called from any write path: `writeRuleFile`, `writeRuleTestFile`, `generateSgConfig`, and the new `rules verify` command.
+`ensureTasklessDirectory(cwd)` in `directory.ts` is the public API — creates `.taskless/` and calls `runMigrations`. Called from `writeRuleFile`, `writeRuleTestFile`, `generateSgConfig`.
 
-Migrations are keyed as a `Record<string, Migration>` so older migrations can be safely removed once the minimum supported version advances. The string keys are for human readability; ordering is by position in the record (insertion order).
+Filesystem utilities like `addToGitignore(cwd, globs)` are generic — they don't know about Taskless-specific entries. The migrations decide what to pass:
 
-The first migration (`001-init`) handles everything the current bootstrap would: README, gitignore, directory structure.
+```ts
+// In 0001-init.ts
+await addToGitignore(cwd, [".env.local.json", "sgconfig.yml"]);
+```
+
+Migrations are keyed as a `Record<string, Migration>` so older migrations can be safely removed once the minimum supported version advances. The numeric string keys are sorted at runtime, not by insertion order.
+
+The first migration (`1`) creates README.md (always overwritten), .gitignore entries, and subdirectories.
 
 **Why migrations over a static bootstrap?** A static bootstrap handles "directory doesn't exist yet" but not "directory exists from an older CLI version and needs updates." Migrations handle both cases with the same mechanism. The overhead is minimal — it's just a version check and a loop — but it scales to any future `.taskless/` directory changes without ad-hoc upgrade logic.
 
@@ -159,5 +172,4 @@ Anonymous rules use the same `<id>-<YYYYMMDD>-test.yml` naming convention as API
 **`sg test` invocation may be slow or fail on some platforms** — The binary resolution logic in `scan.ts` handles this for `sg scan`, but `sg test` hasn't been used yet.
 → Mitigation: Reuse the existing `findSgBinary()` resolver for `sg test`. The same platform-specific binary supports both commands.
 
-**Zod schema may not cover full ast-grep complexity** — The ast-grep schema has recursive `$ref` and `anyOf` patterns that may not convert cleanly to Zod.
-→ Mitigation: The Zod schema validates the fields Taskless cares about (with `.passthrough()` for the rest). Layer 3 (`sg test`) catches any structural issues the Zod schema misses. The raw JSON Schema is still embedded for agent consumption via `--schema`.
+**Zod schema may not cover full ast-grep complexity** — Resolved: Zod 4's `z.fromJSONSchema()` handles the full 850-line ast-grep schema including recursive `$ref` and `anyOf` patterns without issues.

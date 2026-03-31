@@ -10,23 +10,27 @@ compatibility: Designed for Agents implementing the Agent Skills specification.
 
 # Taskless Rule Create
 
-When this skill is invoked, work with the user to build a comprehensive rule request, then write a JSON file and run the CLI to generate a rule.
+When this skill is invoked, work with the user to build a comprehensive rule request and generate a rule.
 
 Your goal is to produce the best possible rule by enriching the user's initial description with concrete examples, edge cases, and exclusions — not just pass their request through verbatim.
 
 ## Instructions
 
-1. **Read current command documentation.** Run `pnpm dlx @taskless/cli@latest help rules create` and read the output. Use this to understand the command's `--from` JSON fields, options, and examples.
+1. **Check authentication status.** Run `pnpm dlx @taskless/cli@latest info --json` and parse the JSON output. Check the `loggedIn` field:
+   - If `loggedIn` is `true`: continue with step 2 below (API-backed flow).
+   - If `loggedIn` is `false`: **stop here** and invoke the `taskless-create-rule-anonymous` skill instead. Pass along any context the user has already provided about the rule they want to create.
 
-2. **Gather the rule description.** Ask the user what pattern they want to detect. This becomes the `prompt` field (required).
+2. **Read current command documentation.** Run `pnpm dlx @taskless/cli@latest help rules create` and read the output. Use this to understand the command's `--from` JSON fields, options, and examples.
 
-3. **Check for existing similar rules.** Once you have the user's description, scan `.taskless/rules/` for existing rule files. Read each rule's `message`, `note`, and `rule` fields to understand what patterns are already covered. If any existing rule appears to overlap with the user's request:
+3. **Gather the rule description.** Ask the user what pattern they want to detect. This becomes the `prompt` field (required).
+
+4. **Check for existing similar rules.** Once you have the user's description, scan `.taskless/rules/` for existing rule files. Read each rule's `message`, `note`, and `rule` fields to understand what patterns are already covered. If any existing rule appears to overlap with the user's request:
    - Show the user the similar rule(s) and explain the overlap.
    - Ask: "It looks like you already have a rule that covers something similar. Would you like to **improve the existing rule** instead of creating a new one?"
    - If the user wants to improve, stop this skill and invoke the `taskless-improve-rule` skill (command name `tskl:improve`) with context about which rule to iterate on.
    - If the user confirms they want a separate new rule, proceed with creation.
 
-4. **Enrich the request.** After receiving the initial description, actively work with the user to strengthen the rule. Do all of the following:
+5. **Enrich the request.** After receiving the initial description, actively work with the user to strengthen the rule. Do all of the following:
 
    a. **Search the codebase for real examples.** Proactively scan the codebase for instances of the pattern they want to detect. Show them what you found and ask:
    - "I found N instances of this pattern in your codebase. Should I include some as examples in the rule request?"
@@ -51,14 +55,14 @@ Your goal is to produce the best possible rule by enriching the user's initial d
 
    e. **Infer the language.** Detect the primary language from the codebase or the user's examples. Confirm your assumption with the user. Include the target language in the `prompt` field (e.g., "Detect X in TypeScript files") so the rule generator knows what language to target.
 
-5. **Confirm the enriched request.** Before submitting, present a summary of what you'll send to the API:
+6. **Confirm the enriched request.** Before submitting, present a summary of what you'll send to the API:
    - The full prompt (including language and any exclusion notes)
    - The success case(s)
    - The failure case(s)
 
    Ask the user to confirm or adjust before proceeding.
 
-6. **Write the JSON payload to a file.** Build a JSON object with the gathered fields. Write the JSON to `.taskless/.tmp-rule-request.json`.
+7. **Write the JSON payload to a file.** Build a JSON object with the gathered fields. Write the JSON to `.taskless/.tmp-rule-request.json`.
 
    **Multiple examples:** The `successCases` and `failureCases` fields are arrays of strings. Each example is a separate array element:
 
@@ -76,13 +80,13 @@ Your goal is to produce the best possible rule by enriching the user's initial d
    }
    ```
 
-7. **Invoke the CLI.** Run `pnpm dlx @taskless/cli@latest rules create --from .taskless/.tmp-rule-request.json --json`. The command may take 30-60 seconds as it polls the API.
+8. **Invoke the CLI.** Run `pnpm dlx @taskless/cli@latest rules create --from .taskless/.tmp-rule-request.json --json`. The command may take 30-60 seconds as it polls the API.
 
-8. **Clean up.** After the command completes (success or failure), delete the `.taskless/.tmp-rule-request.json` file.
+9. **Clean up.** After the command completes (success or failure), delete the `.taskless/.tmp-rule-request.json` file.
 
-9. **Report the results.** When the CLI completes, show the generated file paths and suggest running `taskless-check` to test the new rule. The CLI also writes sidecar metadata to `.taskless/rule-metadata/<rule-id>.yml` containing the `ticketId` used for future iterations. You can retrieve this with `pnpm dlx @taskless/cli@latest rules meta <rule-id> --json`.
+10. **Report the results.** When the CLI completes, show the generated file paths and suggest running `taskless-check` to test the new rule. The CLI also writes sidecar metadata to `.taskless/rule-metadata/<rule-id>.yml` containing the `ticketId` used for future iterations. You can retrieve this with `pnpm dlx @taskless/cli@latest rules meta <rule-id> --json`.
 
-10. **Handle errors.** If the CLI fails:
+11. **Handle errors.** If the CLI fails:
     - **Authentication required**: Suggest the `taskless-login` skill.
     - **Missing organization info**: Suggest running `taskless auth login` to re-authenticate.
     - **API errors**: Report the error message and suggest trying again.

@@ -1,0 +1,11 @@
+rule:
+  all:
+    - pattern: $VAL as any
+    - not:
+        precedes:
+          kind: comment
+          regex: '@taskless-ignore'
+id: no-as-any
+language: TypeScript
+message: Avoid using 'as any' which disables type checking.
+severity: warning

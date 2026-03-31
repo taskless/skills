@@ -1,10 +1,10 @@
-import { mkdtemp, rm, readFile, mkdir } from "node:fs/promises";
+import { mkdtemp, rm, readFile, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 
-import { generateSgConfig } from "../src/rules/sgconfig";
-import { ensureTasklessGitignore } from "../src/rules/gitignore";
+import { generateSgConfig } from "../src/filesystem/sgconfig";
+import { addToGitignore } from "../src/filesystem/gitignore";
 
 describe("generateSgConfig", () => {
   let temporaryDirectory: string;
@@ -56,7 +56,7 @@ describe("generateSgConfig", () => {
   });
 });
 
-describe("ensureTasklessGitignore", () => {
+describe("addToGitignore", () => {
   let temporaryDirectory: string;
 
   beforeEach(async () => {
@@ -68,7 +68,10 @@ describe("ensureTasklessGitignore", () => {
   });
 
   it("creates .taskless/.gitignore when .taskless/ does not exist", async () => {
-    await ensureTasklessGitignore(temporaryDirectory);
+    await addToGitignore(temporaryDirectory, [
+      ".env.local.json",
+      "sgconfig.yml",
+    ]);
 
     const content = await readFile(
       join(temporaryDirectory, ".taskless", ".gitignore"),
@@ -80,16 +83,16 @@ describe("ensureTasklessGitignore", () => {
 
   it("preserves existing entries and appends missing ones", async () => {
     await mkdir(join(temporaryDirectory, ".taskless"), { recursive: true });
-    const existingContent = "custom-file.txt\n.env.local.json\n";
-    await import("node:fs/promises").then((fs) =>
-      fs.writeFile(
-        join(temporaryDirectory, ".taskless", ".gitignore"),
-        existingContent,
-        "utf8"
-      )
+    await writeFile(
+      join(temporaryDirectory, ".taskless", ".gitignore"),
+      "custom-file.txt\n.env.local.json\n",
+      "utf8"
     );
 
-    await ensureTasklessGitignore(temporaryDirectory);
+    await addToGitignore(temporaryDirectory, [
+      ".env.local.json",
+      "sgconfig.yml",
+    ]);
 
     const content = await readFile(
       join(temporaryDirectory, ".taskless", ".gitignore"),
