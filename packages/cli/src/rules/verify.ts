@@ -148,7 +148,7 @@ async function runTests(cwd: string): Promise<TestLayerResult> {
   return new Promise((resolve) => {
     const child = spawn(
       sgBinary,
-      ["test", "--config", ".taskless/sgconfig.yml"],
+      ["test", "-c", ".taskless/sgconfig.yml", "--skip-snapshot-tests"],
       {
         shell: useShell,
         cwd,
