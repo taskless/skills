@@ -1,8 +1,8 @@
 ## 1. Codegen: ast-grep Schema
 
-- [ ] 1.1 Create codegen script at `packages/cli/scripts/fetch-ast-grep-schema.ts` that reads the `@ast-grep/cli` version from `packages/cli/package.json`, strips the semver range prefix, fetches `rule.json` from `https://raw.githubusercontent.com/ast-grep/ast-grep/{VERSION}/schemas/rule.json`, adds a `$comment` field with timestamp/version/source, and writes to `packages/cli/src/generated/ast-grep-rule-schema.json`
-- [ ] 1.2 Add a `codegen:ast-grep-schema` script to `packages/cli/package.json` that runs the fetch script via `tsx`
-- [ ] 1.3 Run the codegen script and commit the generated `ast-grep-rule-schema.json`
+- [x] 1.1 Create codegen script at `packages/cli/scripts/fetch-ast-grep-schema.ts` that reads the `@ast-grep/cli` version from `packages/cli/package.json`, strips the semver range prefix, fetches `rule.json` from `https://raw.githubusercontent.com/ast-grep/ast-grep/{VERSION}/schemas/rule.json`, adds a `$comment` field with timestamp/version/source, and writes to `packages/cli/src/generated/ast-grep-rule-schema.json`
+- [x] 1.2 Add a `codegen:ast-grep-schema` script to `packages/cli/package.json` that runs the fetch script via `tsx`
+- [x] 1.3 Run the codegen script and commit the generated `ast-grep-rule-schema.json`
 
 ## 2. Migration-based `.taskless/` Bootstrap
 
