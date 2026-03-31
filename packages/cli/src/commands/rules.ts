@@ -30,6 +30,11 @@ import {
   outputSchema as metaOutputSchema,
   errorSchema as metaErrorSchema,
 } from "../schemas/rules-meta";
+import {
+  schemaOutputSchema as verifySchemaOutputSchema,
+  verifyOutputSchema,
+  verifyErrorSchema,
+} from "../schemas/rules-verify";
 
 /** Format today's date as YYYYMMDD */
 function getTimestamp(): string {
@@ -577,7 +582,7 @@ const verifyCommand = defineCommand({
   async run({ args }) {
     // --schema mode: dump schema payload and exit
     if (args.schema) {
-      const payload = getSchemaPayload();
+      const payload = verifySchemaOutputSchema.parse(getSchemaPayload());
       if (args.json) {
         console.log(JSON.stringify(payload));
       } else {
@@ -591,7 +596,12 @@ const verifyCommand = defineCommand({
     if (!args.id) {
       if (args.json) {
         console.log(
-          JSON.stringify({ success: false, error: "Rule ID is required." })
+          JSON.stringify(
+            verifyErrorSchema.parse({
+              success: false,
+              error: "Rule ID is required.",
+            })
+          )
         );
       } else {
         console.error(
@@ -604,7 +614,7 @@ const verifyCommand = defineCommand({
     const result = await verifyRule(cwd, args.id);
 
     if (args.json) {
-      console.log(JSON.stringify(result));
+      console.log(JSON.stringify(verifyOutputSchema.parse(result)));
     } else {
       console.log(`Verifying rule: ${result.ruleId}\n`);
 

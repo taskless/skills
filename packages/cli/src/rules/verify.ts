@@ -87,14 +87,34 @@ async function validateRequirements(
     }
   }
 
-  // Check regex-requires-kind
-  const ruleObject = ruleData.rule;
-  if (
-    ruleObject &&
-    typeof ruleObject === "object" &&
-    !Array.isArray(ruleObject)
-  ) {
-    errors.push(...findRegexWithoutKind(ruleObject as Record<string, unknown>));
+  // Check regex-requires-kind in rule and other top-level rule containers
+  for (const key of ["rule", "constraints", "utils"]) {
+    const container = ruleData[key];
+    if (
+      container &&
+      typeof container === "object" &&
+      !Array.isArray(container)
+    ) {
+      if (key === "rule") {
+        errors.push(
+          ...findRegexWithoutKind(container as Record<string, unknown>)
+        );
+      } else {
+        // constraints/utils are Record<string, RuleObject>
+        for (const [name, value] of Object.entries(
+          container as Record<string, unknown>
+        )) {
+          if (value && typeof value === "object" && !Array.isArray(value)) {
+            errors.push(
+              ...findRegexWithoutKind(
+                value as Record<string, unknown>,
+                `${key}.${name}`
+              )
+            );
+          }
+        }
+      }
+    }
   }
 
   // Check test file exists
@@ -160,7 +180,7 @@ async function runTests(cwd: string): Promise<TestLayerResult> {
       const output = stdoutChunks.join("") + stderrChunks.join("");
 
       // Parse pass/fail counts from sg test output
-      // sg test outputs lines like "passed: 3" and "failed: 0"
+      // sg test outputs: "test result: ok. 3 passed; 0 failed;"
       const passedMatch = /(\d+)\s+passed/i.exec(output);
       const failedMatch = /(\d+)\s+failed/i.exec(output);
       const passed = passedMatch ? Number(passedMatch[1]) : 0;
