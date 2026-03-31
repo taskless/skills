@@ -6,7 +6,7 @@ import {
   getEmbeddedSkills,
   getEmbeddedCommands,
   installForTool,
-} from "../actions/install";
+} from "../install/install";
 
 export const initCommand = defineCommand({
   meta: {

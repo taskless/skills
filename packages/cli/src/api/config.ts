@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { getConfigDirectory } from "./token";
+import { getConfigDirectory } from "../auth/token";
 
 const DEFAULT_BASE_URL = "https://app.taskless.io/cli";
 const CONFIG_FILE = "config.json";

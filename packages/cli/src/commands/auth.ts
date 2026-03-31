@@ -1,8 +1,8 @@
 import { resolve } from "node:path";
 import { defineCommand } from "citty";
 
-import { deviceFlowProvider } from "../actions/device-flow";
-import { getToken, removeToken, saveToken } from "../actions/token";
+import { deviceFlowProvider } from "../auth/device-flow";
+import { getToken, removeToken, saveToken } from "../auth/token";
 
 const loginCommand = defineCommand({
   meta: {

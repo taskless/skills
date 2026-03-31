@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decodeOrgId } from "../src/actions/jwt";
+import { decodeOrgId } from "../src/auth/jwt";
 
 // Minimal unsigned JWTs for testing (header: {"alg":"none","typ":"JWT"})
 const HEADER = "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0";

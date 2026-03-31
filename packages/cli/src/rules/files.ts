@@ -3,15 +3,16 @@ import { basename, join, resolve } from "node:path";
 
 import { parse, stringify } from "yaml";
 
-import type { GeneratedRule, RuleMetadata } from "./rule-api";
+import { ensureTasklessDirectory } from "./bootstrap";
+import type { GeneratedRule, RuleMetadata } from "../api/rules";
 
 /** Write a generated rule's content to .taskless/rules/{kebab-id}.yml */
 export async function writeRuleFile(
   cwd: string,
   rule: GeneratedRule
 ): Promise<string> {
+  await ensureTasklessDirectory(cwd);
   const directory = join(cwd, ".taskless", "rules");
-  await mkdir(directory, { recursive: true });
   const filePath = join(directory, `${rule.id}.yml`);
   await writeFile(filePath, stringify(rule.content, { lineWidth: 0 }), "utf8");
   return filePath;
@@ -23,8 +24,8 @@ export async function writeRuleTestFile(
   rule: GeneratedRule,
   timestamp: string
 ): Promise<string> {
+  await ensureTasklessDirectory(cwd);
   const directory = join(cwd, ".taskless", "rule-tests");
-  await mkdir(directory, { recursive: true });
   const filePath = join(directory, `${rule.id}-${timestamp}-test.yml`);
   const content = {
     id: rule.id,

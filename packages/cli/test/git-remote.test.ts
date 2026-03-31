@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canonicalizeGitHubUrl } from "../src/actions/git-remote";
+import { canonicalizeGitHubUrl } from "../src/util/git-remote";
 
 describe("canonicalizeGitHubUrl", () => {
   it("canonicalizes SSH URLs with .git suffix", () => {

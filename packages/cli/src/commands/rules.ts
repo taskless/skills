@@ -5,16 +5,16 @@ import { defineCommand } from "citty";
 
 import { ZodError } from "zod";
 
-import { resolveIdentity } from "../actions/identity";
-import { submitRule, pollRuleStatus, iterateRule } from "../actions/rule-api";
+import { resolveIdentity } from "../auth/identity";
+import { submitRule, pollRuleStatus, iterateRule } from "../api/rules";
 import {
   writeRuleFile,
   writeRuleTestFile,
   writeRuleMetaFiles,
   readRuleMetaFile,
   deleteRuleFiles,
-} from "../actions/rule-files";
-import { printSchema } from "../actions/schema-output";
+} from "../rules/files";
+import { printSchema } from "../util/schema-output";
 import {
   inputSchema as createInputSchema,
   outputSchema as createOutputSchema,

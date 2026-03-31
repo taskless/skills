@@ -1,9 +1,9 @@
 import { resolve } from "node:path";
 import { defineCommand } from "citty";
 
-import { checkStaleness } from "../actions/install";
-import { getToken } from "../actions/token";
-import { fetchWhoami } from "../actions/whoami";
+import { checkStaleness } from "../install/install";
+import { getToken } from "../auth/token";
+import { fetchWhoami } from "../auth/whoami";
 
 export const infoCommand = defineCommand({
   meta: {
