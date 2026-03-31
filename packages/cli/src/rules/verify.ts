@@ -139,7 +139,7 @@ async function validateRequirements(
 
 // --- Layer 3: Test execution ---
 
-async function runTests(cwd: string): Promise<TestLayerResult> {
+async function runTests(cwd: string, ruleId: string): Promise<TestLayerResult> {
   await generateSgConfig(cwd);
 
   const sgBinary = findSgBinary();
@@ -148,7 +148,14 @@ async function runTests(cwd: string): Promise<TestLayerResult> {
   return new Promise((resolve) => {
     const child = spawn(
       sgBinary,
-      ["test", "-c", ".taskless/sgconfig.yml", "--skip-snapshot-tests"],
+      [
+        "test",
+        "-c",
+        ".taskless/sgconfig.yml",
+        "--skip-snapshot-tests",
+        "--filter",
+        `^${ruleId}$`,
+      ],
       {
         shell: useShell,
         cwd,
@@ -275,7 +282,7 @@ export async function verifyRule(
     error.includes("No test file found")
   );
   const testResult = hasTestFile
-    ? await runTests(cwd)
+    ? await runTests(cwd, ruleId)
     : {
         valid: false,
         errors: ["Skipped: no test file found"],
