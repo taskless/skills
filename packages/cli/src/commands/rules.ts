@@ -6,6 +6,7 @@ import { defineCommand } from "citty";
 import { ZodError } from "zod";
 
 import { resolveIdentity } from "../auth/identity";
+import { verifyRule, getSchemaPayload } from "../rules/verify";
 import { submitRule, pollRuleStatus, iterateRule } from "../api/rules";
 import {
   writeRuleFile,
@@ -545,6 +546,101 @@ const deleteCommand = defineCommand({
   },
 });
 
+const verifyCommand = defineCommand({
+  meta: {
+    name: "verify",
+    description: "Validate a rule against the ast-grep schema and run tests",
+  },
+  args: {
+    dir: {
+      type: "string",
+      alias: "d",
+      description: "Working directory",
+    },
+    json: {
+      type: "boolean",
+      description: "Output as JSON",
+      default: false,
+    },
+    schema: {
+      type: "boolean",
+      description:
+        "Dump combined ast-grep schema, Taskless requirements, and examples",
+      default: false,
+    },
+    id: {
+      type: "positional",
+      description: "Rule ID to verify",
+      required: false,
+    },
+  },
+  async run({ args }) {
+    // --schema mode: dump schema payload and exit
+    if (args.schema) {
+      const payload = getSchemaPayload();
+      if (args.json) {
+        console.log(JSON.stringify(payload));
+      } else {
+        console.log(JSON.stringify(payload, null, 2));
+      }
+      process.exit(0);
+    }
+
+    const cwd = resolve(args.dir ?? process.cwd());
+
+    if (!args.id) {
+      if (args.json) {
+        console.log(
+          JSON.stringify({ success: false, error: "Rule ID is required." })
+        );
+      } else {
+        console.error(
+          "Error: Rule ID is required.\n  Usage: taskless rules verify <id>"
+        );
+      }
+      process.exit(1);
+    }
+
+    const result = await verifyRule(cwd, args.id);
+
+    if (args.json) {
+      console.log(JSON.stringify(result));
+    } else {
+      console.log(`Verifying rule: ${result.ruleId}\n`);
+
+      // Layer 1
+      console.log(
+        `Schema:       ${result.schema.valid ? "✓ valid" : "✗ invalid"}`
+      );
+      for (const error of result.schema.errors) {
+        console.log(`  - ${error}`);
+      }
+
+      // Layer 2
+      console.log(
+        `Requirements: ${result.requirements.valid ? "✓ valid" : "✗ invalid"}`
+      );
+      for (const error of result.requirements.errors) {
+        console.log(`  - ${error}`);
+      }
+
+      // Layer 3
+      console.log(
+        `Tests:        ${result.tests.valid ? "✓ passed" : "✗ failed"} (${String(result.tests.passed)} passed, ${String(result.tests.failed)} failed)`
+      );
+      for (const error of result.tests.errors) {
+        console.log(`  - ${error}`);
+      }
+
+      console.log(
+        `\nResult: ${result.success ? "✓ All checks passed" : "✗ Verification failed"}`
+      );
+    }
+
+    process.exit(result.success ? 0 : 1);
+  },
+});
+
 export const rulesCommand = defineCommand({
   meta: {
     name: "rules",
@@ -555,5 +651,6 @@ export const rulesCommand = defineCommand({
     improve: improveCommand,
     meta: metaCommand,
     delete: deleteCommand,
+    verify: verifyCommand,
   },
 });

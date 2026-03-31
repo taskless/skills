@@ -1,0 +1,30 @@
+Validate a rule against the ast-grep schema and run tests
+
+Performs three layers of validation:
+  1. Schema validation against the official ast-grep rule schema
+  2. Taskless requirement checks (required fields, regex-requires-kind)
+  3. Test execution via sg test (if test file exists)
+
+Usage:
+  taskless rules verify <id> [options]
+  taskless rules verify --schema [options]
+
+Arguments:
+  <id>   Rule ID to verify (matches .taskless/rules/<id>.yml)
+
+Options:
+  -d, --dir <path>   Set working directory (default: current directory)
+  --json             Output as JSON
+  --schema           Dump combined ast-grep schema, Taskless requirements,
+                     and annotated examples for agent consumption
+
+Schema Mode:
+  When --schema is used, no rule ID is required. Outputs a JSON payload
+  containing the official ast-grep rule JSON schema, Taskless-specific
+  requirements, and curated examples. Useful for agents learning to
+  write ast-grep rules.
+
+Examples:
+  taskless rules verify no-eval
+  taskless rules verify no-eval --json
+  taskless rules verify --schema --json

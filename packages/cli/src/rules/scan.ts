@@ -14,7 +14,7 @@ export interface ScanResult {
 }
 
 /** Build PATH that includes this package's node_modules/.bin */
-function buildPath(): string {
+export function buildPath(): string {
   const thisDirectory = dirname(fileURLToPath(import.meta.url));
   const binDirectory = resolve(thisDirectory, "..", "node_modules", ".bin");
   const separator = process.platform === "win32" ? ";" : ":";
@@ -35,7 +35,7 @@ function buildPath(): string {
  * and return the full path to the binary. Falls back to "sg" via PATH
  * for environments where the normal .bin shim works fine.
  */
-function findSgBinary(): string {
+export function findSgBinary(): string {
   const parts: string[] = [process.platform, process.arch];
   if (process.platform === "linux") {
     parts.push("gnu");

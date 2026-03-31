@@ -6,22 +6,22 @@
 
 ## 2. Migration-based `.taskless/` Bootstrap
 
-- [ ] 2.1 Create `packages/cli/src/actions/bootstrap.ts` with migration infrastructure: `type Migration = (dir: string) => Promise<undefined>`, migrations stored as `Record<string, Migration>`, `ensureTasklessDirectory(cwd)` that reads `taskless.json` version (default 0), runs pending migrations in order, and updates the version
-- [ ] 2.2 Implement `001-init` migration: create `README.md` (with usage docs and file listing), call `ensureTasklessGitignore()`, create `rules/` and `rule-tests/` subdirectories. All operations idempotent (check before write)
-- [ ] 2.3 Integrate `ensureTasklessDirectory()` calls into `writeRuleFile()`, `writeRuleTestFile()`, and `generateSgConfig()` in the existing action files
-- [ ] 2.4 Add tests for migrations: first-run creates all files and sets version, subsequent calls are no-ops, outdated version runs only new migrations, idempotent re-runs succeed
+- [x] 2.1 Create `packages/cli/src/actions/bootstrap.ts` with migration infrastructure: `type Migration = (dir: string) => Promise<undefined>`, migrations stored as `Record<string, Migration>`, `ensureTasklessDirectory(cwd)` that reads `taskless.json` version (default 0), runs pending migrations in order, and updates the version
+- [x] 2.2 Implement `001-init` migration: create `README.md` (with usage docs and file listing), call `ensureTasklessGitignore()`, create `rules/` and `rule-tests/` subdirectories. All operations idempotent (check before write)
+- [x] 2.3 Integrate `ensureTasklessDirectory()` calls into `writeRuleFile()`, `writeRuleTestFile()`, and `generateSgConfig()` in the existing action files
+- [x] 2.4 Add tests for migrations: first-run creates all files and sets version, subsequent calls are no-ops, outdated version runs only new migrations, idempotent re-runs succeed
 
 ## 3. `rules verify` Command
 
-- [ ] 3.1 Create a Zod schema derived from the ast-grep JSON Schema for rule validation. Use `.passthrough()` for fields Taskless doesn't need to deeply validate. Layer Taskless-specific checks as `.refine()` calls (required fields, regex-requires-kind)
-- [ ] 3.2 Create Zod schemas for verify output at `packages/cli/src/schemas/rules-verify.ts` — schema mode output (`astGrepSchema`, `tasklessRequirements`, `examples`) and verify mode output (`success`, `ruleId`, `schema`, `requirements`, `tests` layers)
-- [ ] 3.3 Curate annotated examples for the `--schema` output: simple pattern match, regex-with-kind, and composite rule with `any`/`all`. Store as a constant in the verify command or a separate examples file
-- [ ] 3.4 Implement Layer 1 (Zod schema validation): parse rule YAML, validate against the ast-grep Zod schema, collect errors with field paths
-- [ ] 3.5 Implement Layer 2 (Taskless requirements): check required fields (`id`, `language`, `severity`, `message`, `rule`), check regex-requires-kind, check test file existence in `.taskless/rule-tests/`
-- [ ] 3.6 Implement Layer 3 (test execution): generate sgconfig, run `sg test --config .taskless/sgconfig.yml` using `findSgBinary()`, parse output for pass/fail counts
-- [ ] 3.7 Wire up the `verify` subcommand in `packages/cli/src/commands/rules.ts` with `--schema` mode (dumps combined schema payload) and verify mode (runs three layers), supporting `--json` and `-d` flags
-- [ ] 3.8 Add help text at `packages/cli/src/help/rules-verify.txt`
-- [ ] 3.9 Add tests for verify: valid rule passes all layers, invalid rule reports schema errors, missing test file reported, `--schema` output contains expected keys, nonexistent rule errors
+- [x] 3.1 Create a Zod schema derived from the ast-grep JSON Schema for rule validation. Use `.passthrough()` for fields Taskless doesn't need to deeply validate. Layer Taskless-specific checks as `.refine()` calls (required fields, regex-requires-kind)
+- [x] 3.2 Create Zod schemas for verify output at `packages/cli/src/schemas/rules-verify.ts` — schema mode output (`astGrepSchema`, `tasklessRequirements`, `examples`) and verify mode output (`success`, `ruleId`, `schema`, `requirements`, `tests` layers)
+- [x] 3.3 Curate annotated examples for the `--schema` output: simple pattern match, regex-with-kind, and composite rule with `any`/`all`. Store as a constant in the verify command or a separate examples file
+- [x] 3.4 Implement Layer 1 (Zod schema validation): parse rule YAML, validate against the ast-grep Zod schema, collect errors with field paths
+- [x] 3.5 Implement Layer 2 (Taskless requirements): check required fields (`id`, `language`, `severity`, `message`, `rule`), check regex-requires-kind, check test file existence in `.taskless/rule-tests/`
+- [x] 3.6 Implement Layer 3 (test execution): generate sgconfig, run `sg test --config .taskless/sgconfig.yml` using `findSgBinary()`, parse output for pass/fail counts
+- [x] 3.7 Wire up the `verify` subcommand in `packages/cli/src/commands/rules.ts` with `--schema` mode (dumps combined schema payload) and verify mode (runs three layers), supporting `--json` and `-d` flags
+- [x] 3.8 Add help text at `packages/cli/src/help/rules-verify.txt`
+- [x] 3.9 Add tests for verify: valid rule passes all layers, invalid rule reports schema errors, missing test file reported, `--schema` output contains expected keys, nonexistent rule errors
 
 ## 4. Skill Routing (Modified Skills)
 

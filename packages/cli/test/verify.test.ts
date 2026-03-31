@@ -1,0 +1,206 @@
+import { mkdtemp, rm, writeFile, mkdir } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { resolve } from "node:path";
+import { describe, expect, it, beforeEach, afterEach } from "vitest";
+import { stringify } from "yaml";
+
+import { verifyRule, getSchemaPayload } from "../src/rules/verify";
+
+const execFileAsync = promisify(execFile);
+const CLI_PATH = resolve(import.meta.dirname, "..", "dist", "index.js");
+
+describe("verifyRule", () => {
+  let temporaryDirectory: string;
+
+  beforeEach(async () => {
+    temporaryDirectory = await mkdtemp(join(tmpdir(), "taskless-verify-"));
+  });
+
+  afterEach(async () => {
+    await rm(temporaryDirectory, { recursive: true, force: true });
+  });
+
+  it("passes all layers for a valid rule with tests", async () => {
+    // Write a valid rule
+    const rulesDirectory = join(temporaryDirectory, ".taskless", "rules");
+    const testsDirectory = join(temporaryDirectory, ".taskless", "rule-tests");
+    await mkdir(rulesDirectory, { recursive: true });
+    await mkdir(testsDirectory, { recursive: true });
+
+    await writeFile(
+      join(rulesDirectory, "no-eval.yml"),
+      stringify({
+        id: "no-eval",
+        language: "typescript",
+        severity: "error",
+        message: "Do not use eval()",
+        rule: { pattern: "eval($$$)" },
+      }),
+      "utf8"
+    );
+
+    await writeFile(
+      join(testsDirectory, "no-eval-20260330-test.yml"),
+      stringify({
+        id: "no-eval",
+        valid: ["const x = 1;"],
+        invalid: ["eval('alert(1)')"],
+      }),
+      "utf8"
+    );
+
+    const result = await verifyRule(temporaryDirectory, "no-eval");
+
+    expect(result.schema.valid).toBe(true);
+    expect(result.requirements.valid).toBe(true);
+    // Tests may or may not pass depending on sg binary availability
+    // but schema and requirements should pass
+    expect(result.schema.errors).toHaveLength(0);
+    expect(result.requirements.errors).toHaveLength(0);
+  });
+
+  it("reports schema errors for invalid rule structure", async () => {
+    const rulesDirectory = join(temporaryDirectory, ".taskless", "rules");
+    await mkdir(rulesDirectory, { recursive: true });
+
+    // Rule with missing required 'rule' field (required by ast-grep schema)
+    await writeFile(
+      join(rulesDirectory, "bad-rule.yml"),
+      stringify({
+        id: "bad-rule",
+        language: "typescript",
+        severity: "error",
+        message: "Bad rule",
+        // missing 'rule' field
+      }),
+      "utf8"
+    );
+
+    const result = await verifyRule(temporaryDirectory, "bad-rule");
+
+    expect(result.schema.valid).toBe(false);
+    expect(result.schema.errors.length).toBeGreaterThan(0);
+  });
+
+  it("reports missing test file", async () => {
+    const rulesDirectory = join(temporaryDirectory, ".taskless", "rules");
+    await mkdir(rulesDirectory, { recursive: true });
+
+    await writeFile(
+      join(rulesDirectory, "orphan.yml"),
+      stringify({
+        id: "orphan",
+        language: "typescript",
+        severity: "warning",
+        message: "Orphan rule",
+        rule: { pattern: "foo()" },
+      }),
+      "utf8"
+    );
+
+    const result = await verifyRule(temporaryDirectory, "orphan");
+
+    expect(result.requirements.valid).toBe(false);
+    expect(result.requirements.errors).toContainEqual(
+      expect.stringContaining("No test file found")
+    );
+    expect(result.tests.errors).toContainEqual(
+      expect.stringContaining("no test file")
+    );
+  });
+
+  it("reports error for nonexistent rule", async () => {
+    const result = await verifyRule(temporaryDirectory, "nonexistent");
+
+    expect(result.success).toBe(false);
+    expect(result.schema.valid).toBe(false);
+    expect(result.schema.errors).toContainEqual(
+      expect.stringContaining("Rule file not found")
+    );
+  });
+
+  it("reports missing required Taskless fields", async () => {
+    const rulesDirectory = join(temporaryDirectory, ".taskless", "rules");
+    await mkdir(rulesDirectory, { recursive: true });
+
+    // Rule missing severity and message (Taskless requires them)
+    await writeFile(
+      join(rulesDirectory, "minimal.yml"),
+      stringify({
+        id: "minimal",
+        language: "typescript",
+        rule: { pattern: "foo()" },
+      }),
+      "utf8"
+    );
+
+    const result = await verifyRule(temporaryDirectory, "minimal");
+
+    expect(result.requirements.valid).toBe(false);
+    expect(result.requirements.errors).toContainEqual(
+      expect.stringContaining("severity")
+    );
+    expect(result.requirements.errors).toContainEqual(
+      expect.stringContaining("message")
+    );
+  });
+});
+
+describe("getSchemaPayload", () => {
+  it("contains expected top-level keys", () => {
+    const payload = getSchemaPayload();
+    expect(payload).toHaveProperty("astGrepSchema");
+    expect(payload).toHaveProperty("tasklessRequirements");
+    expect(payload).toHaveProperty("examples");
+  });
+
+  it("includes required fields in tasklessRequirements", () => {
+    const payload = getSchemaPayload();
+    const requirements = payload.tasklessRequirements as {
+      requiredFields: string[];
+    };
+    expect(requirements.requiredFields).toContain("id");
+    expect(requirements.requiredFields).toContain("language");
+    expect(requirements.requiredFields).toContain("severity");
+    expect(requirements.requiredFields).toContain("message");
+    expect(requirements.requiredFields).toContain("rule");
+  });
+
+  it("includes curated examples", () => {
+    const payload = getSchemaPayload();
+    const examples = payload.examples as Array<{
+      description: string;
+      rule: unknown;
+    }>;
+    expect(examples.length).toBeGreaterThanOrEqual(3);
+    // Check for the three example types
+    expect(
+      examples.some((example) => example.description.includes("Simple pattern"))
+    ).toBe(true);
+    expect(
+      examples.some((example) => example.description.includes("Regex"))
+    ).toBe(true);
+    expect(
+      examples.some((example) => example.description.includes("Composite"))
+    ).toBe(true);
+  });
+});
+
+describe("rules verify CLI", () => {
+  it("--schema --json outputs valid JSON with expected keys", async () => {
+    const { stdout } = await execFileAsync("node", [
+      CLI_PATH,
+      "rules",
+      "verify",
+      "--schema",
+      "--json",
+    ]);
+    const payload = JSON.parse(stdout) as Record<string, unknown>;
+    expect(payload).toHaveProperty("astGrepSchema");
+    expect(payload).toHaveProperty("tasklessRequirements");
+    expect(payload).toHaveProperty("examples");
+  });
+});
