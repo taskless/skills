@@ -38,7 +38,7 @@ export const RULE_EXAMPLES = [
   },
   {
     description:
-      "Composite rule with any/all — detect unsafe innerHTML assignment. `all` requires every sub-rule to match. `has` checks for a child node matching a pattern. Combine `pattern` with `has`/`inside` for precise matching.",
+      "Composite rule with all/has — detect unsafe innerHTML assignment. `all` requires every sub-rule to match simultaneously. `has` checks that a matching node contains a child matching another pattern. Use `all` to combine multiple constraints on the same node.",
     rule: {
       id: "no-inner-html",
       language: "typescript",
@@ -46,7 +46,17 @@ export const RULE_EXAMPLES = [
       message: "Do not assign to innerHTML. This can lead to XSS attacks.",
       note: "Use textContent for text or a sanitization library for HTML.",
       rule: {
-        pattern: "$EL.innerHTML = $VALUE",
+        all: [
+          { pattern: "$EL.innerHTML = $VALUE" },
+          {
+            not: {
+              inside: {
+                kind: "call_expression",
+                pattern: "DOMPurify.sanitize($$$)",
+              },
+            },
+          },
+        ],
       },
     },
   },
