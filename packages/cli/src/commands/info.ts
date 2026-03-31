@@ -43,7 +43,10 @@ export const infoCommand = defineCommand({
     }
 
     const cwd = resolve(args.dir ?? process.cwd());
-    const [tools, token] = await Promise.all([checkStaleness(cwd), getToken()]);
+    const [tools, token] = await Promise.all([
+      checkStaleness(cwd),
+      getToken(cwd),
+    ]);
 
     let auth: { user: string; email: string; orgs: string[] } | undefined;
     if (token) {

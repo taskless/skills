@@ -9,7 +9,6 @@ let temporaryDirectory: string;
 
 beforeEach(async () => {
   temporaryDirectory = await mkdtemp(join(tmpdir(), "taskless-token-test-"));
-  vi.stubEnv("XDG_CONFIG_HOME", temporaryDirectory);
   delete process.env.TASKLESS_TOKEN;
 });
 
@@ -19,17 +18,17 @@ afterEach(async () => {
   await rm(temporaryDirectory, { recursive: true, force: true });
 });
 
-/** Write a raw auth.json to the temp config directory */
+/** Write a raw .env.local.json to the temp .taskless directory */
 async function writeAuthFile(data: Record<string, unknown>): Promise<void> {
-  const directory = join(temporaryDirectory, "taskless");
+  const directory = join(temporaryDirectory, ".taskless");
   await mkdir(directory, { recursive: true });
-  await writeFile(join(directory, "auth.json"), JSON.stringify(data));
+  await writeFile(join(directory, ".env.local.json"), JSON.stringify(data));
 }
 
-/** Read the raw auth.json from the temp config directory */
+/** Read the raw .env.local.json from the temp .taskless directory */
 async function readAuthFile(): Promise<Record<string, unknown>> {
   const raw = await readFile(
-    join(temporaryDirectory, "taskless", "auth.json"),
+    join(temporaryDirectory, ".taskless", ".env.local.json"),
     "utf8"
   );
   return JSON.parse(raw) as Record<string, unknown>;
@@ -42,12 +41,12 @@ describe("getToken", () => {
         access_token: "valid-token",
         expires_at: Date.now() + 60_000,
       });
-      expect(await getToken()).toBe("valid-token");
+      expect(await getToken(temporaryDirectory)).toBe("valid-token");
     });
 
     it("returns the token when no expires_at is stored (legacy auth files)", async () => {
       await writeAuthFile({ access_token: "legacy-token" });
-      expect(await getToken()).toBe("legacy-token");
+      expect(await getToken(temporaryDirectory)).toBe("legacy-token");
     });
   });
 
@@ -57,7 +56,7 @@ describe("getToken", () => {
         access_token: "expired-token",
         expires_at: Date.now() - 1000,
       });
-      expect(await getToken()).toBeUndefined();
+      expect(await getToken(temporaryDirectory)).toBeUndefined();
     });
 
     it("returns undefined when expires_at is exactly now", async () => {
@@ -68,34 +67,38 @@ describe("getToken", () => {
         access_token: "edge-token",
         expires_at: now,
       });
-      expect(await getToken()).toBeUndefined();
+      expect(await getToken(temporaryDirectory)).toBeUndefined();
     });
   });
 
   describe("missing data", () => {
-    it("returns undefined when auth file does not exist", async () => {
+    it("returns undefined when no cwd is provided", async () => {
       expect(await getToken()).toBeUndefined();
+    });
+
+    it("returns undefined when auth file does not exist", async () => {
+      expect(await getToken(temporaryDirectory)).toBeUndefined();
     });
 
     it("returns undefined when access_token is missing from file", async () => {
       await writeAuthFile({ expires_at: Date.now() + 60_000 });
-      expect(await getToken()).toBeUndefined();
+      expect(await getToken(temporaryDirectory)).toBeUndefined();
     });
   });
 
   describe("corrupted data", () => {
     it("returns undefined when auth file contains invalid JSON", async () => {
-      const directory = join(temporaryDirectory, "taskless");
+      const directory = join(temporaryDirectory, ".taskless");
       await mkdir(directory, { recursive: true });
-      await writeFile(join(directory, "auth.json"), "not-json{{{");
-      expect(await getToken()).toBeUndefined();
+      await writeFile(join(directory, ".env.local.json"), "not-json{{{");
+      expect(await getToken(temporaryDirectory)).toBeUndefined();
     });
 
     it("returns undefined when auth file is empty", async () => {
-      const directory = join(temporaryDirectory, "taskless");
+      const directory = join(temporaryDirectory, ".taskless");
       await mkdir(directory, { recursive: true });
-      await writeFile(join(directory, "auth.json"), "");
-      expect(await getToken()).toBeUndefined();
+      await writeFile(join(directory, ".env.local.json"), "");
+      expect(await getToken(temporaryDirectory)).toBeUndefined();
     });
 
     it("returns token when expires_at is not a number (treated as no expiry)", async () => {
@@ -103,8 +106,7 @@ describe("getToken", () => {
         access_token: "bad-expiry",
         expires_at: "not-a-number",
       });
-      // Non-numeric expires_at fails the typeof guard, so token is returned
-      expect(await getToken()).toBe("bad-expiry");
+      expect(await getToken(temporaryDirectory)).toBe("bad-expiry");
     });
   });
 
@@ -115,7 +117,7 @@ describe("getToken", () => {
         expires_at: Date.now() - 1000, // expired
       });
       process.env.TASKLESS_TOKEN = "env-token";
-      expect(await getToken()).toBe("env-token");
+      expect(await getToken(temporaryDirectory)).toBe("env-token");
     });
   });
 });
@@ -123,10 +125,10 @@ describe("getToken", () => {
 describe("saveToken", () => {
   it("computes expires_at from expires_in", async () => {
     const before = Date.now();
-    await saveToken({
-      access_token: "new-token",
-      expires_in: 3600,
-    });
+    await saveToken(
+      { access_token: "new-token", expires_in: 3600 },
+      temporaryDirectory
+    );
     const after = Date.now();
 
     const saved = await readAuthFile();
@@ -140,21 +142,30 @@ describe("saveToken", () => {
   });
 
   it("does not set expires_at when expires_in is not provided", async () => {
-    await saveToken({ access_token: "no-expiry-token" });
+    await saveToken({ access_token: "no-expiry-token" }, temporaryDirectory);
     const saved = await readAuthFile();
     expect(saved.access_token).toBe("no-expiry-token");
     expect(saved).not.toHaveProperty("expires_at");
+  });
+
+  it("does nothing when cwd is not provided", async () => {
+    await saveToken({ access_token: "orphan-token" });
+    expect(await getToken(temporaryDirectory)).toBeUndefined();
   });
 });
 
 describe("removeToken", () => {
   it("returns true and removes the file when it exists", async () => {
-    await saveToken({ access_token: "to-remove" });
-    expect(await removeToken()).toBe(true);
-    expect(await getToken()).toBeUndefined();
+    await saveToken({ access_token: "to-remove" }, temporaryDirectory);
+    expect(await removeToken(temporaryDirectory)).toBe(true);
+    expect(await getToken(temporaryDirectory)).toBeUndefined();
   });
 
   it("returns false when no auth file exists", async () => {
+    expect(await removeToken(temporaryDirectory)).toBe(false);
+  });
+
+  it("returns false when no cwd is provided", async () => {
     expect(await removeToken()).toBe(false);
   });
 });
