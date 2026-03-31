@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -29,6 +30,9 @@ export async function getToken(cwd?: string): Promise<string | undefined> {
       return token;
     }
   }
+
+  // Check for legacy global token and warn
+  warnIfLegacyToken();
 
   return undefined;
 }
@@ -98,6 +102,21 @@ async function readPerRepoToken(cwd: string): Promise<string | undefined> {
     return data.access_token;
   } catch {
     return undefined;
+  }
+}
+
+let legacyWarningShown = false;
+
+/** Warn once if a legacy global auth.json exists but is no longer used */
+function warnIfLegacyToken(): void {
+  if (legacyWarningShown) return;
+  const legacyPath = join(getConfigDirectory(), "auth.json");
+  if (existsSync(legacyPath)) {
+    legacyWarningShown = true;
+    console.error(
+      "Notice: Found legacy global auth at %s. Global tokens are no longer used. Run `taskless auth login` to authenticate for this repository.",
+      legacyPath
+    );
   }
 }
 

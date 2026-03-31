@@ -189,6 +189,37 @@ describe("verifyRule", () => {
     );
   });
 
+  it("rejects rule IDs with path traversal characters", async () => {
+    const traversalIds = [
+      "../../etc/passwd",
+      "../secret",
+      "rule/nested",
+      "rule.with.dots",
+      "UPPERCASE",
+      "has spaces",
+    ];
+
+    for (const id of traversalIds) {
+      const result = await verifyRule(temporaryDirectory, id);
+      expect(result.success).toBe(false);
+      expect(result.schema.errors).toContainEqual(
+        expect.stringContaining("Invalid rule ID")
+      );
+    }
+  });
+
+  it("accepts valid kebab-case rule IDs", async () => {
+    // These should fail with "not found", NOT "invalid rule ID"
+    const validIds = ["no-eval", "my-rule-123", "a"];
+
+    for (const id of validIds) {
+      const result = await verifyRule(temporaryDirectory, id);
+      expect(result.schema.errors).not.toContainEqual(
+        expect.stringContaining("Invalid rule ID")
+      );
+    }
+  });
+
   it("reports missing required Taskless fields", async () => {
     const rulesDirectory = join(temporaryDirectory, ".taskless", "rules");
     await mkdir(rulesDirectory, { recursive: true });
