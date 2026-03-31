@@ -1,5 +1,18 @@
 # @taskless/cli
 
+## 0.5.0
+
+### Minor Changes
+
+- 75f3b80: Remove global XDG auth token storage (`~/.config/taskless/auth.json`) in favor of per-repo tokens only. Authentication is now scoped to each repository via `.taskless/.env.local.json`. A deprecation notice is shown when a legacy global token file is detected. The device flow now sends a repository URL hint to the auth server.
+- 75f3b80: Reorganize CLI internals into domain directories (`auth/`, `api/`, `rules/`, `filesystem/`, `install/`, `util/`), add a migration-based `.taskless/` bootstrap system, and upgrade from Zod 3 to Zod 4. The filesystem layer introduces numbered migrations with idempotent re-runs, version tracking in `taskless.json`, and automatic v0-to-v1 migration for existing installations. Zod 4 enables native `z.fromJSONSchema()` and `z.toJSONSchema()`, replacing the `zod-to-json-schema` dependency.
+
+### Patch Changes
+
+- 75f3b80: Add anonymous rule creation and improvement skills that work without API authentication. The existing `/tskl:rule` and `/tskl:improve` commands now check auth status via `taskless info --json` and transparently delegate to anonymous variants when not logged in. Anonymous skills use the `rules verify` feedback loop to iteratively validate agent-generated rules against the ast-grep schema.
+- 75f3b80: Add `rules verify` command with three-layer validation: Layer 1 validates rule YAML against the official ast-grep JSON schema (fetched at build time via codegen), Layer 2 checks Taskless-specific requirements (required fields, regex-requires-kind, test file existence), and Layer 3 runs `sg test` for the specified rule. Includes `--schema --json` mode that outputs the ast-grep schema, Taskless requirements, and curated examples for agent consumption.
+- 75f3b80: Harden CLI security: remove `shell: true` from `spawn` calls to eliminate shell injection surface, add rule ID validation (`/^[a-z0-9][a-z0-9-]*$/`) to prevent path traversal in file operations, escape regex metacharacters in `sg test --filter` arguments, and replace fragile string-based error parsing with structured return types.
+
 ## 0.4.0
 
 ### Minor Changes

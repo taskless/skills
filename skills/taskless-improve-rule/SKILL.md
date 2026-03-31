@@ -3,7 +3,7 @@ name: taskless-improve-rule
 description: Improves existing Taskless rules by iterating with guidance. Use when the user wants to refine, fix, or improve existing rules. Trigger on "improve rule", "fix my rule", "iterate on rule", "refine taskless rule", or "my rule isn't working".
 metadata:
   author: taskless
-  version: 0.4.0
+  version: 0.5.0
   commandName: tskl:improve
 compatibility: Designed for Agents implementing the Agent Skills specification.
 ---
