@@ -16,7 +16,11 @@ describe("cli", () => {
 
   describe("info", () => {
     it("outputs version and tools as JSON", async () => {
-      const { stdout } = await execFileAsync("node", [binPath, "info"]);
+      const { stdout } = await execFileAsync("node", [
+        binPath,
+        "info",
+        "--json",
+      ]);
       const parsed = JSON.parse(stdout.trim()) as {
         version: string;
         tools: unknown[];
@@ -101,6 +105,7 @@ describe("cli", () => {
       const { stdout } = await execFileAsync("node", [
         binPath,
         "info",
+        "--json",
         "-d",
         temporaryDirectory,
       ]);
