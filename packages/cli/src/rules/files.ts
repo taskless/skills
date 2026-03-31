@@ -115,18 +115,48 @@ export async function deleteRuleFiles(
       (f) => f.startsWith(`${id}-`) && f.endsWith("-test.yml")
     );
     await Promise.all(
-      matchingTests.map((f) => rm(join(testDirectory, f)).catch(() => {}))
+      matchingTests.map((f) =>
+        rm(join(testDirectory, f)).catch((error: NodeJS.ErrnoException) => {
+          if (error.code !== "ENOENT") {
+            console.error(
+              `Warning: failed to remove test file ${f}: ${error.message}`
+            );
+          }
+        })
+      )
     );
-  } catch {
-    // rule-tests directory doesn't exist, nothing to clean up
+  } catch (error) {
+    if (
+      !(
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        (error as NodeJS.ErrnoException).code === "ENOENT"
+      )
+    ) {
+      console.error(
+        `Warning: failed to clean up test files: ${(error as Error).message}`
+      );
+    }
   }
 
   // Remove matching metadata file
   const metaDirectory = join(cwd, ".taskless", "rule-metadata");
   try {
     await rm(join(metaDirectory, `${id}.yml`));
-  } catch {
-    // metadata file doesn't exist, nothing to clean up
+  } catch (error) {
+    if (
+      !(
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        (error as NodeJS.ErrnoException).code === "ENOENT"
+      )
+    ) {
+      console.error(
+        `Warning: failed to remove metadata file: ${(error as Error).message}`
+      );
+    }
   }
 
   return ruleExisted;

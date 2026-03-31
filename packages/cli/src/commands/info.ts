@@ -69,7 +69,17 @@ export const infoCommand = defineCommand({
     };
 
     if (args.json) {
-      console.log(JSON.stringify(infoOutputSchema.parse(result)));
+      const parsed = infoOutputSchema.safeParse(result);
+      if (!parsed.success) {
+        console.error(
+          JSON.stringify({
+            success: false,
+            error: "Internal schema validation failed",
+          })
+        );
+        process.exit(1);
+      }
+      console.log(JSON.stringify(parsed.data));
       return;
     }
 
