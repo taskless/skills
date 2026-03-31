@@ -18,9 +18,13 @@ This is a decision-making skill. You must evaluate the situation and choose the 
 
 ## Instructions
 
-1. **Read current command documentation.** Run `pnpm dlx @taskless/cli@latest help rules improve` and read the output. Use this to understand the improve command's `--from` JSON fields, options, and examples.
+1. **Check authentication status.** Run `pnpm dlx @taskless/cli@latest info --json` and parse the JSON output. Check the `loggedIn` field:
+   - If `loggedIn` is `true`: continue with step 2 below (API-backed flow).
+   - If `loggedIn` is `false`: **stop here** and invoke the `taskless-improve-rule-anonymous` skill instead. Pass along any context the user has already provided about which rule to improve and what changes they want.
 
-2. **Inventory existing rules.** If the user has already named a specific rule, skip to that rule directly. Otherwise, scan the `.taskless/rules/` directory for `.yml` files and present a summary. For each rule, note:
+2. **Read current command documentation.** Run `pnpm dlx @taskless/cli@latest help rules improve` and read the output. Use this to understand the improve command's `--from` JSON fields, options, and examples.
+
+3. **Inventory existing rules.** If the user has already named a specific rule, skip to that rule directly. Otherwise, scan the `.taskless/rules/` directory for `.yml` files and present a summary. For each rule, note:
    - The rule ID (filename without `.yml`)
    - The language it targets
    - The pattern it detects (from the `message`, `note`, or `rule` fields)
@@ -28,17 +32,17 @@ This is a decision-making skill. You must evaluate the situation and choose the 
 
    Once a rule is selected, check for its sidecar metadata by running `pnpm dlx @taskless/cli@latest rules meta <rule-id> --json`. If metadata exists, note the `ticketId` — this is required for the iterate API.
 
-3. **Understand the improvement request.** Ask the user what they want to improve. Gather specifics:
+4. **Understand the improvement request.** Ask the user what they want to improve. Gather specifics:
    - Which rule(s) are problematic?
    - What is the rule doing wrong? (false positives, false negatives, wrong fix, missing edge cases, etc.)
    - Can they show an example of the incorrect behavior?
    - What would the correct behavior look like?
 
-4. **Search for evidence in the codebase.** Proactively scan the codebase for instances where the rule is triggering (or failing to trigger). Show the user what you found:
+5. **Search for evidence in the codebase.** Proactively scan the codebase for instances where the rule is triggering (or failing to trigger). Show the user what you found:
    - "I found N places where this rule fires. Are any of these false positives?"
    - "I found N places where this pattern exists but the rule doesn't catch it. Should it?"
 
-5. **Decide on approach.** Based on the user's feedback and your analysis, determine the best strategy:
+6. **Decide on approach.** Based on the user's feedback and your analysis, determine the best strategy:
 
    ### Option A — Iterate on a single rule (most common)
 
@@ -68,7 +72,7 @@ This is a decision-making skill. You must evaluate the situation and choose the 
 
    **Present your chosen approach to the user and get confirmation before proceeding.**
 
-6. **Execute the chosen approach.**
+7. **Execute the chosen approach.**
 
    ### For Option A (iterate):
 
@@ -121,9 +125,9 @@ This is a decision-making skill. You must evaluate the situation and choose the 
    b. If any old rules are being superseded, delete them after the new rules are created: `pnpm dlx @taskless/cli@latest rules delete <old-rule-id>`.
    c. Report all changes.
 
-7. **Suggest testing.** After any approach, suggest running `taskless-check` to test the updated rules against the codebase.
+8. **Suggest testing.** After any approach, suggest running `taskless-check` to test the updated rules against the codebase.
 
-8. **Handle errors.** If the CLI fails:
+9. **Handle errors.** If the CLI fails:
    - **Authentication required**: Suggest the `taskless-login` skill.
    - **Missing organization info**: Suggest running `taskless auth login` to re-authenticate.
    - **Rule not found**: The ruleId may be incorrect. Check the rule's metadata or suggest creating a new rule instead.
