@@ -56,10 +56,77 @@ describe("verifyRule", () => {
 
     expect(result.schema.valid).toBe(true);
     expect(result.requirements.valid).toBe(true);
-    // Tests may or may not pass depending on sg binary availability
-    // but schema and requirements should pass
+    expect(result.tests.valid).toBe(true);
+    expect(result.success).toBe(true);
     expect(result.schema.errors).toHaveLength(0);
     expect(result.requirements.errors).toHaveLength(0);
+    expect(result.tests.errors).toHaveLength(0);
+    expect(result.tests.passed).toBe(1);
+    expect(result.tests.failed).toBe(0);
+  });
+
+  it("isolates test results to the specified rule only", async () => {
+    const rulesDirectory = join(temporaryDirectory, ".taskless", "rules");
+    const testsDirectory = join(temporaryDirectory, ".taskless", "rule-tests");
+    await mkdir(rulesDirectory, { recursive: true });
+    await mkdir(testsDirectory, { recursive: true });
+
+    // Rule A: valid, tests pass
+    await writeFile(
+      join(rulesDirectory, "no-eval.yml"),
+      stringify({
+        id: "no-eval",
+        language: "typescript",
+        severity: "error",
+        message: "Do not use eval()",
+        rule: { pattern: "eval($$$)" },
+      }),
+      "utf8"
+    );
+    await writeFile(
+      join(testsDirectory, "no-eval-20260330-test.yml"),
+      stringify({
+        id: "no-eval",
+        valid: ["const x = 1;"],
+        invalid: ["eval('alert(1)')"],
+      }),
+      "utf8"
+    );
+
+    // Rule B: valid rule, but test file has a "valid" case that actually triggers
+    await writeFile(
+      join(rulesDirectory, "no-console.yml"),
+      stringify({
+        id: "no-console",
+        language: "typescript",
+        severity: "warning",
+        message: "No console",
+        rule: { pattern: "console.log($$$)" },
+      }),
+      "utf8"
+    );
+    await writeFile(
+      join(testsDirectory, "no-console-20260330-test.yml"),
+      stringify({
+        id: "no-console",
+        valid: ["console.log('this should fail')"], // deliberately wrong — triggers the rule
+        invalid: ["console.log('correct')"],
+      }),
+      "utf8"
+    );
+
+    // Verify rule A — should pass despite rule B's test failure
+    const result = await verifyRule(temporaryDirectory, "no-eval");
+
+    expect(result.success).toBe(true);
+    expect(result.tests.valid).toBe(true);
+    expect(result.tests.failed).toBe(0);
+
+    // Verify rule B — should fail
+    const resultB = await verifyRule(temporaryDirectory, "no-console");
+
+    expect(resultB.tests.valid).toBe(false);
+    expect(resultB.tests.failed).toBeGreaterThan(0);
   });
 
   it("reports schema errors for invalid rule structure", async () => {
