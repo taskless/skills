@@ -1,0 +1,7 @@
+id: no-as-any
+valid:
+  - "const x: string = getValue();"
+  - "const y = value as unknown as string;"
+invalid:
+  - "const x = value as any;"
+  - "return data as any;"

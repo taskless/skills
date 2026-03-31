@@ -1,8 +1,8 @@
 ## ADDED Requirements
 
-### Requirement: Build-time codegen fetches official ast-grep rule schema
+### Requirement: Codegen script fetches official ast-grep rule schema
 
-The CLI build pipeline SHALL include a codegen step that fetches the official ast-grep rule JSON Schema from GitHub and stores it as a generated artifact. The schema version SHALL be pinned to the `@ast-grep/cli` version specified in `packages/cli/package.json`.
+A codegen script (`packages/cli/scripts/fetch-ast-grep-schema.ts`) SHALL fetch the official ast-grep rule JSON Schema from GitHub and store it as a generated artifact committed to git. The schema version SHALL be pinned to the `@ast-grep/cli` version specified in `packages/cli/package.json`. The script is run manually via `pnpm generate:ast-grep-schema` when the ast-grep version is bumped.
 
 #### Scenario: Codegen fetches schema from GitHub
 

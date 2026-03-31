@@ -5,12 +5,15 @@ import {
   writeFile,
   mkdir,
   stat,
+  cp,
 } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 
-import { ensureTasklessDirectory } from "../src/rules/bootstrap";
+import { ensureTasklessDirectory } from "../src/filesystem/directory";
+
+const v0Fixture = resolve(import.meta.dirname, "fixtures/v0-production");
 
 describe("ensureTasklessDirectory", () => {
   let temporaryDirectory: string;
@@ -120,5 +123,136 @@ describe("ensureTasklessDirectory", () => {
       await readFile(join(tasklessDirectory, "taskless.json"), "utf8")
     ) as { version: number };
     expect(manifest.version).toBeGreaterThan(0);
+  });
+
+  it("overwrites README.md with current content", async () => {
+    const tasklessDirectory = join(temporaryDirectory, ".taskless");
+    await mkdir(tasklessDirectory, { recursive: true });
+
+    // Write stale README
+    await writeFile(
+      join(tasklessDirectory, "README.md"),
+      "# Old content\n",
+      "utf8"
+    );
+    await writeFile(
+      join(tasklessDirectory, "taskless.json"),
+      JSON.stringify({ version: 0 }),
+      "utf8"
+    );
+
+    await ensureTasklessDirectory(temporaryDirectory);
+
+    const readme = await readFile(join(tasklessDirectory, "README.md"), "utf8");
+    expect(readme).toContain("taskless.io");
+    expect(readme).not.toContain("Old content");
+  });
+});
+
+describe("v0 → v1 migration", () => {
+  let temporaryDirectory: string;
+
+  beforeEach(async () => {
+    temporaryDirectory = await mkdtemp(join(tmpdir(), "taskless-v0-migrate-"));
+    await cp(v0Fixture, temporaryDirectory, { recursive: true });
+  });
+
+  afterEach(async () => {
+    await rm(temporaryDirectory, { recursive: true, force: true });
+  });
+
+  it("migrates v0 taskless.json to integer version", async () => {
+    await ensureTasklessDirectory(temporaryDirectory);
+
+    const manifest = JSON.parse(
+      await readFile(
+        join(temporaryDirectory, ".taskless", "taskless.json"),
+        "utf8"
+      )
+    ) as Record<string, unknown>;
+
+    expect(typeof manifest.version).toBe("number");
+    expect(manifest.version).toBeGreaterThan(0);
+    // Old fields should be gone
+    expect(manifest).not.toHaveProperty("orgId");
+    expect(manifest).not.toHaveProperty("repositoryUrl");
+    expect(manifest).not.toHaveProperty("astGrepVersion");
+  });
+
+  it("overwrites stale README.md from v0", async () => {
+    await ensureTasklessDirectory(temporaryDirectory);
+
+    const readme = await readFile(
+      join(temporaryDirectory, ".taskless", "README.md"),
+      "utf8"
+    );
+    // New README mentions rule-tests
+    expect(readme).toContain("rule-tests");
+    // New README mentions .env.local.json
+    expect(readme).toContain(".env.local.json");
+  });
+
+  it("creates .gitignore that was missing in v0", async () => {
+    await ensureTasklessDirectory(temporaryDirectory);
+
+    const gitignore = await readFile(
+      join(temporaryDirectory, ".taskless", ".gitignore"),
+      "utf8"
+    );
+    expect(gitignore).toContain(".env.local.json");
+    expect(gitignore).toContain("sgconfig.yml");
+  });
+
+  it("preserves existing rule files", async () => {
+    await ensureTasklessDirectory(temporaryDirectory);
+
+    const ruleContent = await readFile(
+      join(temporaryDirectory, ".taskless", "rules", "no-as-any.yml"),
+      "utf8"
+    );
+    expect(ruleContent).toContain("no-as-any");
+    expect(ruleContent).toContain("as any");
+  });
+
+  it("preserves existing test files", async () => {
+    await ensureTasklessDirectory(temporaryDirectory);
+
+    const testContent = await readFile(
+      join(
+        temporaryDirectory,
+        ".taskless",
+        "rule-tests",
+        "no-as-any-20260326-test.yml"
+      ),
+      "utf8"
+    );
+    expect(testContent).toContain("no-as-any");
+    expect(testContent).toContain("valid");
+    expect(testContent).toContain("invalid");
+  });
+
+  it("preserves .gitkeep files", async () => {
+    await ensureTasklessDirectory(temporaryDirectory);
+
+    const keepStat = await stat(
+      join(temporaryDirectory, ".taskless", "rules", ".gitkeep")
+    );
+    expect(keepStat.isFile()).toBe(true);
+  });
+
+  it("is idempotent on migrated v0 directory", async () => {
+    await ensureTasklessDirectory(temporaryDirectory);
+    const manifestBefore = await readFile(
+      join(temporaryDirectory, ".taskless", "taskless.json"),
+      "utf8"
+    );
+
+    await ensureTasklessDirectory(temporaryDirectory);
+    const manifestAfter = await readFile(
+      join(temporaryDirectory, ".taskless", "taskless.json"),
+      "utf8"
+    );
+
+    expect(manifestAfter).toBe(manifestBefore);
   });
 });

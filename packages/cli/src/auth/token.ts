@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 
-import { ensureTasklessGitignore } from "../rules/gitignore";
+import { addToGitignore } from "../filesystem/gitignore";
 
 const AUTH_FILE = "auth.json";
 const PER_REPO_AUTH_FILE = ".env.local.json";
@@ -86,7 +86,7 @@ export async function saveToken(
   if (cwd) {
     const tasklessDirectory = join(cwd, ".taskless");
     await mkdir(tasklessDirectory, { recursive: true });
-    await ensureTasklessGitignore(cwd);
+    await addToGitignore(cwd, [".env.local.json"]);
     await writeFile(join(tasklessDirectory, PER_REPO_AUTH_FILE), content, {
       mode: 0o600,
     });

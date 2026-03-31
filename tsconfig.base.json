@@ -2,8 +2,8 @@
   // Base TypeScript configuration for all packages and workers.
   // Extend this and override only what's specific to your package.
   "compilerOptions": {
-    "target": "ES2022",
-    "lib": ["ES2022"],
+    "target": "ES2023",
+    "lib": ["ES2023"],
     "module": "ES2022",
     "moduleResolution": "bundler",
 

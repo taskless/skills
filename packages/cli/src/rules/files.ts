@@ -3,7 +3,7 @@ import { basename, join, resolve } from "node:path";
 
 import { parse, stringify } from "yaml";
 
-import { ensureTasklessDirectory } from "./bootstrap";
+import { ensureTasklessDirectory } from "../filesystem/directory";
 import type { GeneratedRule, RuleMetadata } from "../api/rules";
 
 /** Write a generated rule's content to .taskless/rules/{kebab-id}.yml */

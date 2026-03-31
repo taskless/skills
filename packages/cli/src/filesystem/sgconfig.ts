@@ -1,7 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { ensureTasklessDirectory } from "./bootstrap";
+import { ensureTasklessDirectory } from "./directory";
 
 const SGCONFIG_CONTENT = `ruleDirs:
   - rules

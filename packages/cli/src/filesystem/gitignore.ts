@@ -1,13 +1,14 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 
-const GITIGNORE_ENTRIES = [".env.local.json", "sgconfig.yml"];
-
 /**
- * Ensure `.taskless/.gitignore` exists and contains required entries.
- * Creates the file if missing; appends missing entries if it already exists.
+ * Idempotently add glob patterns to `.taskless/.gitignore`.
+ * Creates the file if missing; appends only entries not already present.
  */
-export async function ensureTasklessGitignore(cwd: string): Promise<void> {
+export async function addToGitignore(
+  cwd: string,
+  globs: string[]
+): Promise<void> {
   const tasklessDirectory = join(cwd, ".taskless");
   const gitignorePath = join(tasklessDirectory, ".gitignore");
 
@@ -27,7 +28,7 @@ export async function ensureTasklessGitignore(cwd: string): Promise<void> {
       .filter(Boolean)
   );
 
-  const missing = GITIGNORE_ENTRIES.filter((entry) => !lines.has(entry));
+  const missing = globs.filter((entry) => !lines.has(entry));
   if (missing.length === 0) return;
 
   const suffix = existing.length > 0 && !existing.endsWith("\n") ? "\n" : "";

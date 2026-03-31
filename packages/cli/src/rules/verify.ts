@@ -9,7 +9,7 @@ import {
   TASKLESS_REQUIRED_FIELDS,
   findRegexWithoutKind,
 } from "../schemas/ast-grep-rule";
-import { generateSgConfig } from "./sgconfig";
+import { generateSgConfig } from "../filesystem/sgconfig";
 import { findSgBinary, buildPath } from "./scan";
 import astGrepJsonSchema from "../generated/ast-grep-rule-schema.json";
 import { RULE_EXAMPLES } from "./verify-examples";

@@ -5,7 +5,7 @@ import { defineCommand } from "citty";
 
 import { runAstGrepScan } from "../rules/scan";
 import { formatText } from "../util/format";
-import { generateSgConfig } from "../rules/sgconfig";
+import { generateSgConfig } from "../filesystem/sgconfig";
 import { printSchema } from "../util/schema-output";
 import {
   outputSchema as checkOutputSchema,
