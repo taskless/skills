@@ -4,6 +4,7 @@ import { defineCommand } from "citty";
 import { deviceFlowProvider } from "../auth/device-flow";
 import { getToken, removeToken, saveToken } from "../auth/token";
 import { resolveRepositoryUrl } from "../util/git-remote";
+import { getTelemetry } from "../telemetry";
 
 const loginCommand = defineCommand({
   meta: {
@@ -19,6 +20,8 @@ const loginCommand = defineCommand({
   },
   async run({ args }) {
     const cwd = resolve(args.dir ?? process.cwd());
+    const telemetry = await getTelemetry(cwd);
+    telemetry.capture("cli_auth_login");
 
     const existing = await getToken(cwd);
     if (existing) {
@@ -59,6 +62,7 @@ const loginCommand = defineCommand({
         switch (result.status) {
           case "success": {
             await saveToken(result.token, cwd);
+            telemetry.capture("cli_auth_login_completed");
             console.log("Logged in successfully.");
             return;
           }
@@ -107,6 +111,8 @@ const logoutCommand = defineCommand({
   },
   async run({ args }) {
     const cwd = resolve(args.dir ?? process.cwd());
+    const telemetry = await getTelemetry(cwd);
+    telemetry.capture("cli_auth_logout");
 
     const removed = await removeToken(cwd);
     if (removed) {

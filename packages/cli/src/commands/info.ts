@@ -1,4 +1,3 @@
-/* eslint-disable unicorn/no-process-exit */
 import { resolve } from "node:path";
 import { defineCommand } from "citty";
 
@@ -10,6 +9,7 @@ import {
   outputSchema as infoOutputSchema,
   errorSchema as infoErrorSchema,
 } from "../schemas/info";
+import { getTelemetry } from "../telemetry";
 
 export const infoCommand = defineCommand({
   meta: {
@@ -39,10 +39,13 @@ export const infoCommand = defineCommand({
         output: infoOutputSchema,
         error: infoErrorSchema,
       });
-      process.exit(0);
+      return;
     }
 
     const cwd = resolve(args.dir ?? process.cwd());
+    const telemetry = await getTelemetry(cwd);
+    telemetry.capture("cli_info");
+
     const [tools, token] = await Promise.all([
       checkStaleness(cwd),
       getToken(cwd),
@@ -77,7 +80,8 @@ export const infoCommand = defineCommand({
             error: "Internal schema validation failed",
           })
         );
-        process.exit(1);
+        process.exitCode = 1;
+        return;
       }
       console.log(JSON.stringify(parsed.data));
       return;

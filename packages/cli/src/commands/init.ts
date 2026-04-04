@@ -7,6 +7,7 @@ import {
   getEmbeddedCommands,
   installForTool,
 } from "../install/install";
+import { getTelemetry } from "../telemetry";
 
 export const initCommand = defineCommand({
   meta: {
@@ -22,6 +23,9 @@ export const initCommand = defineCommand({
   },
   async run({ args }) {
     const cwd = resolve(args.dir ?? process.cwd());
+    const telemetry = await getTelemetry(cwd);
+    telemetry.capture("cli_init");
+
     const skills = getEmbeddedSkills();
     const commands = getEmbeddedCommands();
     const tools = await detectTools(cwd);

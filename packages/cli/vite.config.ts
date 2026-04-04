@@ -1,3 +1,4 @@
+import { builtinModules } from "node:module";
 import { chmodSync, readFileSync, readdirSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { parse } from "yaml";
@@ -82,7 +83,7 @@ export default defineConfig({
       fileName: "index",
     },
     rollupOptions: {
-      external: [/^node:/],
+      external: [/^node:/, ...builtinModules],
     },
   },
 });
