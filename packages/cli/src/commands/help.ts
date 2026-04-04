@@ -5,6 +5,8 @@ import {
   type SubCommandsDef,
 } from "citty";
 
+import { getTelemetry } from "../telemetry";
+
 // Help text files embedded at build time via Vite import.meta.glob
 const helpFiles: Record<string, string> = import.meta.glob("../help/*.txt", {
   query: "?raw",
@@ -58,6 +60,22 @@ export function createHelpCommand(
       const positionals = rawArgs.filter(
         (argument) => !argument.startsWith("-") && argument !== "help"
       );
+
+      const telemetry = await getTelemetry();
+      if (positionals.length === 0) {
+        telemetry.capture("cli_help");
+      } else {
+        const commandEvents: Record<string, string> = {
+          auth: "cli_help_auth",
+          check: "cli_help_check",
+          info: "cli_help_info",
+          init: "cli_help_init",
+          rules: "cli_help_rule",
+        };
+        const first = positionals[0] as string;
+        const event = commandEvents[first] ?? "cli_help";
+        telemetry.capture(event, { topic: positionals.join(" ") });
+      }
 
       if (positionals.length === 0) {
         // No args: show command index

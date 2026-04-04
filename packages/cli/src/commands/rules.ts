@@ -1,4 +1,3 @@
-/* eslint-disable unicorn/no-process-exit */
 import { resolve } from "node:path";
 import { readFile } from "node:fs/promises";
 import { defineCommand } from "citty";
@@ -35,6 +34,7 @@ import {
   verifyOutputSchema,
   verifyErrorSchema,
 } from "../schemas/rules-verify";
+import { getTelemetry } from "../telemetry";
 
 /** Format today's date as YYYYMMDD */
 function getTimestamp(): string {
@@ -83,10 +83,12 @@ const createCommand = defineCommand({
         output: createOutputSchema,
         error: createErrorSchema,
       });
-      process.exit(0);
+      return;
     }
 
     const cwd = resolve(args.dir ?? process.cwd());
+    const telemetry = await getTelemetry(cwd);
+    telemetry.capture("cli_rule_create");
 
     /** Emit an error and exit, respecting --json mode */
     function fail(message: string): never {
@@ -97,7 +99,8 @@ const createCommand = defineCommand({
       } else {
         console.error(`Error: ${message}`);
       }
-      process.exit(1);
+      process.exitCode = 1;
+      throw new Error(message);
     }
 
     // 1. Read and validate --from file
@@ -281,10 +284,12 @@ const improveCommand = defineCommand({
         output: improveOutputSchema,
         error: improveErrorSchema,
       });
-      process.exit(0);
+      return;
     }
 
     const cwd = resolve(args.dir ?? process.cwd());
+    const telemetry = await getTelemetry(cwd);
+    telemetry.capture("cli_rule_improve");
 
     /** Emit an error and exit, respecting --json mode */
     function fail(message: string): never {
@@ -295,7 +300,8 @@ const improveCommand = defineCommand({
       } else {
         console.error(`Error: ${message}`);
       }
-      process.exit(1);
+      process.exitCode = 1;
+      throw new Error(message);
     }
 
     // 1. Read and validate --from file
@@ -475,10 +481,12 @@ const metaCommand = defineCommand({
         output: metaOutputSchema,
         error: metaErrorSchema,
       });
-      process.exit(0);
+      return;
     }
 
     const cwd = resolve(args.dir ?? process.cwd());
+    const telemetry = await getTelemetry(cwd);
+    telemetry.capture("cli_rule_meta");
 
     function fail(message: string): never {
       if (args.json) {
@@ -486,7 +494,8 @@ const metaCommand = defineCommand({
       } else {
         console.error(`Error: ${message}`);
       }
-      process.exit(1);
+      process.exitCode = 1;
+      throw new Error(message);
     }
 
     const meta = await readRuleMetaFile(cwd, args.id);
@@ -537,6 +546,8 @@ const deleteCommand = defineCommand({
   },
   async run({ args }) {
     const cwd = resolve(args.dir ?? process.cwd());
+    const telemetry = await getTelemetry(cwd);
+    telemetry.capture("cli_rule_delete");
     const id = args.id;
 
     const deleted = await deleteRuleFiles(cwd, id);
@@ -546,7 +557,7 @@ const deleteCommand = defineCommand({
       console.error(
         `Error: Rule "${id}" not found in .taskless/rules/${id}.yml`
       );
-      process.exit(1);
+      process.exitCode = 1;
     }
   },
 });
@@ -588,10 +599,12 @@ const verifyCommand = defineCommand({
       } else {
         console.log(JSON.stringify(payload, null, 2));
       }
-      process.exit(0);
+      return;
     }
 
     const cwd = resolve(args.dir ?? process.cwd());
+    const telemetry = await getTelemetry(cwd);
+    telemetry.capture("cli_rule_verify");
 
     if (!args.id) {
       if (args.json) {
@@ -608,7 +621,8 @@ const verifyCommand = defineCommand({
           "Error: Rule ID is required.\n  Usage: taskless rules verify <id>"
         );
       }
-      process.exit(1);
+      process.exitCode = 1;
+      return;
     }
 
     const result = await verifyRule(cwd, args.id);
@@ -647,7 +661,9 @@ const verifyCommand = defineCommand({
       );
     }
 
-    process.exit(result.success ? 0 : 1);
+    if (!result.success) {
+      process.exitCode = 1;
+    }
   },
 });
 

@@ -1,4 +1,4 @@
-import { defineCommand, runMain, showUsage } from "citty";
+import { defineCommand, runCommand, showUsage } from "citty";
 
 import { authCommand } from "./commands/auth";
 import { checkCommand } from "./commands/check";
@@ -6,6 +6,7 @@ import { initCommand } from "./commands/init";
 import { infoCommand } from "./commands/info";
 import { createHelpCommand } from "./commands/help";
 import { rulesCommand } from "./commands/rules";
+import { getTelemetry } from "./telemetry";
 
 const subCommands = {
   init: initCommand,
@@ -51,4 +52,17 @@ const main = defineCommand({
   },
 });
 
-void runMain(main);
+// main loop to run cli and make every attempt to shut down gracefully
+try {
+  await runCommand(main, { rawArgs: process.argv.slice(2) });
+} catch (error) {
+  process.exitCode = 1;
+  console.error(error instanceof Error ? error.message : String(error));
+} finally {
+  try {
+    const t = await getTelemetry();
+    await t.shutdown();
+  } catch {
+    //
+  }
+}

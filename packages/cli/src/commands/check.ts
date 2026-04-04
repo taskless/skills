@@ -1,4 +1,3 @@
-/* eslint-disable unicorn/no-process-exit */
 import { resolve, join } from "node:path";
 import { readdir } from "node:fs/promises";
 import { defineCommand } from "citty";
@@ -7,6 +6,7 @@ import { runAstGrepScan } from "../rules/scan";
 import { formatText } from "../util/format";
 import { generateSgConfig } from "../filesystem/sgconfig";
 import { printSchema } from "../util/schema-output";
+import { getTelemetry } from "../telemetry";
 import {
   outputSchema as checkOutputSchema,
   errorSchema as checkErrorSchema,
@@ -41,10 +41,12 @@ export const checkCommand = defineCommand({
         output: checkOutputSchema,
         error: checkErrorSchema,
       });
-      process.exit(0);
+      return;
     }
 
     const cwd = resolve(args.dir ?? process.cwd());
+    const telemetry = await getTelemetry(cwd);
+    telemetry.capture("cli_check");
 
     // Check for rule files
     const rulesDirectory = join(cwd, ".taskless", "rules");
@@ -68,7 +70,7 @@ export const checkCommand = defineCommand({
           "No rules configured. Create one with `taskless rules create`."
         );
       }
-      process.exit(0);
+      return;
     }
 
     // Generate ephemeral sgconfig.yml and run scanner
@@ -89,7 +91,9 @@ export const checkCommand = defineCommand({
       }
 
       // Exit code: 1 if any errors, 0 otherwise
-      process.exit(hasErrors ? 1 : 0);
+      if (hasErrors) {
+        process.exitCode = 1;
+      }
     } catch (error) {
       const message = `Error: ${error instanceof Error ? error.message : String(error)}`;
       if (args.json) {
@@ -102,7 +106,7 @@ export const checkCommand = defineCommand({
       } else {
         console.error(message);
       }
-      process.exit(1);
+      process.exitCode = 1;
     }
   },
 });
