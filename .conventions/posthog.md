@@ -143,4 +143,4 @@ vi.mock("posthog-node", () => {
 });
 ```
 
-Ensure test environments set `TASKLESS_TELEMETRY_DISABLED=1` so real events are never sent during test runs.
+Mocking `posthog-node` via `vi.mock` is sufficient to prevent real events from being sent, even in tests that exercise the enabled telemetry path. For integration or end-to-end test suites that do not mock PostHog, set `TASKLESS_TELEMETRY_DISABLED=1` as an extra safeguard.

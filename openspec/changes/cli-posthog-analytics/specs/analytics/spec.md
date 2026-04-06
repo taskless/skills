@@ -6,18 +6,18 @@ Defines the PostHog telemetry module for the `@taskless/cli` package — anonymo
 
 ## Requirements
 
-### Requirement: Telemetry module exports createTelemetry
+### Requirement: Telemetry module exports getTelemetry
 
-The CLI SHALL provide a `createTelemetry(cwd?: string)` function in `src/telemetry.ts` that returns a telemetry object with `capture(event: string, properties?: Record<string, unknown>)`, `identify()`, and `shutdown()` methods. The function SHALL resolve identity, create the PostHog client, and call `identify()` before returning.
+The CLI SHALL provide a `getTelemetry(cwd?: string)` function in `src/telemetry.ts` that returns a telemetry object with `capture(event: string, properties?: Record<string, unknown>)` and `shutdown()` methods. The function SHALL resolve identity, create the PostHog client, and call `identify()` internally before returning. The `identify()` call is not exposed on the public interface.
 
 #### Scenario: Telemetry object is created
 
-- **WHEN** `createTelemetry()` is called
-- **THEN** it SHALL return an object with `capture`, `identify`, and `shutdown` methods
+- **WHEN** `getTelemetry()` is called
+- **THEN** it SHALL return an object with `capture` and `shutdown` methods
 
 #### Scenario: Telemetry resolves identity on creation
 
-- **WHEN** `createTelemetry(cwd)` is called with a working directory that has a valid JWT
+- **WHEN** `getTelemetry(cwd)` is called with a working directory that has a valid JWT
 - **THEN** it SHALL resolve the authenticated identity (JWT subject as `distinctId`, org group) before returning
 
 ### Requirement: Anonymous identity persists in XDG config
@@ -26,12 +26,12 @@ The CLI SHALL generate a UUID v4 on first run and persist it to `$XDG_CONFIG_HOM
 
 #### Scenario: First run generates anonymous ID
 
-- **WHEN** `createTelemetry()` is called and `anonymous_id` does not exist
+- **WHEN** `getTelemetry()` is called and `anonymous_id` does not exist
 - **THEN** the CLI SHALL generate a UUID v4, write it to the XDG config directory, and use it as the `distinctId`
 
 #### Scenario: Subsequent run reads existing anonymous ID
 
-- **WHEN** `createTelemetry()` is called and `anonymous_id` already exists
+- **WHEN** `getTelemetry()` is called and `anonymous_id` already exists
 - **THEN** the CLI SHALL read the existing UUID and use it
 
 #### Scenario: Anonymous ID file is deleted
@@ -50,37 +50,37 @@ When a valid JWT is available (via `getToken()`), the CLI SHALL use the JWT subj
 
 #### Scenario: JWT available upgrades identity
 
-- **WHEN** `createTelemetry(cwd)` is called and a valid JWT exists for the working directory
+- **WHEN** `getTelemetry(cwd)` is called and a valid JWT exists for the working directory
 - **THEN** `distinctId` SHALL be the JWT `sub` claim
 - **AND** `identify()` SHALL be called with `{ cli: anonymousUuid }`
 - **AND** `groupIdentify()` SHALL be called with `{ groupType: 'organization', groupKey: String(orgId) }`
 
 #### Scenario: No JWT falls back to anonymous
 
-- **WHEN** `createTelemetry(cwd)` is called and no JWT is available
+- **WHEN** `getTelemetry(cwd)` is called and no JWT is available
 - **THEN** `distinctId` SHALL be the anonymous UUID
 - **AND** `identify()` SHALL be called with `{ cli: anonymousUuid }`
 - **AND** `groupIdentify()` SHALL NOT be called
 
 ### Requirement: Telemetry is disabled by environment variable
 
-Setting `TASKLESS_TELEMETRY_DISABLED=1` or `DO_NOT_TRACK=1` SHALL cause `createTelemetry()` to return an inert stub with no-op implementations of `capture`, `identify`, and `shutdown`. No PostHog client SHALL be created. No network requests SHALL be made. No anonymous ID file SHALL be read or written.
+Setting `TASKLESS_TELEMETRY_DISABLED=1` or `DO_NOT_TRACK=1` SHALL cause `getTelemetry()` to return an inert stub with no-op implementations of `capture`, `identify`, and `shutdown`. No PostHog client SHALL be created. No network requests SHALL be made. No anonymous ID file SHALL be read or written.
 
 #### Scenario: TASKLESS_TELEMETRY_DISABLED disables telemetry
 
 - **WHEN** `TASKLESS_TELEMETRY_DISABLED` is set to `"1"`
-- **THEN** `createTelemetry()` SHALL return a no-op stub
+- **THEN** `getTelemetry()` SHALL return a no-op stub
 - **AND** no PostHog client SHALL be instantiated
 
 #### Scenario: DO_NOT_TRACK disables telemetry
 
 - **WHEN** `DO_NOT_TRACK` is set to `"1"`
-- **THEN** `createTelemetry()` SHALL return a no-op stub
+- **THEN** `getTelemetry()` SHALL return a no-op stub
 
 #### Scenario: Telemetry enabled by default
 
 - **WHEN** neither `TASKLESS_TELEMETRY_DISABLED` nor `DO_NOT_TRACK` is set
-- **THEN** `createTelemetry()` SHALL create a real PostHog client
+- **THEN** `getTelemetry()` SHALL create a real PostHog client
 
 ### Requirement: PostHog client uses hardcoded constants
 
@@ -172,12 +172,12 @@ All telemetry operations (client creation, `capture`, `identify`, `groupIdentify
 
 ### Requirement: Telemetry lifecycle is managed in main entry point
 
-The `createTelemetry()` call SHALL happen in the main entry point (`src/index.ts`) before subcommand dispatch. The `shutdown()` call SHALL happen after the subcommand completes. The telemetry object SHALL be accessible to subcommand handlers.
+The `getTelemetry()` call SHALL happen in the main entry point (`src/index.ts`) before subcommand dispatch. The `shutdown()` call SHALL happen after the subcommand completes. The telemetry object SHALL be accessible to subcommand handlers.
 
 #### Scenario: Telemetry is initialized before subcommand runs
 
 - **WHEN** the CLI starts
-- **THEN** `createTelemetry()` SHALL be called before any subcommand handler executes
+- **THEN** `getTelemetry()` SHALL be called before any subcommand handler executes
 
 #### Scenario: Telemetry is shut down after subcommand completes
 

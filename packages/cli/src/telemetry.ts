@@ -5,8 +5,8 @@ import { join } from "node:path";
 import { PostHog } from "posthog-node";
 import { decodeJwt } from "jose";
 
-import { getConfigDirectory } from "./auth/token";
-import { getToken } from "./auth/token";
+import { decodeOrgId } from "./auth/jwt";
+import { getConfigDirectory, getToken } from "./auth/token";
 
 const POSTHOG_PROJECT_TOKEN =
   "phc_stymptTiUskp4zM3m9StNSGheHwjskaYagpxV7rDjZyc";
@@ -70,25 +70,22 @@ function decodeSubject(token: string): string | undefined {
   }
 }
 
-function decodeOrgIdFromToken(token: string): number | undefined {
-  try {
-    const claims = decodeJwt(token);
-    const orgId = claims.orgId;
-    if (typeof orgId === "number" && Number.isFinite(orgId)) {
-      return orgId;
-    }
-    return undefined;
-  } catch {
-    return undefined;
-  }
-}
-
 let instance: TelemetryClient | undefined;
 
 /**
  * Get the telemetry client, lazily initializing on first call.
  * Subsequent calls return the same instance (cwd is only used on first init).
  */
+/**
+ * Shut down the telemetry client if it was previously initialized.
+ * No-op if getTelemetry() was never called (avoids lazy init just to shut down).
+ */
+export async function shutdownTelemetry(): Promise<void> {
+  if (instance) {
+    await instance.shutdown();
+  }
+}
+
 export async function getTelemetry(cwd?: string): Promise<TelemetryClient> {
   if (instance) return instance;
 
@@ -105,16 +102,14 @@ export async function getTelemetry(cwd?: string): Promise<TelemetryClient> {
     let anonymous = true;
     let orgId: number | undefined;
 
-    if (cwd) {
-      const token = await getToken(cwd);
-      if (token) {
-        const sub = decodeSubject(token);
-        if (sub) {
-          distinctId = sub;
-          anonymous = false;
-        }
-        orgId = decodeOrgIdFromToken(token);
+    const token = await getToken(cwd);
+    if (token) {
+      const sub = decodeSubject(token);
+      if (sub) {
+        distinctId = sub;
+        anonymous = false;
       }
+      orgId = decodeOrgId(token);
     }
 
     const posthog = new PostHog(POSTHOG_PROJECT_TOKEN, {
