@@ -9,15 +9,15 @@
 - [x] 2.1 Create `packages/cli/src/telemetry.ts` with hardcoded PostHog constants (`POSTHOG_PROJECT_TOKEN`, `POSTHOG_HOST`)
 - [x] 2.2 Implement `getOrCreateAnonymousId()` — reads `anonymous_id` from XDG config dir, generates UUID v4 if missing, creates directory if needed
 - [x] 2.3 Implement `isTelemetryDisabled()` — checks `TASKLESS_TELEMETRY_DISABLED=1` and `DO_NOT_TRACK=1`
-- [x] 2.4 Implement no-op stub that conforms to the telemetry interface (`capture`, `identify`, `shutdown` as no-ops)
-- [x] 2.5 Implement `createTelemetry(cwd?: string)` — resolves anonymous ID, checks for JWT via `getToken(cwd)`, decodes `sub` and `orgId` from JWT, creates PostHog client with `flushAt: 1` / `flushInterval: 0`, calls `identify()` and optionally `groupIdentify()`, returns telemetry object
+- [x] 2.4 Implement no-op stub that conforms to the telemetry interface (`capture`, `shutdown` as no-ops)
+- [x] 2.5 Implement `getTelemetry(cwd?: string)` — resolves anonymous ID, checks for JWT via `getToken(cwd)`, decodes `sub` and `orgId` from JWT, creates PostHog client with `flushAt: 1` / `flushInterval: 0`, calls `identify()` and optionally `groupIdentify()` internally, returns telemetry object with `capture` and `shutdown`
 - [x] 2.6 Implement `capture(event, properties?)` — merges standard properties (`cli`) and `groups` when authenticated
 
 ## 3. Wire telemetry into CLI entry point
 
-- [x] 3.1 Update `packages/cli/src/index.ts` to call `createTelemetry(cwd)` before subcommand dispatch
-- [x] 3.2 Ensure `shutdown()` is called after the subcommand completes (wrap in try/finally or process exit handler)
-- [x] 3.3 Make the telemetry object accessible to subcommand handlers (module-level export or pass via context)
+- [x] 3.1 Each command handler calls `getTelemetry(cwd)` lazily on first use (singleton pattern)
+- [x] 3.2 `shutdownTelemetry()` called in `index.ts` `finally` block — no-op if never initialized
+- [x] 3.3 Telemetry accessible to subcommand handlers via module-level singleton
 
 ## 4. Add capture calls to command handlers
 
@@ -32,9 +32,9 @@
 
 - [x] 5.1 Test `getOrCreateAnonymousId()` — generates UUID on first call, reads existing on second, creates directory if missing
 - [x] 5.2 Test `isTelemetryDisabled()` — returns true for each env var, false when unset
-- [x] 5.3 Test `createTelemetry()` with telemetry disabled — returns no-op stub, no PostHog instantiation
-- [x] 5.4 Test `createTelemetry()` without JWT — uses anonymous UUID as distinctId, no groupIdentify
-- [x] 5.5 Test `createTelemetry()` with JWT — uses JWT sub as distinctId, calls groupIdentify with orgId
+- [x] 5.3 Test `getTelemetry()` with telemetry disabled — returns no-op stub, no PostHog instantiation
+- [x] 5.4 Test `getTelemetry()` without JWT — uses anonymous UUID as distinctId, no groupIdentify
+- [x] 5.5 Test `getTelemetry()` with JWT — uses JWT sub as distinctId, calls groupIdentify with orgId
 - [x] 5.6 Test `capture()` — includes standard properties (`cli`), includes `groups` when authenticated
 - [x] 5.7 Ensure test environment sets `TASKLESS_TELEMETRY_DISABLED=1` to prevent real PostHog calls (mocked via vi.mock)
 

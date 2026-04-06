@@ -64,7 +64,7 @@ When a valid JWT is available (via `getToken()`), the CLI SHALL use the JWT subj
 
 ### Requirement: Telemetry is disabled by environment variable
 
-Setting `TASKLESS_TELEMETRY_DISABLED=1` or `DO_NOT_TRACK=1` SHALL cause `getTelemetry()` to return an inert stub with no-op implementations of `capture`, `identify`, and `shutdown`. No PostHog client SHALL be created. No network requests SHALL be made. No anonymous ID file SHALL be read or written.
+Setting `TASKLESS_TELEMETRY_DISABLED=1` or `DO_NOT_TRACK=1` SHALL cause `getTelemetry()` to return an inert stub with no-op implementations of `capture` and `shutdown`. No PostHog client SHALL be created. No network requests SHALL be made. No anonymous ID file SHALL be read or written.
 
 #### Scenario: TASKLESS_TELEMETRY_DISABLED disables telemetry
 
@@ -170,16 +170,21 @@ All telemetry operations (client creation, `capture`, `identify`, `groupIdentify
 - **WHEN** the `anonymous_id` file exists but contains invalid content
 - **THEN** the CLI SHALL generate a new UUID and overwrite the file
 
-### Requirement: Telemetry lifecycle is managed in main entry point
+### Requirement: Telemetry lifecycle uses lazy init with centralized shutdown
 
-The `getTelemetry()` call SHALL happen in the main entry point (`src/index.ts`) before subcommand dispatch. The `shutdown()` call SHALL happen after the subcommand completes. The telemetry object SHALL be accessible to subcommand handlers.
+Each command handler SHALL call `getTelemetry(cwd)` to lazily initialize the singleton with the correct working directory for identity resolution. The main entry point (`src/index.ts`) SHALL call `shutdownTelemetry()` in a `finally` block after the subcommand completes. If no command initialized telemetry, shutdown SHALL be a no-op (no PostHog client created).
 
-#### Scenario: Telemetry is initialized before subcommand runs
+#### Scenario: Telemetry is initialized lazily by command handler
 
-- **WHEN** the CLI starts
-- **THEN** `getTelemetry()` SHALL be called before any subcommand handler executes
+- **WHEN** a subcommand handler runs
+- **THEN** it SHALL call `getTelemetry(cwd)` to initialize telemetry with the resolved working directory
 
 #### Scenario: Telemetry is shut down after subcommand completes
 
 - **WHEN** a subcommand handler returns
-- **THEN** `shutdown()` SHALL be called before the process exits
+- **THEN** `shutdownTelemetry()` SHALL be called in the entry point `finally` block before the process exits
+
+#### Scenario: No telemetry init when no command runs
+
+- **WHEN** the CLI exits without running a command (e.g. showing top-level help)
+- **THEN** `shutdownTelemetry()` SHALL be a no-op and no PostHog client SHALL be created
