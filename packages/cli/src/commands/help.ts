@@ -61,7 +61,7 @@ export function createHelpCommand(
         (argument) => !argument.startsWith("-") && argument !== "help"
       );
 
-      const telemetry = await getTelemetry();
+      const telemetry = await getTelemetry(process.cwd());
       if (positionals.length === 0) {
         telemetry.capture("cli_help");
       } else {

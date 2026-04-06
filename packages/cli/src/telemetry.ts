@@ -94,6 +94,7 @@ export async function getTelemetry(cwd?: string): Promise<TelemetryClient> {
     return instance;
   }
 
+  let posthog: PostHog | undefined;
   try {
     const anonymousId = await getOrCreateAnonymousId();
 
@@ -112,7 +113,7 @@ export async function getTelemetry(cwd?: string): Promise<TelemetryClient> {
       orgId = decodeOrgId(token);
     }
 
-    const posthog = new PostHog(POSTHOG_PROJECT_TOKEN, {
+    posthog = new PostHog(POSTHOG_PROJECT_TOKEN, {
       host: POSTHOG_HOST,
       flushAt: 1,
       flushInterval: 0,
@@ -129,10 +130,11 @@ export async function getTelemetry(cwd?: string): Promise<TelemetryClient> {
       });
     }
 
+    const ph = posthog;
     instance = {
       capture(event: string, properties?: Record<string, unknown>) {
         try {
-          posthog.capture({
+          ph.capture({
             distinctId,
             event,
             properties: {
@@ -149,14 +151,21 @@ export async function getTelemetry(cwd?: string): Promise<TelemetryClient> {
       },
       async shutdown() {
         try {
-          await posthog.shutdown();
+          await ph.shutdown();
         } catch {
           // Telemetry failures are silent
         }
       },
     };
   } catch {
-    // If anything fails during init, fall back to no-op
+    // Clean up partially-created client to avoid open handles
+    if (posthog) {
+      try {
+        await posthog.shutdown();
+      } catch {
+        // Best-effort cleanup
+      }
+    }
     instance = noopClient;
   }
 
