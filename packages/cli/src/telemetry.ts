@@ -138,8 +138,8 @@ export async function getTelemetry(cwd?: string): Promise<TelemetryClient> {
             distinctId,
             event,
             properties: {
-              cli: anonymousId,
               ...properties,
+              cli: anonymousId,
             },
             ...(!anonymous && orgId !== undefined
               ? { groups: { organization: String(orgId) } }
