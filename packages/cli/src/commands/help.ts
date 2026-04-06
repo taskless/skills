@@ -55,11 +55,17 @@ export function createHelpCommand(
       description: "Show help for a command",
     },
     async run({ rawArgs }) {
-      // Filter out flags from rawArgs, keep only positional args
-      // Also filter out "help" itself if citty passes it
-      const positionals = rawArgs.filter(
-        (argument) => !argument.startsWith("-") && argument !== "help"
-      );
+      // Extract positional args, skipping flags and their values
+      const positionals: string[] = [];
+      for (let index = 0; index < rawArgs.length; index++) {
+        const argument = rawArgs[index]!;
+        if (argument.startsWith("-")) {
+          // Skip flag values (e.g. --dir /foo) unless it's --flag=value form
+          if (!argument.includes("=")) index++;
+          continue;
+        }
+        if (argument !== "help") positionals.push(argument);
+      }
 
       const telemetry = await getTelemetry(process.cwd());
       if (positionals.length === 0) {
