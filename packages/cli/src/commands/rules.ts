@@ -35,6 +35,7 @@ import {
   verifyErrorSchema,
 } from "../schemas/rules-verify";
 import { getTelemetry } from "../telemetry";
+import { CliError } from "../util/cli-error";
 
 /** Format today's date as YYYYMMDD */
 function getTimestamp(): string {
@@ -100,7 +101,7 @@ const createCommand = defineCommand({
         console.error(`Error: ${message}`);
       }
       process.exitCode = 1;
-      throw new Error(message);
+      throw new CliError(message);
     }
 
     // 1. Read and validate --from file
@@ -301,7 +302,7 @@ const improveCommand = defineCommand({
         console.error(`Error: ${message}`);
       }
       process.exitCode = 1;
-      throw new Error(message);
+      throw new CliError(message);
     }
 
     // 1. Read and validate --from file
@@ -495,7 +496,7 @@ const metaCommand = defineCommand({
         console.error(`Error: ${message}`);
       }
       process.exitCode = 1;
-      throw new Error(message);
+      throw new CliError(message);
     }
 
     const meta = await readRuleMetaFile(cwd, args.id);

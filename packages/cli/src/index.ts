@@ -6,7 +6,8 @@ import { initCommand } from "./commands/init";
 import { infoCommand } from "./commands/info";
 import { createHelpCommand } from "./commands/help";
 import { rulesCommand } from "./commands/rules";
-import { getTelemetry } from "./telemetry";
+import { shutdownTelemetry } from "./telemetry";
+import { CliError } from "./util/cli-error";
 
 const subCommands = {
   init: initCommand,
@@ -56,12 +57,14 @@ const main = defineCommand({
 try {
   await runCommand(main, { rawArgs: process.argv.slice(2) });
 } catch (error) {
-  process.exitCode = 1;
-  console.error(error instanceof Error ? error.message : String(error));
+  // CliError = expected failure (already printed output, exitCode already set)
+  if (!(error instanceof CliError)) {
+    process.exitCode = 1;
+    console.error(error instanceof Error ? error.message : String(error));
+  }
 } finally {
   try {
-    const t = await getTelemetry();
-    await t.shutdown();
+    await shutdownTelemetry();
   } catch {
     //
   }
