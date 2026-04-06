@@ -24,7 +24,7 @@ The CLI already has XDG config support (`getConfigDirectory()` in `src/auth/toke
 
 **Single `telemetry.ts` module vs. scattered PostHog calls**
 
-All PostHog logic lives in one module (`src/telemetry.ts`) that exports `createTelemetry()`. This returns an object with `capture()`, `identify()`, and `shutdown()` methods. When telemetry is disabled, the same interface is returned with no-op implementations. Command handlers call `capture()` without knowing whether telemetry is active.
+All PostHog logic lives in one module (`src/telemetry.ts`) that exports `getTelemetry()`. This returns an object with `capture()` and `shutdown()` methods. `identify()` and `groupIdentify()` are called internally during initialization. When telemetry is disabled, the same interface is returned with no-op implementations. Command handlers call `capture()` without knowing whether telemetry is active.
 
 _Alternative: Import `posthog-node` directly in each command file. Rejected — duplicates opt-out checks, identity resolution, and lifecycle management across every handler._
 
@@ -36,7 +36,7 @@ _Alternative: Add an `anonymousId` field to `config.json`. Rejected — config.j
 
 **Identity resolution at telemetry init vs. per-capture**
 
-Resolve identity once at `createTelemetry()` time. The JWT and anonymous ID don't change during a single CLI invocation, so there's no reason to re-resolve on every `capture()` call.
+Resolve identity once at `getTelemetry()` time. The JWT and anonymous ID don't change during a single CLI invocation, so there's no reason to re-resolve on every `capture()` call.
 
 _Alternative: Lazy resolution on first capture. Rejected — adds complexity for no benefit in a short-lived process._
 
@@ -52,11 +52,11 @@ The project token and host URL are hardcoded in `telemetry.ts`. These are the sh
 
 _Alternative: Use environment variables. Rejected — these are public values that don't vary between environments. The CLI doesn't have a staging deployment._
 
-**Lifecycle: init in main, shutdown in main**
+**Lifecycle: lazy init per command, shutdown in main**
 
-`createTelemetry()` is called in the main entry point before subcommand dispatch. The returned object is passed to subcommands (or accessed via a module-level singleton). `shutdown()` is called after the subcommand completes, in a `finally` block or process exit handler.
+`getTelemetry(cwd)` is called lazily by each command handler on first use, initializing the singleton with the correct working directory for identity resolution. `shutdownTelemetry()` is called in the main entry point's `finally` block after the subcommand completes, flushing any buffered events. If no command initialized telemetry, shutdown is a no-op.
 
-_Alternative: Create/shutdown in each subcommand. Rejected — duplicates lifecycle code and risks forgetting shutdown in new commands._
+_Alternative: Init in main before subcommand dispatch. Rejected — the main entry point doesn't know the resolved cwd until the subcommand runs, so lazy init in command handlers gives correct identity resolution._
 
 ## Risks / Trade-offs
 

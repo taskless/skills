@@ -63,12 +63,12 @@ beforeEach(async () => {
 
   // Create a temp XDG config directory
   configDirectory = await mkdtemp(join(tmpdir(), "taskless-telemetry-test-"));
-  process.env.XDG_CONFIG_HOME = configDirectory;
+  vi.stubEnv("XDG_CONFIG_HOME", configDirectory);
 
-  // Ensure telemetry is enabled
-  delete process.env.TASKLESS_TELEMETRY_DISABLED;
-  delete process.env.DO_NOT_TRACK;
-  delete process.env.TASKLESS_TOKEN;
+  // Ensure telemetry is enabled (unstub by setting to empty, then delete)
+  vi.stubEnv("TASKLESS_TELEMETRY_DISABLED", "");
+  vi.stubEnv("DO_NOT_TRACK", "");
+  vi.stubEnv("TASKLESS_TOKEN", "");
 });
 
 afterEach(async () => {
@@ -78,7 +78,7 @@ afterEach(async () => {
 
 describe("telemetry disabled", () => {
   it("returns no-op stub when TASKLESS_TELEMETRY_DISABLED=1", async () => {
-    process.env.TASKLESS_TELEMETRY_DISABLED = "1";
+    vi.stubEnv("TASKLESS_TELEMETRY_DISABLED", "1");
     const telemetry = await getTelemetry();
 
     telemetry.capture("cli_check");
@@ -90,7 +90,7 @@ describe("telemetry disabled", () => {
   });
 
   it("returns no-op stub when DO_NOT_TRACK=1", async () => {
-    process.env.DO_NOT_TRACK = "1";
+    vi.stubEnv("DO_NOT_TRACK", "1");
     const telemetry = await getTelemetry();
 
     telemetry.capture("cli_check");
@@ -130,7 +130,7 @@ describe("anonymous identity", () => {
   it("creates the config directory if missing", async () => {
     // Point to a non-existent subdirectory
     const freshDirectory = join(configDirectory, "fresh-xdg");
-    process.env.XDG_CONFIG_HOME = freshDirectory;
+    vi.stubEnv("XDG_CONFIG_HOME", freshDirectory);
 
     await getTelemetry();
 

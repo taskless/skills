@@ -73,10 +73,6 @@ function decodeSubject(token: string): string | undefined {
 let instance: TelemetryClient | undefined;
 
 /**
- * Get the telemetry client, lazily initializing on first call.
- * Subsequent calls return the same instance (cwd is only used on first init).
- */
-/**
  * Shut down the telemetry client if it was previously initialized.
  * No-op if getTelemetry() was never called (avoids lazy init just to shut down).
  */
@@ -86,6 +82,10 @@ export async function shutdownTelemetry(): Promise<void> {
   }
 }
 
+/**
+ * Get the telemetry client, lazily initializing on first call.
+ * Subsequent calls return the same instance (cwd is only used on first init).
+ */
 export async function getTelemetry(cwd?: string): Promise<TelemetryClient> {
   if (instance) return instance;
 
