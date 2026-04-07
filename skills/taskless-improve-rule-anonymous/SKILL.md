@@ -4,6 +4,7 @@ description: Improves existing Taskless rules locally without API access. Uses t
 metadata:
   author: taskless
   version: 0.5.1
+  commandName: "-"
 compatibility: Designed for Agents implementing the Agent Skills specification.
 ---
 

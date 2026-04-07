@@ -4,6 +4,7 @@ description: Creates a new Taskless rule locally without API access. Uses the ag
 metadata:
   author: taskless
   version: 0.5.1
+  commandName: "-"
 compatibility: Designed for Agents implementing the Agent Skills specification.
 ---
 
