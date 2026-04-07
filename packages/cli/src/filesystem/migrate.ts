@@ -38,6 +38,10 @@ async function readManifest(directory: string): Promise<TasklessManifest> {
     ) {
       return { version: 0 };
     }
+    // Treat corrupt/unparseable manifest as version 0 so migrations re-run
+    if (error instanceof SyntaxError) {
+      return { version: 0 };
+    }
     throw error;
   }
 }
