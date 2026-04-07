@@ -55,13 +55,15 @@ export function createHelpCommand(
       description: "Show help for a command",
     },
     async run({ rawArgs }) {
-      // Extract positional args, skipping flags and their values
+      // Extract positional args, skipping flags and their values.
+      // Flags that take a value (--dir, -d) consume the next token;
+      // boolean flags (--json, --schema) do not.
+      const valueFlagSet = new Set(["--dir", "-d"]);
       const positionals: string[] = [];
       for (let index = 0; index < rawArgs.length; index++) {
         const argument = rawArgs[index]!;
         if (argument.startsWith("-")) {
-          // Skip flag values (e.g. --dir /foo) unless it's --flag=value form
-          if (!argument.includes("=")) index++;
+          if (!argument.includes("=") && valueFlagSet.has(argument)) index++;
           continue;
         }
         if (argument !== "help") positionals.push(argument);
