@@ -14,7 +14,7 @@ When this skill is invoked, perform a check of the codebase using the Taskless C
 
 ## Instructions
 
-**Package manager:** All commands below use `npx` as the default. If the project uses a different package manager (check for `pnpm-lock.yaml`, `yarn.lock`, or `bun.lockb`), prefer its equivalent: `pnpm dlx`, `yarn dlx`, or `bunx`.
+**Package manager:** All commands below use `npx` as the default. If the project uses a different package manager (check for `pnpm-lock.yaml`, `yarn.lock`, or `bun.lockb`), prefer its equivalent: `pnpm dlx`, `yarn dlx` (Yarn Berry/2+ only), or `bunx`.
 
 1. **Read current command documentation.** Run `npx @taskless/cli@latest help check` and read the output. Use this to understand the command's options, output format, and exit codes.
 

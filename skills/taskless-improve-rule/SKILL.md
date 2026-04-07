@@ -16,7 +16,7 @@ This is a decision-making skill. You must evaluate the situation and choose the 
 
 ## Instructions
 
-**Package manager:** All commands below use `npx` as the default. If the project uses a different package manager (check for `pnpm-lock.yaml`, `yarn.lock`, or `bun.lockb`), prefer its equivalent: `pnpm dlx`, `yarn dlx`, or `bunx`.
+**Package manager:** All commands below use `npx` as the default. If the project uses a different package manager (check for `pnpm-lock.yaml`, `yarn.lock`, or `bun.lockb`), prefer its equivalent: `pnpm dlx`, `yarn dlx` (Yarn Berry/2+ only), or `bunx`.
 
 1. **Check authentication status.** Run `npx @taskless/cli@latest info --json` and parse the JSON output. Check the `loggedIn` field:
    - If `loggedIn` is `true`: continue with step 2 below (API-backed flow).

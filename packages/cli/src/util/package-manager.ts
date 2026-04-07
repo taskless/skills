@@ -8,7 +8,13 @@
 export function getCliPrefix(): string {
   const ua = process.env.npm_config_user_agent ?? "";
   if (ua.startsWith("pnpm/")) return "pnpm dlx @taskless/cli@latest";
-  if (ua.startsWith("yarn/")) return "yarn dlx @taskless/cli@latest";
+  if (ua.startsWith("yarn/")) {
+    const major = Number.parseInt(ua.slice("yarn/".length), 10);
+    if (Number.isFinite(major) && major >= 2) {
+      return "yarn dlx @taskless/cli@latest";
+    }
+    return "npx @taskless/cli@latest";
+  }
   if (ua.startsWith("bun/")) return "bunx @taskless/cli@latest";
   return "npx @taskless/cli@latest";
 }
