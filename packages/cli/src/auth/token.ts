@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 
 import { addToGitignore } from "../filesystem/gitignore";
+import { getCliPrefix } from "../util/package-manager";
 
 const PER_REPO_AUTH_FILE = ".env.local.json";
 
@@ -117,8 +118,7 @@ function warnIfLegacyToken(): void {
   if (existsSync(legacyPath)) {
     legacyWarningShown = true;
     console.error(
-      "Notice: Found legacy global auth at %s. Global tokens are no longer used. Run `taskless auth login` to authenticate for this repository.",
-      legacyPath
+      `Notice: Found legacy global auth at ${legacyPath}. Global tokens are no longer used. Run \`${getCliPrefix()} auth login\` to authenticate for this repository.`
     );
   }
 }

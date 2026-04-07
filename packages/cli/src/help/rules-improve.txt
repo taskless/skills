@@ -5,7 +5,7 @@ it to the Taskless API, and writes the updated rule and test files to
 .taskless/rules/ and .taskless/rule-tests/.
 
 Prerequisites:
-  Run `taskless auth login` to authenticate first.
+  Run `npx @taskless/cli@latest auth login` to authenticate first.
   Your repository must have a GitHub origin remote.
 
 Usage:

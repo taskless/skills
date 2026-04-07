@@ -1,5 +1,6 @@
 import type { paths } from "../generated/api";
 import { createApiClient } from "./client";
+import { getCliPrefix } from "../util/package-manager";
 
 // --- Types extracted from the generated schema ---
 
@@ -56,7 +57,7 @@ export async function submitRule(
           "",
           "- Verify that your local `origin` remote points to the intended GitHub repository.",
           "- Confirm that your GitHub user/organization has access to that repository.",
-          "- If you recently changed access or remotes, try re-authenticating with `taskless auth login`.",
+          `- If you recently changed access or remotes, try re-authenticating with \`${getCliPrefix()} auth login\`.`,
         ].join("\n")
       );
     }
@@ -65,7 +66,7 @@ export async function submitRule(
       errorData.error === "organization_not_found"
     ) {
       throw new Error(
-        "Organization not found. Try running `taskless auth login` to re-authenticate."
+        `Organization not found. Try running \`${getCliPrefix()} auth login\` to re-authenticate.`
       );
     }
     throw new Error(
@@ -133,7 +134,7 @@ export async function iterateRule(
       errorData.error === "organization_not_found"
     ) {
       throw new Error(
-        "Organization not found. Try running `taskless auth login` to re-authenticate."
+        `Organization not found. Try running \`${getCliPrefix()} auth login\` to re-authenticate.`
       );
     }
     throw new Error(`Iterate request failed (HTTP ${String(response.status)})`);

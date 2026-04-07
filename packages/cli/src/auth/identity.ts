@@ -1,6 +1,7 @@
 import { getToken } from "./token";
 import { decodeOrgId } from "./jwt";
 import { resolveRepositoryUrl } from "../util/git-remote";
+import { getCliPrefix } from "../util/package-manager";
 
 export interface Identity {
   token: string;
@@ -19,14 +20,14 @@ export async function resolveIdentity(cwd: string): Promise<Identity> {
   const token = await getToken(cwd);
   if (!token) {
     throw new Error(
-      "Authentication required. Run `taskless auth login` to authenticate."
+      `Authentication required. Run \`${getCliPrefix()} auth login\` to authenticate.`
     );
   }
 
   const orgId = decodeOrgId(token);
   if (orgId === undefined) {
     throw new Error(
-      "Your auth token is missing organization info. Run `taskless auth login` to re-authenticate."
+      `Your auth token is missing organization info. Run \`${getCliPrefix()} auth login\` to re-authenticate.`
     );
   }
 

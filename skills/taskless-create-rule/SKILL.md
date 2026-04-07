@@ -16,11 +16,13 @@ Your goal is to produce the best possible rule by enriching the user's initial d
 
 ## Instructions
 
-1. **Check authentication status.** Run `pnpm dlx @taskless/cli@latest info --json` and parse the JSON output. Check the `loggedIn` field:
+**Package manager:** All commands below use `npx` as the default. If the project uses a different package manager (check for `pnpm-lock.yaml`, `yarn.lock`, or `bun.lockb`), prefer its equivalent: `pnpm dlx`, `yarn dlx`, or `bunx`.
+
+1. **Check authentication status.** Run `npx @taskless/cli@latest info --json` and parse the JSON output. Check the `loggedIn` field:
    - If `loggedIn` is `true`: continue with step 2 below (API-backed flow).
    - If `loggedIn` is `false`: **stop here** and invoke the `taskless-create-rule-anonymous` skill instead. Pass along any context the user has already provided about the rule they want to create.
 
-2. **Read current command documentation.** Run `pnpm dlx @taskless/cli@latest help rules create` and read the output. Use this to understand the command's `--from` JSON fields, options, and examples.
+2. **Read current command documentation.** Run `npx @taskless/cli@latest help rules create` and read the output. Use this to understand the command's `--from` JSON fields, options, and examples.
 
 3. **Gather the rule description.** Even if the user provided a description with their command, you MUST ask clarifying questions before proceeding. Do NOT skip to rule generation. Ask what specific code pattern should be flagged, with concrete examples. This becomes the `prompt` field (required).
 
@@ -80,13 +82,13 @@ Your goal is to produce the best possible rule by enriching the user's initial d
    }
    ```
 
-8. **Invoke the CLI.** Run `pnpm dlx @taskless/cli@latest rules create --from .taskless/.tmp-rule-request.json --json`. The command may take 30-60 seconds as it polls the API.
+8. **Invoke the CLI.** Run `npx @taskless/cli@latest rules create --from .taskless/.tmp-rule-request.json --json`. The command may take 30-60 seconds as it polls the API.
 
 9. **Clean up.** After the command completes (success or failure), delete the `.taskless/.tmp-rule-request.json` file.
 
-10. **Report the results.** When the CLI completes, show the generated file paths and suggest running `taskless-check` to test the new rule. The CLI also writes sidecar metadata to `.taskless/rule-metadata/<rule-id>.yml` containing the `ticketId` used for future iterations. You can retrieve this with `pnpm dlx @taskless/cli@latest rules meta <rule-id> --json`.
+10. **Report the results.** When the CLI completes, show the generated file paths and suggest running `taskless-check` to test the new rule. The CLI also writes sidecar metadata to `.taskless/rule-metadata/<rule-id>.yml` containing the `ticketId` used for future iterations. You can retrieve this with `npx @taskless/cli@latest rules meta <rule-id> --json`.
 
 11. **Handle errors.** If the CLI fails:
     - **Authentication required**: Suggest the `taskless-login` skill.
-    - **Missing organization info**: Suggest running `taskless auth login` to re-authenticate.
+    - **Missing organization info**: Suggest running `npx @taskless/cli@latest auth login` to re-authenticate.
     - **API errors**: Report the error message and suggest trying again.
