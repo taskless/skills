@@ -112,6 +112,27 @@ describe("ensureTasklessDirectory", () => {
     expect(rulesStat.isDirectory()).toBe(true);
   });
 
+  it("recovers from a corrupt taskless.json manifest", async () => {
+    const tasklessDirectory = join(temporaryDirectory, ".taskless");
+    await mkdir(tasklessDirectory, { recursive: true });
+
+    // Write corrupt JSON that would cause "unexpected token *"
+    await writeFile(
+      join(tasklessDirectory, "taskless.json"),
+      "***not-json***",
+      "utf8"
+    );
+
+    // Should not throw — treats corrupt manifest as version 0
+    await ensureTasklessDirectory(temporaryDirectory);
+
+    // Manifest should be rewritten with a valid version
+    const manifest = JSON.parse(
+      await readFile(join(tasklessDirectory, "taskless.json"), "utf8")
+    ) as { version: number };
+    expect(manifest.version).toBeGreaterThan(0);
+  });
+
   it("is idempotent — re-running after completion succeeds without errors", async () => {
     await ensureTasklessDirectory(temporaryDirectory);
     await ensureTasklessDirectory(temporaryDirectory);
