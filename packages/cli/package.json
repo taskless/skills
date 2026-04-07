@@ -15,7 +15,7 @@
     "typecheck": "tsc --noEmit"
   },
   "engines": {
-    "node": ">=20.20.0"
+    "node": "^20.20.0 || >=22.22.0"
   },
   "type": "module",
   "files": [
