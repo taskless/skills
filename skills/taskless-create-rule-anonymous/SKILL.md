@@ -3,7 +3,7 @@ name: taskless-create-rule-anonymous
 description: Creates a new Taskless rule locally without API access. Uses the agent to derive ast-grep rules from the schema and validates them with the verify feedback loop.
 metadata:
   author: taskless
-  version: 0.5.0
+  version: 0.5.1
 compatibility: Designed for Agents implementing the Agent Skills specification.
 ---
 

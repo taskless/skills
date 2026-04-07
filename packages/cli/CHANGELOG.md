@@ -1,5 +1,11 @@
 # @taskless/cli
 
+## 0.5.1
+
+### Patch Changes
+
+- 57ccac7: Add anonymous telemetry via PostHog to track CLI command usage
+
 ## 0.5.0
 
 ### Minor Changes
