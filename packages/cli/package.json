@@ -15,6 +15,12 @@
     "typecheck": "tsc --noEmit"
   },
   "type": "module",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js"
+    }
+  },
   "files": [
     "dist"
   ],
