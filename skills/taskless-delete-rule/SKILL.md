@@ -14,7 +14,9 @@ When this skill is invoked, help the user identify which rule to delete, confirm
 
 ## Instructions
 
-1. **Read current command documentation.** Run `pnpm dlx @taskless/cli@latest help rules delete` and read the output. Use this to understand the command's arguments, options, and exit codes.
+**Package manager:** All commands below use `npx` as the default. If the project uses a different package manager (check for `pnpm-lock.yaml`, `yarn.lock`, or `bun.lockb`), prefer its equivalent: `pnpm dlx`, `yarn dlx`, or `bunx`.
+
+1. **Read current command documentation.** Run `npx @taskless/cli@latest help rules delete` and read the output. Use this to understand the command's arguments, options, and exit codes.
 
 2. **List available rules.** Scan the `.taskless/rules/` directory for `.yml` files. Present the rule IDs (filenames without the `.yml` extension) to the user.
 
@@ -28,7 +30,7 @@ When this skill is invoked, help the user identify which rule to delete, confirm
 
 4. **Confirm before deleting.** Show the user the rule ID and ask for confirmation before proceeding.
 
-5. **Invoke the CLI.** Run the delete command using the syntax shown in the help output (e.g., `pnpm dlx @taskless/cli@latest rules delete <id>`).
+5. **Invoke the CLI.** Run the delete command using the syntax shown in the help output (e.g., `npx @taskless/cli@latest rules delete <id>`).
 
 6. **Report the result.** Confirm which files were deleted.
 

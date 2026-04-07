@@ -16,9 +16,11 @@ When this skill is invoked, verify that the Taskless CLI is reachable and report
 
 ## Instructions
 
-1. **Read current command documentation.** Run `pnpm dlx @taskless/cli@latest help info` and read the output. Use this to understand the command's output format and available options.
+**Package manager:** All commands below use `npx` as the default. If the project uses a different package manager (check for `pnpm-lock.yaml`, `yarn.lock`, or `bun.lockb`), prefer its equivalent: `pnpm dlx`, `yarn dlx`, or `bunx`.
 
-2. **Invoke the CLI.** Run `pnpm dlx @taskless/cli@latest info` and capture stdout.
+1. **Read current command documentation.** Run `npx @taskless/cli@latest help info` and read the output. Use this to understand the command's output format and available options.
+
+2. **Invoke the CLI.** Run `npx @taskless/cli@latest info` and capture stdout.
 
 3. **Parse the response.** The CLI outputs JSON to stdout. Parse it with `JSON.parse()` and extract the fields described in the help output. Key fields to report:
    - `version`: The version of the Taskless CLI.
@@ -42,7 +44,7 @@ When this skill is invoked, verify that the Taskless CLI is reachable and report
    - Suggest checking network connectivity and that npm/pnpm is available.
    - Show the raw error output if available.
 
-6. **Report if Upgrade is Required** If any installed skill is not current, include a note that an upgrade is recommended. Offer to run `pnpm dlx @taskless/cli@latest init` for them to reinitialize with the latest skills.
+6. **Report if Upgrade is Required** If any installed skill is not current, include a note that an upgrade is recommended. Offer to run `npx @taskless/cli@latest init` for them to reinitialize with the latest skills.
 
 ## Example Output
 

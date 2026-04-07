@@ -16,11 +16,13 @@ This is a decision-making skill. You must evaluate the situation and choose the 
 
 ## Instructions
 
-1. **Check authentication status.** Run `pnpm dlx @taskless/cli@latest info --json` and parse the JSON output. Check the `loggedIn` field:
+**Package manager:** All commands below use `npx` as the default. If the project uses a different package manager (check for `pnpm-lock.yaml`, `yarn.lock`, or `bun.lockb`), prefer its equivalent: `pnpm dlx`, `yarn dlx`, or `bunx`.
+
+1. **Check authentication status.** Run `npx @taskless/cli@latest info --json` and parse the JSON output. Check the `loggedIn` field:
    - If `loggedIn` is `true`: continue with step 2 below (API-backed flow).
    - If `loggedIn` is `false`: **stop here** and invoke the `taskless-improve-rule-anonymous` skill instead. Pass along any context the user has already provided about which rule to improve and what changes they want.
 
-2. **Read current command documentation.** Run `pnpm dlx @taskless/cli@latest help rules improve` and read the output. Use this to understand the improve command's `--from` JSON fields, options, and examples.
+2. **Read current command documentation.** Run `npx @taskless/cli@latest help rules improve` and read the output. Use this to understand the improve command's `--from` JSON fields, options, and examples.
 
 3. **Inventory existing rules.** If the user has already named a specific rule, skip to that rule directly. Otherwise, scan the `.taskless/rules/` directory for `.yml` files and present a summary. For each rule, note:
    - The rule ID (filename without `.yml`)
@@ -28,7 +30,7 @@ This is a decision-making skill. You must evaluate the situation and choose the 
    - The pattern it detects (from the `message`, `note`, or `rule` fields)
    - Any associated test files in `.taskless/rule-tests/`
 
-   Once a rule is selected, check for its sidecar metadata by running `pnpm dlx @taskless/cli@latest rules meta <rule-id> --json`. If metadata exists, note the `ticketId` — this is required for the iterate API.
+   Once a rule is selected, check for its sidecar metadata by running `npx @taskless/cli@latest rules meta <rule-id> --json`. If metadata exists, note the `ticketId` — this is required for the iterate API.
 
 4. **Understand the improvement request.** Ask the user what they want to improve. Gather specifics:
    - Which rule(s) are problematic?
@@ -75,7 +77,7 @@ This is a decision-making skill. You must evaluate the situation and choose the 
    ### For Option A (iterate):
 
    a. **Build the JSON payload.** Create a JSON object with:
-   - `ruleId`: The ticket ID from the rule's sidecar metadata. Retrieve it by running `pnpm dlx @taskless/cli@latest rules meta <rule-id> --json` and reading the `ticketId` field. If no metadata file exists (rule was created before metadata support), fall back to using the rule filename as the identifier. Providing the ticket ID allows the API to understand the existing rule's logic and how to adjust it based on your guidance.
+   - `ruleId`: The ticket ID from the rule's sidecar metadata. Retrieve it by running `npx @taskless/cli@latest rules meta <rule-id> --json` and reading the `ticketId` field. If no metadata file exists (rule was created before metadata support), fall back to using the rule filename as the identifier. Providing the ticket ID allows the API to understand the existing rule's logic and how to adjust it based on your guidance.
    - `guidance`: A clear, specific description of what should change. Include:
      - What the rule is doing wrong
      - What it should do instead
@@ -104,7 +106,7 @@ This is a decision-making skill. You must evaluate the situation and choose the 
 
    b. **Write the JSON to a temp file.** Write to `.taskless/.tmp-improve-request.json`.
 
-   c. **Invoke the CLI.** Run `pnpm dlx @taskless/cli@latest rules improve --from .taskless/.tmp-improve-request.json --json`. The command may take 30-60 seconds as it polls the API.
+   c. **Invoke the CLI.** Run `npx @taskless/cli@latest rules improve --from .taskless/.tmp-improve-request.json --json`. The command may take 30-60 seconds as it polls the API.
 
    d. **Clean up.** After the command completes (success or failure), delete `.taskless/.tmp-improve-request.json`.
 
@@ -114,19 +116,19 @@ This is a decision-making skill. You must evaluate the situation and choose the 
 
    a. Note the old rule ID for deletion.
    b. Invoke the `taskless-create-rule` skill (command name `tskl:rule`) to create the replacement rule. This ensures the full enrichment workflow (examples, exclusions, confirmation) is followed.
-   c. After the new rule is generated, delete the old rule: `pnpm dlx @taskless/cli@latest rules delete <old-rule-id>`.
+   c. After the new rule is generated, delete the old rule: `npx @taskless/cli@latest rules delete <old-rule-id>`.
    d. Report results.
 
    ### For Option C (expand):
 
    a. For each new rule needed, invoke the `taskless-create-rule` skill (command name `tskl:rule`).
-   b. If any old rules are being superseded, delete them after the new rules are created: `pnpm dlx @taskless/cli@latest rules delete <old-rule-id>`.
+   b. If any old rules are being superseded, delete them after the new rules are created: `npx @taskless/cli@latest rules delete <old-rule-id>`.
    c. Report all changes.
 
 8. **Suggest testing.** After any approach, suggest running `taskless-check` to test the updated rules against the codebase.
 
 9. **Handle errors.** If the CLI fails:
    - **Authentication required**: Suggest the `taskless-login` skill.
-   - **Missing organization info**: Suggest running `taskless auth login` to re-authenticate.
+   - **Missing organization info**: Suggest running `npx @taskless/cli@latest auth login` to re-authenticate.
    - **Rule not found**: The ruleId may be incorrect. Check the rule's metadata or suggest creating a new rule instead.
    - **API errors**: Report the error message and suggest trying again.

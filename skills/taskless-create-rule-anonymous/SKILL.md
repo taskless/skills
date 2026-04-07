@@ -13,7 +13,9 @@ This skill creates ast-grep rules locally without requiring Taskless authenticat
 
 ## Instructions
 
-1. **Learn the ast-grep rule format.** Run `pnpm dlx @taskless/cli@latest rules verify --schema --json` and read the output. This gives you:
+**Package manager:** All commands below use `npx` as the default. If the project uses a different package manager (check for `pnpm-lock.yaml`, `yarn.lock`, or `bun.lockb`), prefer its equivalent: `pnpm dlx`, `yarn dlx`, or `bunx`.
+
+1. **Learn the ast-grep rule format.** Run `npx @taskless/cli@latest rules verify --schema --json` and read the output. This gives you:
    - `astGrepSchema`: The official ast-grep rule JSON Schema — the full reference for what fields are valid.
    - `tasklessRequirements`: Fields Taskless requires beyond ast-grep defaults (`id`, `language`, `severity`, `message`, `rule`) and additional rules (e.g., `regex` requires `kind`).
    - `examples`: Annotated rule examples showing common patterns (simple match, regex with kind, composite rules).
@@ -54,7 +56,7 @@ This skill creates ast-grep rules locally without requiring Taskless authenticat
 
    Include at least 2 valid and 2 invalid cases. Use real patterns from the codebase where possible.
 
-7. **Verify the rule.** Run `pnpm dlx @taskless/cli@latest rules verify <id> --json` and check the result:
+7. **Verify the rule.** Run `npx @taskless/cli@latest rules verify <id> --json` and check the result:
    - If `success` is `true`: the rule passes all checks. Report success to the user.
    - If `success` is `false`: read the error details from each layer (`schema`, `requirements`, `tests`) and fix the issues. Then re-run verify. Repeat until it passes or you've made 3 attempts.
 

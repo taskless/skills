@@ -13,7 +13,9 @@ This skill improves existing ast-grep rules locally without requiring Taskless a
 
 ## Instructions
 
-1. **Learn the ast-grep rule format.** Run `pnpm dlx @taskless/cli@latest rules verify --schema --json` and read the output. Study the `astGrepSchema`, `tasklessRequirements`, and `examples` to understand valid rule structure and patterns.
+**Package manager:** All commands below use `npx` as the default. If the project uses a different package manager (check for `pnpm-lock.yaml`, `yarn.lock`, or `bun.lockb`), prefer its equivalent: `pnpm dlx`, `yarn dlx`, or `bunx`.
+
+1. **Learn the ast-grep rule format.** Run `npx @taskless/cli@latest rules verify --schema --json` and read the output. Study the `astGrepSchema`, `tasklessRequirements`, and `examples` to understand valid rule structure and patterns.
 
 2. **Inventory existing rules.** If the user has named a specific rule, go directly to it. Otherwise, scan `.taskless/rules/` for `.yml` files and present a summary:
    - Rule ID (filename without `.yml`)
@@ -44,7 +46,7 @@ This skill improves existing ast-grep rules locally without requiring Taskless a
 
    Use when the rule is fundamentally wrong and needs a different approach.
    - Invoke the `taskless-create-rule-anonymous` skill to create the replacement
-   - Delete the old rule: `pnpm dlx @taskless/cli@latest rules delete <old-id>`
+   - Delete the old rule: `npx @taskless/cli@latest rules delete <old-id>`
 
    ### Option C — Expand with additional rules
 
@@ -60,7 +62,7 @@ This skill improves existing ast-grep rules locally without requiring Taskless a
    - Write updated test cases that exercise the improved behavior
    - Include test cases for the specific issues the user reported
 
-8. **Verify the changes.** Run `pnpm dlx @taskless/cli@latest rules verify <id> --json` and check the result:
+8. **Verify the changes.** Run `npx @taskless/cli@latest rules verify <id> --json` and check the result:
    - If `success` is `true`: report success to the user.
    - If `success` is `false`: read the error details, fix the issues, and re-run verify. Repeat until it passes or you've made 3 attempts.
 

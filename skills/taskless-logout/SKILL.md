@@ -16,6 +16,8 @@ When this skill is invoked, explain how to remove saved authentication and provi
 
 ## Instructions
 
-1. **Read current command documentation.** Run `pnpm dlx @taskless/cli@latest help auth logout` and read the output. Use this to understand what the command does, credential storage location, and any caveats.
+**Package manager:** All commands below use `npx` as the default. If the project uses a different package manager (check for `pnpm-lock.yaml`, `yarn.lock`, or `bun.lockb`), prefer its equivalent: `pnpm dlx`, `yarn dlx`, or `bunx`.
+
+1. **Read current command documentation.** Run `npx @taskless/cli@latest help auth logout` and read the output. Use this to understand what the command does, credential storage location, and any caveats.
 
 2. **Present the logout command and explain what it does.** Using the information from the help output, display the command the user should run and explain the effects (credential removal, environment variable note).
