@@ -65,7 +65,7 @@ beforeEach(async () => {
   configDirectory = await mkdtemp(join(tmpdir(), "taskless-telemetry-test-"));
   vi.stubEnv("XDG_CONFIG_HOME", configDirectory);
 
-  // Ensure telemetry is enabled (unstub by setting to empty, then delete)
+  // Ensure telemetry is enabled (empty string != "1", so checks pass)
   vi.stubEnv("TASKLESS_TELEMETRY_DISABLED", "");
   vi.stubEnv("DO_NOT_TRACK", "");
   vi.stubEnv("TASKLESS_TOKEN", "");
