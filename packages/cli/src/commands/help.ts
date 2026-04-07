@@ -63,11 +63,18 @@ export function createHelpCommand(subCommands: SubCommandsDef) {
       },
     },
     async run({ args, rawArgs }) {
-      // Filter out flags from rawArgs, keep only positional args
-      // Also filter out "help" itself if citty passes it
-      const positionals = rawArgs.filter(
-        (argument) => !argument.startsWith("-") && argument !== "help"
-      );
+      // Extract positional args from rawArgs, skipping flags and their values.
+      // --dir/-d take a value; --json/--schema are boolean and do not.
+      const valueFlagSet = new Set(["--dir", "-d"]);
+      const positionals: string[] = [];
+      for (let index = 0; index < rawArgs.length; index++) {
+        const argument = rawArgs[index]!;
+        if (argument.startsWith("-")) {
+          if (!argument.includes("=") && valueFlagSet.has(argument)) index++;
+          continue;
+        }
+        if (argument !== "help") positionals.push(argument);
+      }
 
       const cwd = resolve(args.dir);
       const telemetry = await getTelemetry(cwd);
