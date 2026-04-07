@@ -1,3 +1,5 @@
+import { resolve } from "node:path";
+
 import {
   defineCommand,
   type CommandDef,
@@ -46,30 +48,29 @@ async function resolveDescription(
   return meta?.description ?? "";
 }
 
-export function createHelpCommand(
-  subCommands: SubCommandsDef
-): CommandDef<Record<string, never>> {
+export function createHelpCommand(subCommands: SubCommandsDef) {
   return defineCommand({
     meta: {
       name: "help",
       description: "Show help for a command",
     },
-    async run({ rawArgs }) {
-      // Extract positional args, skipping flags and their values.
-      // Flags that take a value (--dir, -d) consume the next token;
-      // boolean flags (--json, --schema) do not.
-      const valueFlagSet = new Set(["--dir", "-d"]);
-      const positionals: string[] = [];
-      for (let index = 0; index < rawArgs.length; index++) {
-        const argument = rawArgs[index]!;
-        if (argument.startsWith("-")) {
-          if (!argument.includes("=") && valueFlagSet.has(argument)) index++;
-          continue;
-        }
-        if (argument !== "help") positionals.push(argument);
-      }
+    args: {
+      dir: {
+        type: "string",
+        alias: "d",
+        description: "Working directory",
+        default: process.cwd(),
+      },
+    },
+    async run({ args, rawArgs }) {
+      // Filter out flags from rawArgs, keep only positional args
+      // Also filter out "help" itself if citty passes it
+      const positionals = rawArgs.filter(
+        (argument) => !argument.startsWith("-") && argument !== "help"
+      );
 
-      const telemetry = await getTelemetry(process.cwd());
+      const cwd = resolve(args.dir);
+      const telemetry = await getTelemetry(cwd);
       if (positionals.length === 0) {
         telemetry.capture("cli_help");
       } else {

@@ -18,7 +18,10 @@ export function getConfigDirectory(): string {
  * Resolve the current access token.
  * Priority: TASKLESS_TOKEN env var > per-repo .taskless/.env.local.json
  */
-export async function getToken(cwd?: string): Promise<string | undefined> {
+export async function getToken(
+  cwd?: string,
+  options?: { silent?: boolean }
+): Promise<string | undefined> {
   const envToken = process.env.TASKLESS_TOKEN;
   if (envToken) return envToken;
 
@@ -26,13 +29,13 @@ export async function getToken(cwd?: string): Promise<string | undefined> {
   if (cwd) {
     const token = await readPerRepoToken(cwd);
     if (token) {
-      await warnIfTracked(cwd);
+      if (!options?.silent) await warnIfTracked(cwd);
       return token;
     }
   }
 
   // Check for legacy global token and warn
-  warnIfLegacyToken();
+  if (!options?.silent) warnIfLegacyToken();
 
   return undefined;
 }

@@ -103,7 +103,7 @@ export async function getTelemetry(cwd?: string): Promise<TelemetryClient> {
     let anonymous = true;
     let orgId: number | undefined;
 
-    const token = await getToken(cwd);
+    const token = await getToken(cwd, { silent: true });
     if (token) {
       const sub = decodeSubject(token);
       if (sub) {
