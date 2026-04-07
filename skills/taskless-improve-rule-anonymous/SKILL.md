@@ -13,7 +13,7 @@ This skill improves existing ast-grep rules locally without requiring Taskless a
 
 ## Instructions
 
-**Package manager:** All commands below use `npx` as the default. If the project uses a different package manager (check for `pnpm-lock.yaml`, `yarn.lock`, or `bun.lockb`), prefer its equivalent: `pnpm dlx`, `yarn dlx`, or `bunx`.
+**Package manager:** All commands below use `npx` as the default. If the project uses a different package manager (check for `pnpm-lock.yaml`, `yarn.lock`, or `bun.lockb`), prefer its equivalent: `pnpm dlx`, `yarn dlx` (Yarn Berry/2+ only), or `bunx`.
 
 1. **Learn the ast-grep rule format.** Run `npx @taskless/cli@latest rules verify --schema --json` and read the output. Study the `astGrepSchema`, `tasklessRequirements`, and `examples` to understand valid rule structure and patterns.
 

@@ -16,7 +16,7 @@ When this skill is invoked, explain the authentication process and provide the C
 
 ## Instructions
 
-**Package manager:** All commands below use `npx` as the default. If the project uses a different package manager (check for `pnpm-lock.yaml`, `yarn.lock`, or `bun.lockb`), prefer its equivalent: `pnpm dlx`, `yarn dlx`, or `bunx`.
+**Package manager:** All commands below use `npx` as the default. If the project uses a different package manager (check for `pnpm-lock.yaml`, `yarn.lock`, or `bun.lockb`), prefer its equivalent: `pnpm dlx`, `yarn dlx` (Yarn Berry/2+ only), or `bunx`.
 
 1. **Read current command documentation.** Run `npx @taskless/cli@latest help auth login` and read the output. Use this to understand the login flow, credential storage, and alternatives.
 
