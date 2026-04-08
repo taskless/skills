@@ -1,4 +1,5 @@
 import {
+  access,
   readFile,
   readdir,
   rm,
@@ -6,6 +7,7 @@ import {
   writeFile,
   mkdir,
 } from "node:fs/promises";
+import { constants } from "node:fs";
 import { join, basename, dirname } from "node:path";
 import { parseFrontmatter } from "./frontmatter";
 
@@ -23,9 +25,15 @@ const commandFiles: Record<string, string> = import.meta.glob(
 
 // --- Types ---
 
+interface DetectionSignal {
+  type: "directory" | "file";
+  path: string;
+}
+
 interface ToolDescriptor {
   name: string;
-  dir: string;
+  detect: DetectionSignal[];
+  installDir: string;
   skills: {
     path: string;
   };
@@ -64,7 +72,8 @@ interface ToolStatus {
 const TOOLS: ToolDescriptor[] = [
   {
     name: "Claude Code",
-    dir: ".claude",
+    detect: [{ type: "directory", path: ".claude" }],
+    installDir: ".claude",
     skills: {
       path: "skills",
     },
@@ -76,13 +85,28 @@ const TOOLS: ToolDescriptor[] = [
 
 // --- Detection ---
 
+async function checkSignal(
+  cwd: string,
+  signal: DetectionSignal
+): Promise<boolean> {
+  const fullPath = join(cwd, signal.path);
+  if (signal.type === "directory") {
+    return stat(fullPath)
+      .then((s) => s.isDirectory())
+      .catch(() => false);
+  }
+  return access(fullPath, constants.F_OK)
+    .then(() => true)
+    .catch(() => false);
+}
+
 export async function detectTools(cwd: string): Promise<ToolDescriptor[]> {
   const results = await Promise.all(
     TOOLS.map(async (tool) => {
-      const exists = await stat(join(cwd, tool.dir))
-        .then((s) => s.isDirectory())
-        .catch(() => false);
-      return exists ? tool : undefined;
+      const signals = await Promise.all(
+        tool.detect.map((signal) => checkSignal(cwd, signal))
+      );
+      return signals.some(Boolean) ? tool : undefined;
     })
   );
   return results.filter((t): t is ToolDescriptor => t !== undefined);
@@ -133,7 +157,7 @@ async function removeOwnedSkills(
   cwd: string,
   tool: ToolDescriptor
 ): Promise<void> {
-  const skillsDirectory = join(cwd, tool.dir, tool.skills.path);
+  const skillsDirectory = join(cwd, tool.installDir, tool.skills.path);
 
   let entries: string[];
   try {
@@ -161,7 +185,7 @@ async function removeOwnedCommands(
 ): Promise<void> {
   if (!tool.commands) return;
 
-  const commandsBase = join(cwd, tool.dir, dirname(tool.commands.path));
+  const commandsBase = join(cwd, tool.installDir, dirname(tool.commands.path));
 
   for (const directoryName of COMMAND_DIRS) {
     await rm(join(commandsBase, directoryName), {
@@ -193,7 +217,12 @@ export async function installForTool(
 
   // Install skills verbatim
   for (const skill of skills) {
-    const skillDirectory = join(cwd, tool.dir, tool.skills.path, skill.name);
+    const skillDirectory = join(
+      cwd,
+      tool.installDir,
+      tool.skills.path,
+      skill.name
+    );
     await mkdir(skillDirectory, { recursive: true });
     await writeFile(join(skillDirectory, "SKILL.md"), skill.content, "utf8");
     installedSkills.push(skill.name);
@@ -201,7 +230,7 @@ export async function installForTool(
 
   // Place commands (Claude Code only)
   if (tool.commands) {
-    const commandDirectory = join(cwd, tool.dir, tool.commands.path);
+    const commandDirectory = join(cwd, tool.installDir, tool.commands.path);
     await mkdir(commandDirectory, { recursive: true });
     for (const command of commands) {
       await writeFile(
@@ -242,7 +271,7 @@ export async function checkStaleness(cwd: string): Promise<ToolStatus[]> {
     for (const skill of embedded) {
       const installedPath = join(
         cwd,
-        tool.dir,
+        tool.installDir,
         tool.skills.path,
         skill.name,
         "SKILL.md"

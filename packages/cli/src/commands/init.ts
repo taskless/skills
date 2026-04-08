@@ -47,7 +47,7 @@ export const initCommand = defineCommand({
       }
       if (result.commands.length > 0) {
         console.log(
-          `  + ${String(result.commands.length)} command(s) in ${tool.dir}/${tool.commands!.path}/`
+          `  + ${String(result.commands.length)} command(s) in ${tool.installDir}/${tool.commands!.path}/`
         );
       }
     }
