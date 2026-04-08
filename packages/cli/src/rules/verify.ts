@@ -38,7 +38,7 @@ interface TestLayerResult extends LayerResult {
   failed: number;
 }
 
-export interface VerifyResult {
+interface VerifyResult {
   success: boolean;
   ruleId: string;
   schema: LayerResult;

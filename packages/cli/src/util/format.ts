@@ -42,16 +42,3 @@ export function formatText(results: CheckResult[]): string {
 
   return lines.join("\n");
 }
-
-/** Format results as a JSON object with success state */
-export function formatJson(
-  results: CheckResult[],
-  options?: { success: boolean; error?: string }
-): string {
-  const hasErrors = results.some((r) => r.severity === "error");
-  return JSON.stringify({
-    success: options?.success ?? !hasErrors,
-    ...(options?.error ? { error: options.error } : {}),
-    results,
-  });
-}

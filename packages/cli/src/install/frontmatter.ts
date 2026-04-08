@@ -1,4 +1,4 @@
-import { parse, stringify } from "yaml";
+import { parse } from "yaml";
 
 interface Frontmatter {
   data: Record<string, unknown>;
@@ -15,12 +15,4 @@ export function parseFrontmatter(source: string): Frontmatter {
     data: (parse(match[1] ?? "") ?? {}) as Record<string, unknown>,
     content: match[2] ?? "",
   };
-}
-
-/** Serialize data as YAML frontmatter prepended to a body string. */
-export function stringifyFrontmatter(
-  body: string,
-  data: Record<string, unknown>
-): string {
-  return `---\n${stringify(data, { lineWidth: 0 })}---\n${body}`;
 }

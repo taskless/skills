@@ -232,7 +232,7 @@ async function removeOwnedCommands(
 
 // --- Installation ---
 
-export interface InstallResult {
+interface InstallResult {
   skills: string[];
   commands: string[];
 }

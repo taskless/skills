@@ -3,7 +3,7 @@ import { getApiBaseUrl } from "../api/config";
 const CLIENT_ID = "taskless-cli";
 
 /** Response from the device authorization endpoint */
-export interface DeviceCodeResponse {
+interface DeviceCodeResponse {
   device_code: string;
   user_code: string;
   verification_uri: string;
@@ -13,7 +13,7 @@ export interface DeviceCodeResponse {
 }
 
 /** Successful token response */
-export interface TokenResponse {
+interface TokenResponse {
   access_token: string;
   token_type: string;
   expires_in?: number;
@@ -21,7 +21,7 @@ export interface TokenResponse {
 }
 
 /** Pending/error states from the token endpoint */
-export type TokenPollResult =
+type TokenPollResult =
   | { status: "pending" }
   | { status: "slow_down" }
   | { status: "success"; token: TokenResponse }
@@ -29,7 +29,7 @@ export type TokenPollResult =
   | { status: "denied" };
 
 /** Interface for the Device Flow HTTP calls */
-export interface DeviceFlowProvider {
+interface DeviceFlowProvider {
   requestDeviceCode(repositoryUrl?: string): Promise<DeviceCodeResponse>;
   pollForToken(deviceCode: string): Promise<TokenPollResult>;
 }
