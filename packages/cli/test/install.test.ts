@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, readFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -26,6 +26,58 @@ describe("detectTools", () => {
     const tools = await detectTools(cwd);
     expect(tools).toHaveLength(1);
     expect(tools[0]!.name).toBe("Claude Code");
+  });
+
+  it("detects Claude Code via CLAUDE.md file", async () => {
+    await writeFile(join(cwd, "CLAUDE.md"), "# Claude", "utf8");
+    const tools = await detectTools(cwd);
+    expect(tools).toHaveLength(1);
+    expect(tools[0]!.name).toBe("Claude Code");
+  });
+
+  it("detects OpenCode via .opencode/ directory", async () => {
+    await mkdir(join(cwd, ".opencode"), { recursive: true });
+    const tools = await detectTools(cwd);
+    expect(tools).toHaveLength(1);
+    expect(tools[0]!.name).toBe("OpenCode");
+  });
+
+  it("detects OpenCode via opencode.jsonc file", async () => {
+    await writeFile(join(cwd, "opencode.jsonc"), "{}", "utf8");
+    const tools = await detectTools(cwd);
+    expect(tools).toHaveLength(1);
+    expect(tools[0]!.name).toBe("OpenCode");
+  });
+
+  it("detects OpenCode via opencode.json file", async () => {
+    await writeFile(join(cwd, "opencode.json"), "{}", "utf8");
+    const tools = await detectTools(cwd);
+    expect(tools).toHaveLength(1);
+    expect(tools[0]!.name).toBe("OpenCode");
+  });
+
+  it("detects Cursor via .cursor/ directory", async () => {
+    await mkdir(join(cwd, ".cursor"), { recursive: true });
+    const tools = await detectTools(cwd);
+    expect(tools).toHaveLength(1);
+    expect(tools[0]!.name).toBe("Cursor");
+  });
+
+  it("detects Cursor via .cursorrules file", async () => {
+    await writeFile(join(cwd, ".cursorrules"), "", "utf8");
+    const tools = await detectTools(cwd);
+    expect(tools).toHaveLength(1);
+    expect(tools[0]!.name).toBe("Cursor");
+  });
+
+  it("returns multiple tools when multiple signals exist", async () => {
+    await mkdir(join(cwd, ".claude"), { recursive: true });
+    await mkdir(join(cwd, ".cursor"), { recursive: true });
+    const tools = await detectTools(cwd);
+    expect(tools).toHaveLength(2);
+    const names = tools.map((t) => t.name);
+    expect(names).toContain("Claude Code");
+    expect(names).toContain("Cursor");
   });
 
   it("returns empty when no signals match", async () => {

@@ -72,13 +72,39 @@ interface ToolStatus {
 const TOOLS: ToolDescriptor[] = [
   {
     name: "Claude Code",
-    detect: [{ type: "directory", path: ".claude" }],
+    detect: [
+      { type: "directory", path: ".claude" },
+      { type: "file", path: "CLAUDE.md" },
+    ],
     installDir: ".claude",
     skills: {
       path: "skills",
     },
     commands: {
       path: "commands/tskl",
+    },
+  },
+  {
+    name: "OpenCode",
+    detect: [
+      { type: "directory", path: ".opencode" },
+      { type: "file", path: "opencode.jsonc" },
+      { type: "file", path: "opencode.json" },
+    ],
+    installDir: ".opencode",
+    skills: {
+      path: "skills",
+    },
+  },
+  {
+    name: "Cursor",
+    detect: [
+      { type: "directory", path: ".cursor" },
+      { type: "file", path: ".cursorrules" },
+    ],
+    installDir: ".cursor",
+    skills: {
+      path: "skills",
     },
   },
 ];
