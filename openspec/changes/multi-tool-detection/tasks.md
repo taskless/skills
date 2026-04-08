@@ -42,7 +42,7 @@ Replace the "no tools found" message with a fallback install to `.agents/skills/
 
 ## 4. Update info command and help text
 
-- [ ] 4.1 Verify `info.ts` works with updated `checkStaleness()` (uses `installDir`)
-- [ ] 4.2 Update `src/help/init.txt` if it references detection behavior
-- [ ] 4.3 Test `checkStaleness` returns correct status for each newly supported tool (OpenCode, Cursor, `.agents/`)
-- [ ] 4.4 Run `pnpm typecheck && pnpm lint && pnpm test && pnpm build`
+- [x] 4.1 Verify `info.ts` works with updated `checkStaleness()` (uses `installDir`)
+- [x] 4.2 Update `src/help/init.txt` if it references detection behavior
+- [x] 4.3 Test `checkStaleness` returns correct status for each newly supported tool (OpenCode, Cursor, `.agents/`)
+- [x] 4.4 Run `pnpm typecheck && pnpm lint && pnpm test && pnpm build`
