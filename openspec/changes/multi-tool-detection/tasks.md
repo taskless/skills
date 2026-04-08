@@ -16,16 +16,16 @@ Purely structural refactor — no new tools, no behavior change. Claude Code rem
 
 Add new detection signals and tool entries. Each detected tool gets skills installed.
 
-- [ ] 2.1 Add `CLAUDE.md` file signal to Claude Code's `detect` array
-- [ ] 2.2 Add OpenCode entry: detect `[".opencode/" dir, "opencode.jsonc" file, "opencode.json" file]`, installDir `.opencode`, no commands
-- [ ] 2.3 Add Cursor entry: detect `[".cursor/" dir, ".cursorrules" file]`, installDir `.cursor`, no commands
-- [ ] 2.4 Test `detectTools()` detects Claude Code via `.claude/` directory
-- [ ] 2.5 Test `detectTools()` detects Claude Code via `CLAUDE.md` file
-- [ ] 2.6 Test `detectTools()` detects OpenCode via `.opencode/` directory, `opencode.jsonc`, and `opencode.json`
-- [ ] 2.7 Test `detectTools()` detects Cursor via `.cursor/` directory and `.cursorrules`
-- [ ] 2.8 Test `detectTools()` returns multiple tools when multiple signals exist
-- [ ] 2.9 Test `detectTools()` returns empty when no signals match
-- [ ] 2.10 Run `pnpm typecheck && pnpm lint && pnpm test && pnpm build`
+- [x] 2.1 Add `CLAUDE.md` file signal to Claude Code's `detect` array
+- [x] 2.2 Add OpenCode entry: detect `[".opencode/" dir, "opencode.jsonc" file, "opencode.json" file]`, installDir `.opencode`, no commands
+- [x] 2.3 Add Cursor entry: detect `[".cursor/" dir, ".cursorrules" file]`, installDir `.cursor`, no commands
+- [x] 2.4 Test `detectTools()` detects Claude Code via `.claude/` directory
+- [x] 2.5 Test `detectTools()` detects Claude Code via `CLAUDE.md` file
+- [x] 2.6 Test `detectTools()` detects OpenCode via `.opencode/` directory, `opencode.jsonc`, and `opencode.json`
+- [x] 2.7 Test `detectTools()` detects Cursor via `.cursor/` directory and `.cursorrules`
+- [x] 2.8 Test `detectTools()` returns multiple tools when multiple signals exist
+- [x] 2.9 Test `detectTools()` returns empty when no signals match
+- [x] 2.10 Run `pnpm typecheck && pnpm lint && pnpm test && pnpm build`
 
 ## 3. Add .agents fallback when no tools detected
 
