@@ -180,4 +180,29 @@ describe("checkStaleness", () => {
       expect(skill.current).toBe(true);
     }
   });
+
+  it("reports status for multiple detected tools", async () => {
+    await mkdir(join(cwd, ".claude"), { recursive: true });
+    await mkdir(join(cwd, ".cursor"), { recursive: true });
+
+    const skills = getEmbeddedSkills();
+    const tools = await detectTools(cwd);
+    expect(tools).toHaveLength(2);
+
+    for (const tool of tools) {
+      await installForTool(cwd, tool, skills, []);
+    }
+
+    const statuses = await checkStaleness(cwd);
+    expect(statuses).toHaveLength(2);
+    const names = statuses.map((s) => s.name);
+    expect(names).toContain("Claude Code");
+    expect(names).toContain("Cursor");
+
+    for (const status of statuses) {
+      for (const skill of status.skills) {
+        expect(skill.current).toBe(true);
+      }
+    }
+  });
 });

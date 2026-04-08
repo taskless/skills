@@ -1,7 +1,15 @@
 Install Taskless skills
 
 Detects supported coding agent tools in your project and installs
-Taskless skills and commands for each one. Currently supports Claude Code.
+Taskless skills and commands for each one.
+
+Supported tools:
+  Claude Code    .claude/ directory or CLAUDE.md file
+  OpenCode       .opencode/ directory, opencode.jsonc, or opencode.json
+  Cursor         .cursor/ directory or .cursorrules file
+
+If no tools are detected, skills are installed to .agents/skills/ as a
+fallback location.
 
 Usage:
   taskless init [options]
@@ -10,14 +18,10 @@ Options:
   -d, --dir <path>   Set working directory (default: current directory)
 
 Behavior:
-  - Detects tool directories (e.g., .claude/) in the project root
-  - Installs skill files to the tool's skills directory
-  - Installs command files to the tool's commands directory
-  - If no supported tools are detected, suggests alternative install methods
-
-Alternative Installation:
-  Claude Code Plugin Marketplace:  /plugin marketplace add taskless/skills
-  Vercel Skills CLI:               npx skills add taskless/skills
+  - Detects tool signals (files and directories) in the project root
+  - Installs skill files to each detected tool's skills directory
+  - Installs command files for Claude Code only
+  - Falls back to .agents/skills/ if no tools are detected
 
 Examples:
   taskless init
