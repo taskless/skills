@@ -6,7 +6,7 @@ tags:
   - taskless
 metadata:
   author: taskless
-  version: 0.5.1
+  version: 0.5.2
   commandName: tskl:login
 ---
 

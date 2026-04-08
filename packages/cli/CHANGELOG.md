@@ -1,5 +1,21 @@
 # @taskless/cli
 
+## 0.5.2
+
+### Patch Changes
+
+- 64b836f: Add explicit `commandName: "-"` to anonymous skill frontmatter
+
+  The anonymous skills (`taskless-create-rule-anonymous` and `taskless-improve-rule-anonymous`) were missing the `metadata.commandName` field. Added `commandName: "-"` for consistency with all other skills that don't expose a slash command.
+
+- a4c78fb: Fix "auth login" to use the correct CLI command
+
+  Replaced bare `taskless auth login` references with the proper `npx @taskless/cli@latest auth login` invocation in skills, generated commands, CLI error messages, and rules help text. CLI error messages now dynamically detect the invoking package manager via `npm_config_user_agent`. Skills default to `npx` with a note to prefer the project's package manager.
+
+- 321d285: Fix crash during init when `.taskless/taskless.json` contains corrupt or unparseable JSON. The CLI now treats a corrupt manifest the same as a missing one, allowing migrations to re-run and rewrite it.
+
+  Add `module` and `exports` fields to package.json to ensure ESM resolution works correctly on older Node versions or when package.json resolution is incomplete.
+
 ## 0.5.1
 
 ### Patch Changes

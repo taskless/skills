@@ -3,7 +3,7 @@ name: taskless-improve-rule-anonymous
 description: Improves existing Taskless rules locally without API access. Uses the agent to modify ast-grep rules and validates changes with the verify feedback loop.
 metadata:
   author: taskless
-  version: 0.5.1
+  version: 0.5.2
   commandName: "-"
 compatibility: Designed for Agents implementing the Agent Skills specification.
 ---
