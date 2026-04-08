@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /** Schema for a single check result */
-export const checkResultSchema = z.object({
+const checkResultSchema = z.object({
   source: z.string().describe("Scanner that produced this result"),
   ruleId: z.string().describe("Rule identifier"),
   severity: z
