@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
+  AGENTS_FALLBACK,
   detectTools,
   getEmbeddedSkills,
   installForTool,
@@ -125,6 +126,38 @@ describe("installForTool", () => {
       "utf8"
     );
     expect(content).toBeTruthy();
+  });
+});
+
+describe("AGENTS_FALLBACK", () => {
+  it("installs skills to .agents/skills/ when no tools detected", async () => {
+    const tools = await detectTools(cwd);
+    expect(tools).toHaveLength(0);
+
+    const skills = getEmbeddedSkills();
+    const result = await installForTool(cwd, AGENTS_FALLBACK, skills, []);
+    expect(result.skills.length).toBeGreaterThan(0);
+
+    const firstSkill = result.skills[0]!;
+    const content = await readFile(
+      join(cwd, ".agents", "skills", firstSkill, "SKILL.md"),
+      "utf8"
+    );
+    expect(content).toBeTruthy();
+  });
+
+  it("is not used when at least one tool is detected", async () => {
+    await mkdir(join(cwd, ".claude"), { recursive: true });
+    const tools = await detectTools(cwd);
+    expect(tools.length).toBeGreaterThan(0);
+    // Fallback should not be in the detected tools
+    expect(tools.every((t) => t.name !== AGENTS_FALLBACK.name)).toBe(true);
+  });
+
+  it("does not install commands", async () => {
+    const skills = getEmbeddedSkills();
+    const result = await installForTool(cwd, AGENTS_FALLBACK, skills, []);
+    expect(result.commands).toHaveLength(0);
   });
 });
 

@@ -31,14 +31,14 @@ Add new detection signals and tool entries. Each detected tool gets skills insta
 
 Replace the "no tools found" message with a fallback install to `.agents/skills/`.
 
-- [ ] 3.1 Define `AGENTS_FALLBACK` descriptor: no detect array, installDir `.agents`, no commands
-- [ ] 3.2 In `init.ts`, track whether any installs were made after the tool loop
-- [ ] 3.3 If zero installs, call `installForTool(cwd, AGENTS_FALLBACK, skills, [])` and report fallback usage
-- [ ] 3.4 Remove the old "no supported tool directories detected" message
-- [ ] 3.5 Test fallback installs to `.agents/skills/` when no tools detected
-- [ ] 3.6 Test fallback is NOT used when at least one tool is detected
-- [ ] 3.7 Test fallback does not install commands
-- [ ] 3.8 Run `pnpm typecheck && pnpm lint && pnpm test && pnpm build`
+- [x] 3.1 Define `AGENTS_FALLBACK` descriptor: no detect array, installDir `.agents`, no commands
+- [x] 3.2 In `init.ts`, track whether any installs were made after the tool loop
+- [x] 3.3 If zero installs, call `installForTool(cwd, AGENTS_FALLBACK, skills, [])` and report fallback usage
+- [x] 3.4 Remove the old "no supported tool directories detected" message
+- [x] 3.5 Test fallback installs to `.agents/skills/` when no tools detected
+- [x] 3.6 Test fallback is NOT used when at least one tool is detected
+- [x] 3.7 Test fallback does not install commands
+- [x] 3.8 Run `pnpm typecheck && pnpm lint && pnpm test && pnpm build`
 
 ## 4. Update info command and help text
 
