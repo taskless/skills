@@ -54,15 +54,15 @@ describe("cli", () => {
       await rm(temporaryDirectory, { recursive: true, force: true });
     });
 
-    it("shows alternative install methods when no tool directories exist", async () => {
+    it("uses .agents fallback when no tool directories exist", async () => {
       const { stdout } = await execFileAsync("node", [
         binPath,
         "init",
         "-d",
         temporaryDirectory,
       ]);
-      expect(stdout).toContain("No supported tool directories detected");
-      expect(stdout).toContain("Alternative installation methods");
+      expect(stdout).toContain("No tools detected. Using fallback: .agents/");
+      expect(stdout).toContain("Agent Skills: installed");
     });
 
     it("installs skills when .claude/ directory exists", async () => {

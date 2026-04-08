@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 import { defineCommand } from "citty";
 
 import {
+  AGENTS_FALLBACK,
   detectTools,
   getEmbeddedSkills,
   getEmbeddedCommands,
@@ -30,15 +31,11 @@ export const initCommand = defineCommand({
     const commands = getEmbeddedCommands();
     const tools = await detectTools(cwd);
 
-    if (tools.length === 0) {
-      console.log(
-        `No supported tool directories detected.\n\nAlternative installation methods:\n  - Claude Code Plugin Marketplace: /plugin marketplace add taskless/skills\n  - Vercel Skills CLI: npx skills add taskless/skills`
-      );
-      return;
-    }
+    let installCount = 0;
 
     for (const tool of tools) {
       const result = await installForTool(cwd, tool, skills, commands);
+      installCount++;
       console.log(
         `${tool.name}: installed ${String(result.skills.length)} skill(s)`
       );
@@ -49,6 +46,19 @@ export const initCommand = defineCommand({
         console.log(
           `  + ${String(result.commands.length)} command(s) in ${tool.installDir}/${tool.commands!.path}/`
         );
+      }
+    }
+
+    if (installCount === 0) {
+      const result = await installForTool(cwd, AGENTS_FALLBACK, skills, []);
+      console.log(
+        `No tools detected. Using fallback: ${AGENTS_FALLBACK.installDir}/`
+      );
+      console.log(
+        `${AGENTS_FALLBACK.name}: installed ${String(result.skills.length)} skill(s)`
+      );
+      for (const name of result.skills) {
+        console.log(`  - ${name}`);
       }
     }
   },

@@ -109,6 +109,15 @@ const TOOLS: ToolDescriptor[] = [
   },
 ];
 
+export const AGENTS_FALLBACK: ToolDescriptor = {
+  name: "Agent Skills",
+  detect: [],
+  installDir: ".agents",
+  skills: {
+    path: "skills",
+  },
+};
+
 // --- Detection ---
 
 async function checkSignal(
