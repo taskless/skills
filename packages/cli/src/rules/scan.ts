@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import type { AstGrepMatch } from "../types/check";
 import { toCheckResult, type CheckResult } from "../types/check";
 
-interface ScanResult {
+export interface ScanResult {
   results: CheckResult[];
   exitCode: number;
 }

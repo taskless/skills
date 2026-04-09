@@ -1,5 +1,4 @@
 import {
-  access,
   readFile,
   readdir,
   rm,
@@ -7,7 +6,6 @@ import {
   writeFile,
   mkdir,
 } from "node:fs/promises";
-import { constants } from "node:fs";
 import { join, basename, dirname } from "node:path";
 import { parseFrontmatter } from "./frontmatter";
 
@@ -25,12 +23,12 @@ const commandFiles: Record<string, string> = import.meta.glob(
 
 // --- Types ---
 
-interface DetectionSignal {
+export interface DetectionSignal {
   type: "directory" | "file";
   path: string;
 }
 
-interface ToolDescriptor {
+export interface ToolDescriptor {
   name: string;
   detect: DetectionSignal[];
   installDir: string;
@@ -130,8 +128,8 @@ async function checkSignal(
       .then((s) => s.isDirectory())
       .catch(() => false);
   }
-  return access(fullPath, constants.F_OK)
-    .then(() => true)
+  return stat(fullPath)
+    .then((s) => s.isFile())
     .catch(() => false);
 }
 

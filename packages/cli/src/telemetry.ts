@@ -14,7 +14,7 @@ const POSTHOG_HOST = "https://z.taskless.io";
 
 const ANONYMOUS_ID_FILE = "anonymous_id";
 
-interface TelemetryClient {
+export interface TelemetryClient {
   capture(event: string, properties?: Record<string, unknown>): void;
   shutdown(): Promise<void>;
 }
