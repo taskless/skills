@@ -29,7 +29,7 @@ The CLI SHALL support a `taskless init` subcommand that installs Taskless skills
 
 ### Requirement: Tool detection via filesystem inspection
 
-The CLI SHALL detect installed AI tools by checking for known detection signals (files and directories) via parallel filesystem checks. Detection SHALL NOT rely on a config file. The tool registry SHALL be a typed array of tool descriptors maintained in `packages/cli/src/install/install.ts`. Each tool descriptor SHALL have a `detect` array of signals and a separate `installDir` for the install root.
+The CLI SHALL detect installed AI tools by checking for known detection signals (files and directories) via parallel filesystem checks. Detection SHALL NOT rely on parsing configuration file contents or other tool-specific metadata; config-style files MAY be used only as file-presence signals. The tool registry SHALL be a typed array of tool descriptors maintained in `packages/cli/src/install/install.ts`. Each tool descriptor SHALL have a `detect` array of signals and a separate `installDir` for the install root.
 
 #### Scenario: Claude Code is detected
 
@@ -170,9 +170,9 @@ When `taskless init` completes with zero tool installs (no tools were detected),
 - **WHEN** the `.agents/` fallback is used
 - **THEN** no command files SHALL be written
 
-### Requirement: Detection checks files with access and directories with stat
+### Requirement: Detection checks files and directories with stat
 
-Directory detection signals SHALL use `fs.stat()` and verify `isDirectory()`. File detection signals SHALL use `fs.access()` with `constants.F_OK` for existence checking. All detection checks SHALL run in parallel.
+Directory detection signals SHALL use `fs.stat()` and verify `isDirectory()`. File detection signals SHALL use `fs.stat()` and verify `isFile()` to avoid false positives on directories. All detection checks SHALL run in parallel.
 
 #### Scenario: Directory signal uses stat
 
@@ -180,10 +180,11 @@ Directory detection signals SHALL use `fs.stat()` and verify `isDirectory()`. Fi
 - **THEN** `fs.stat()` SHALL be called on the path
 - **AND** `isDirectory()` SHALL return true for detection to succeed
 
-#### Scenario: File signal uses access
+#### Scenario: File signal uses stat
 
 - **WHEN** a file detection signal is evaluated
-- **THEN** `fs.access()` SHALL be called with `constants.F_OK`
+- **THEN** `fs.stat()` SHALL be called on the path
+- **AND** `isFile()` SHALL return true for detection to succeed
 
 #### Scenario: Detection runs in parallel
 
