@@ -21,7 +21,7 @@ interface TokenResponse {
 }
 
 /** Pending/error states from the token endpoint */
-type TokenPollResult =
+export type TokenPollResult =
   | { status: "pending" }
   | { status: "slow_down" }
   | { status: "success"; token: TokenResponse }
@@ -29,7 +29,7 @@ type TokenPollResult =
   | { status: "denied" };
 
 /** Interface for the Device Flow HTTP calls */
-interface DeviceFlowProvider {
+export interface DeviceFlowProvider {
   requestDeviceCode(repositoryUrl?: string): Promise<DeviceCodeResponse>;
   pollForToken(deviceCode: string): Promise<TokenPollResult>;
 }
