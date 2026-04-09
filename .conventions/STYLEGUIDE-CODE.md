@@ -122,6 +122,36 @@ interface GitHubComment {
 - You need a subset/transformation of the original type for your domain model
 - You're defining types for your own APIs (not external ones)
 
+### Export Types Referenced by Public API Signatures
+
+**DO NOT** remove `export` from types that are transitively referenced by exported functions, values, or other exported types — even if tools like knip report them as "unused exports." With `declaration: true` in `tsconfig`, TypeScript requires all types in exported signatures to be exported themselves.
+
+Before removing an `export` from a type, check whether any exported function or value references it in its signature (parameters, return types, or fields of other exported types).
+
+```typescript
+// ✅ Good - Type is exported because it's used in an exported function's return type
+export interface VerifyResult {
+  success: boolean;
+  schema: LayerResult;
+}
+
+export interface LayerResult {
+  valid: boolean;
+  errors: string[];
+}
+
+export async function verifyRule(path: string): Promise<VerifyResult> { ... }
+
+// ❌ Bad - Knip says LayerResult is "unused" so you remove the export
+interface LayerResult { ... }  // breaks declaration emit for VerifyResult
+```
+
+**Rationale:**
+
+- Knip tracks direct import usage, not transitive type reachability through exported signatures
+- Removing these exports causes `declaration: true` to fail with "exported function has or is using private name" errors
+- The fix is tedious — each type must be re-exported individually, often across multiple review cycles
+
 ## Cross-Worker Durable Object Access
 
 ### Use DurableObjectRPC for Cross-Worker DO Calls
