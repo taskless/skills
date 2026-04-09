@@ -46,11 +46,11 @@ type DetectionSignal =
 
 **Rationale:** `.agents/` has no detection signal — it exists precisely because nothing was detected. Modeling it as a detected tool would require a sentinel like `detect: []` meaning "always match," which is misleading. Keeping it as explicit fallback logic in `init.ts` makes the intent clear.
 
-### Detection uses `stat` for directories and `access` for files
+### Detection uses `stat` for both directories and files
 
-**Decision:** Directory signals use `stat().isDirectory()` (existing pattern). File signals use `access()` with `constants.F_OK` — we only need existence, not content.
+**Decision:** Directory signals use `stat().isDirectory()` (existing pattern). File signals use `stat().isFile()` so detection only succeeds for actual files, not directories that happen to exist at the same path.
 
-**Rationale:** `access` is marginally cheaper than `stat` for pure existence checks on files. For directories we still need `isDirectory()` to distinguish from files of the same name.
+**Rationale:** Using `stat` consistently for both signal types keeps detection semantics explicit and avoids false positives for file-based signals. For directories we need `isDirectory()`, and for files we need `isFile()` to distinguish them from directories of the same name.
 
 ## Risks / Trade-offs
 

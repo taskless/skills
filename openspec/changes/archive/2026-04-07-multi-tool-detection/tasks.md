@@ -5,7 +5,7 @@ Purely structural refactor — no new tools, no behavior change. Claude Code rem
 - [x] 1.1 Add `DetectionSignal` type (`{ type: "directory" | "file"; path: string }`) to `packages/cli/src/install/install.ts`
 - [x] 1.2 Replace `dir` field in `ToolDescriptor` with `detect: DetectionSignal[]` and `installDir: string`
 - [x] 1.3 Update Claude Code entry in `TOOLS` to use `detect: [{ type: "directory", path: ".claude" }]` and `installDir: ".claude"`
-- [x] 1.4 Update `detectTools()` to iterate each tool's `detect` array, using `stat().isDirectory()` for directory signals and `access(constants.F_OK)` for file signals
+- [x] 1.4 Update `detectTools()` to iterate each tool's `detect` array, using `stat().isDirectory()` for directory signals and `stat().isFile()` for file signals
 - [x] 1.5 Update `installForTool`, `removeOwnedSkills`, `removeOwnedCommands`, and `checkStaleness` to use `installDir` instead of `dir`
 - [x] 1.6 Create `test/install.test.ts` with baseline detection tests: Claude Code detected via `.claude/` directory, not detected when absent
 - [x] 1.7 Test `installForTool` writes skills to `installDir`-based path and creates directories if missing
