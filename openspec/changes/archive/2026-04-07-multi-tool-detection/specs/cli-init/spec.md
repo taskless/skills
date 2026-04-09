@@ -114,9 +114,9 @@ When `taskless init` completes with zero tool installs (no tools were detected),
 - **WHEN** the `.agents/` fallback is used
 - **THEN** no command files SHALL be written
 
-### Requirement: Detection checks files with access and directories with stat
+### Requirement: Detection checks files and directories with stat
 
-Directory detection signals SHALL use `fs.stat()` and verify `isDirectory()`. File detection signals SHALL use `fs.access()` with `constants.F_OK` for existence checking. All detection checks SHALL run in parallel.
+Directory detection signals SHALL use `fs.stat()` and verify `isDirectory()`. File detection signals SHALL use `fs.stat()` and verify `isFile()` to avoid false positives on directories. All detection checks SHALL run in parallel.
 
 #### Scenario: Directory signal uses stat
 
@@ -124,10 +124,11 @@ Directory detection signals SHALL use `fs.stat()` and verify `isDirectory()`. Fi
 - **THEN** `fs.stat()` SHALL be called on the path
 - **AND** `isDirectory()` SHALL return true for detection to succeed
 
-#### Scenario: File signal uses access
+#### Scenario: File signal uses stat
 
 - **WHEN** a file detection signal is evaluated
-- **THEN** `fs.access()` SHALL be called with `constants.F_OK`
+- **THEN** `fs.stat()` SHALL be called on the path
+- **AND** `isFile()` SHALL return true for detection to succeed
 
 #### Scenario: Detection runs in parallel
 
