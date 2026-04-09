@@ -40,7 +40,7 @@ export interface ToolDescriptor {
   };
 }
 
-interface EmbeddedSkill {
+export interface EmbeddedSkill {
   name: string;
   description: string;
   content: string;
@@ -48,19 +48,19 @@ interface EmbeddedSkill {
   metadata: Record<string, string>;
 }
 
-interface EmbeddedCommand {
+export interface EmbeddedCommand {
   filename: string;
   content: string;
 }
 
-interface SkillStatus {
+export interface SkillStatus {
   name: string;
   installedVersion: string | undefined;
   currentVersion: string;
   current: boolean;
 }
 
-interface ToolStatus {
+export interface ToolStatus {
   name: string;
   skills: SkillStatus[];
 }
