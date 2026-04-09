@@ -3,7 +3,7 @@ import { decodeOrgId } from "./jwt";
 import { resolveRepositoryUrl } from "../util/git-remote";
 import { getCliPrefix } from "../util/package-manager";
 
-interface Identity {
+export interface Identity {
   token: string;
   orgId: number;
   repositoryUrl: string;

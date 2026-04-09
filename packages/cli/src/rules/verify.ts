@@ -24,16 +24,16 @@ function escapeRegExp(s: string): string {
 
 // --- Types ---
 
-interface LayerResult {
+export interface LayerResult {
   valid: boolean;
   errors: string[];
 }
 
-interface RequirementsResult extends LayerResult {
+export interface RequirementsResult extends LayerResult {
   hasTestFile: boolean;
 }
 
-interface TestLayerResult extends LayerResult {
+export interface TestLayerResult extends LayerResult {
   passed: number;
   failed: number;
 }

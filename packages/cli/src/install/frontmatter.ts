@@ -1,6 +1,6 @@
 import { parse } from "yaml";
 
-interface Frontmatter {
+export interface Frontmatter {
   data: Record<string, unknown>;
   content: string;
 }

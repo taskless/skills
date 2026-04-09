@@ -3,7 +3,7 @@ import { getApiBaseUrl } from "../api/config";
 const CLIENT_ID = "taskless-cli";
 
 /** Response from the device authorization endpoint */
-interface DeviceCodeResponse {
+export interface DeviceCodeResponse {
   device_code: string;
   user_code: string;
   verification_uri: string;
@@ -13,7 +13,7 @@ interface DeviceCodeResponse {
 }
 
 /** Successful token response */
-interface TokenResponse {
+export interface TokenResponse {
   access_token: string;
   token_type: string;
   expires_in?: number;
