@@ -296,6 +296,15 @@ async function readInstalledSkillVersion(
 export async function checkStaleness(cwd: string): Promise<ToolStatus[]> {
   const embedded = getEmbeddedSkills();
   const tools = await detectTools(cwd);
+
+  // Include .agents/ fallback if the directory exists (from a previous fallback install)
+  const fallbackExists = await stat(join(cwd, AGENTS_FALLBACK.installDir))
+    .then((s) => s.isDirectory())
+    .catch(() => false);
+  if (fallbackExists) {
+    tools.push(AGENTS_FALLBACK);
+  }
+
   const results: ToolStatus[] = [];
 
   for (const tool of tools) {
