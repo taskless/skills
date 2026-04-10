@@ -3,7 +3,7 @@ name: taskless-check
 description: Checks a repository using the Taskless rules via the CLI. Use when the user wants to run a check, test rules, or validate code against taskless rules. Trigger on "check my code", "run taskless check", "test my rules", or "validate with taskless".
 metadata:
   author: taskless
-  version: 0.5.2
+  version: 0.5.3
   commandName: tskl:check
 compatibility: Designed for Agents implementing the Agent Skills specification.
 ---
