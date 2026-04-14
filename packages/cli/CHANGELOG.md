@@ -1,5 +1,11 @@
 # @taskless/cli
 
+## 0.5.4
+
+### Patch Changes
+
+- 60f8dba: Show auth status when running `taskless auth` without a subcommand, with a hint to run `auth login` if not authenticated.
+
 ## 0.5.3
 
 ### Patch Changes

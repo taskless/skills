@@ -3,7 +3,7 @@ name: taskless-delete-rule
 description: Deletes a Taskless rule and its test files. Use when the user wants to remove a rule, delete a lint rule, or clean up an unwanted rule. Trigger on "delete rule", "remove taskless rule", "delete this rule", or "remove rule".
 metadata:
   author: taskless
-  version: 0.5.3
+  version: 0.5.4
   commandName: "-"
 compatibility: Designed for Agents implementing the Agent Skills specification.
 ---
