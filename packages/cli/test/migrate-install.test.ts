@@ -106,6 +106,24 @@ describe("migration 2 — install state", () => {
     });
   });
 
+  it("treats non-object JSON (e.g. null) as a corrupt manifest and re-migrates from 0", async () => {
+    const tasklessDirectory = join(temporaryDirectory, ".taskless");
+    await mkdir(tasklessDirectory, { recursive: true });
+
+    // Valid JSON, but not an object — reading `.version` off this would
+    // throw TypeError if unguarded.
+    await writeFile(join(tasklessDirectory, "taskless.json"), "null", "utf8");
+
+    await ensureTasklessDirectory(temporaryDirectory);
+
+    const manifest = JSON.parse(
+      await readFile(join(tasklessDirectory, "taskless.json"), "utf8")
+    ) as { version: number; install: Record<string, unknown> };
+
+    expect(manifest.version).toBe(2);
+    expect(manifest.install).toEqual({});
+  });
+
   it("readManifest / writeManifest preserves unknown fields on explicit round-trip", async () => {
     const tasklessDirectory = join(temporaryDirectory, ".taskless");
     await mkdir(tasklessDirectory, { recursive: true });
