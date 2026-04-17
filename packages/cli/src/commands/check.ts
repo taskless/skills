@@ -30,13 +30,23 @@ async function filterExistingPaths(
   cwd: string,
   rawPaths: string[]
 ): Promise<string[]> {
+  const resolvedCwd = resolve(cwd);
   const kept: string[] = [];
   for (const rawPath of rawPaths) {
-    const absolutePath = isAbsolute(rawPath) ? rawPath : resolve(cwd, rawPath);
-    if (await pathExists(absolutePath)) {
-      const relativePath = relative(cwd, absolutePath);
-      kept.push(relativePath === "" ? "." : relativePath);
-    }
+    const absolutePath = isAbsolute(rawPath)
+      ? resolve(rawPath)
+      : resolve(resolvedCwd, rawPath);
+    if (!(await pathExists(absolutePath))) continue;
+    const relativePath = relative(resolvedCwd, absolutePath);
+    // Reject paths that escape cwd (e.g. `../outside-project`) so `sg scan`
+    // never traverses outside the project directory.
+    const escapesCwd =
+      relativePath === ".." ||
+      relativePath.startsWith(`..${"/"}`) ||
+      relativePath.startsWith(`..${"\\"}`) ||
+      isAbsolute(relativePath);
+    if (escapesCwd) continue;
+    kept.push(relativePath === "" ? "." : relativePath);
   }
   return kept;
 }

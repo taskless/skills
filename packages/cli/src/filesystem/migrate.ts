@@ -146,7 +146,7 @@ export async function runMigrations(
   if (sorted.length === 0) return;
 
   const maxVersion = sorted.at(-1)![0];
-  const { version, raw } = await readRawManifest(tasklessDirectory);
+  const { version } = await readRawManifest(tasklessDirectory);
 
   if (version >= maxVersion) {
     return;
@@ -162,10 +162,16 @@ export async function runMigrations(
       console.error(
         `Migration ${String(v)} failed: ${error instanceof Error ? error.message : String(error)}`
       );
-      // Write manifest at last successful version so we don't re-run completed migrations
+      // Write manifest at last successful version so we don't re-run
+      // completed migrations. Re-read from disk so we preserve whatever
+      // earlier successful migrations wrote (instead of writing back `raw`,
+      // which is the pre-run snapshot and could clobber their output).
       if (v > version + 1) {
-        const partial = { ...raw, version: v - 1 };
-        await writeRawManifest(tasklessDirectory, partial);
+        const { raw: latestRaw } = await readRawManifest(tasklessDirectory);
+        await writeRawManifest(tasklessDirectory, {
+          ...latestRaw,
+          version: v - 1,
+        });
       }
       throw error;
     }

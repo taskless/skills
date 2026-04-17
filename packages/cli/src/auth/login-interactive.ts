@@ -35,7 +35,10 @@ export async function loginInteractive(
   const out = options.out ?? ((line) => console.log(line));
   const error_ = options.err ?? ((line) => console.error(line));
 
-  const existing = await getToken(cwd);
+  // Silent: we're inside an interactive (clack) flow — stderr warnings from
+  // legacy/tracked-token checks would corrupt the UI. Pre-checks happen in
+  // promptAuth() before we get here.
+  const existing = await getToken(cwd, { silent: true });
   if (existing) {
     return { status: "already_logged_in" };
   }
