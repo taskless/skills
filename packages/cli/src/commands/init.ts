@@ -60,9 +60,8 @@ export const initCommand = defineCommand({
       );
     }
 
-    await runNonInteractive(cwd);
-
     const start = Date.now();
+    await runNonInteractive(cwd);
     telemetry.capture("cli_init_completed", {
       locations: await detectedLocationDirectories(cwd),
       optionalSkills: [],

@@ -2,7 +2,7 @@
 
 ### Requirement: Taskless CI skill is bundled in the CLI
 
-The CLI build SHALL embed a `taskless-ci` skill file at `skills/taskless-ci/SKILL.md` into the compiled bundle using the same `import.meta.glob` pattern as all other skills. The skill SHALL NOT register a slash command — its frontmatter SHALL NOT contain a `commandName` field, and no companion file in `commands/tskl/` SHALL be installed for it.
+The CLI build SHALL embed a `taskless-ci` skill file at `skills/taskless-ci/SKILL.md` into the compiled bundle using the same `import.meta.glob` pattern as all other skills. The skill SHALL NOT register a slash command — its frontmatter `metadata.commandName` SHALL be `"-"` (the repo convention for skills with no slash command, matching `taskless-create-rule-anonymous`, `taskless-improve-rule-anonymous`, and `taskless-delete-rule`), and no companion file in `commands/tskl/` SHALL be installed for it.
 
 #### Scenario: Build includes taskless-ci skill
 

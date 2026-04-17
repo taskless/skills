@@ -27,7 +27,7 @@
       "mcp__linear__*",
       "Bash(gh pr:*)",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({k: d['summary'][k] for k in ['high','medium','low','resolved','needs_attention']}\\)\\)\")",
-      "Bash(find /home/jakobo/code/taskless-skills/skills -name \"SKILL.md\" -exec grep -l \"optional\\\\|required\" {} \\\\;)"
+      "Bash(find skills -name \"SKILL.md\" -exec grep -l \"optional\\\\|required\" {} \\\\;)"
     ],
     "deny": [
       "AskUserQuestion*",

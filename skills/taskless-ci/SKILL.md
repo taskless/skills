@@ -4,6 +4,7 @@ description: Integrates Taskless into a developer's CI environment. Use when the
 metadata:
   author: taskless
   version: 0.5.4
+  commandName: "-"
 compatibility: Designed for Agents implementing the Agent Skills specification.
 ---
 
