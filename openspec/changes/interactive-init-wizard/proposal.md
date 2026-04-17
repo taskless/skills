@@ -20,6 +20,7 @@ Separately, we have no way to answer "which CLI version is running in the wild?"
 - Add the `taskless-ci` skill to the embedded skill bundle (contents TBD — the skill's CI-generation behavior is covered by OSS-3; this change only wires the skill into the catalog and marks it optional).
 - Add `cliVersion` (from `packages/cli/package.json`) and `scaffoldVersion` (from `.taskless/taskless.json`) as standard properties attached to every `posthog.capture()` event.
 - Add two new analytics events: `cli_init_completed` (rich payload: `locations`, `optionalSkills`, `authPromptShown`, `authCompleted`, `nonInteractive`, `durationMs`) and `cli_init_cancelled` (`atStep`).
+- Add positional path arguments to `taskless check`. When one or more paths are passed (e.g. `taskless check src/foo.ts src/bar.ts`), the scanner runs against only those paths; zero paths preserves the current behavior of scanning the full project. Paths that do not exist on disk (e.g. deleted files in a git diff) are silently filtered so CI pipelines can pipe raw diff output without pre-filtering. Required by the forthcoming CI skill (OSS-3) which will generate workflow files that invoke `taskless check $(git diff --name-only …)` for PR-only scanning.
 
 ## Capabilities
 
@@ -32,6 +33,7 @@ Separately, we have no way to answer "which CLI version is running in the wild?"
 - `cli-init`: The existing batch installer becomes interactive by default. New requirements cover the wizard prompt sequence, `--no-interactive` flag semantics, wizard cancel behavior, optional-skill selection, install-state diffing, and the new requirement that bare `taskless` delegates to `init`.
 - `cli-taskless-bootstrap`: Adds migration `2` which seeds `install: {}` in `taskless.json`. Also extends the manifest schema requirement so readers know `install` is a recognized top-level field.
 - `analytics`: Every `capture()` SHALL include `cliVersion` and `scaffoldVersion` properties. Adds `cli_init_completed` and `cli_init_cancelled` to the event table.
+- `cli-check`: Adds a new requirement that `taskless check` accepts positional path arguments. Zero paths preserves the full-project scan (existing behavior). One or more paths scans only those paths. Non-existent paths are silently filtered so git-diff output can be piped directly. Required by the upcoming CI skill which generates workflow files that invoke `taskless check` with diff-only paths for PR scanning.
 
 ## Impact
 

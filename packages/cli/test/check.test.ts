@@ -162,4 +162,133 @@ describe("check", () => {
     expect(exitCode).toBe(1); // has error-severity match (no-eval)
     expect(stdout).toContain("no-eval");
   });
+
+  describe("positional path arguments", () => {
+    it("scans only the specified file when a path is passed", async () => {
+      await cp(fixturesDirectory, temporaryDirectory, { recursive: true });
+      // Add a second file with a violation that should be EXCLUDED
+      await writeFile(
+        join(temporaryDirectory, "other.js"),
+        'eval("should-not-be-scanned");\n'
+      );
+
+      const { stdout, exitCode } = await runCli([
+        "check",
+        "-d",
+        temporaryDirectory,
+        "--json",
+        "sample.js",
+      ]);
+
+      expect(exitCode).toBe(1);
+      const parsed = JSON.parse(stdout.trim()) as {
+        results: Array<{ file: string }>;
+      };
+
+      // All results should be from sample.js only
+      expect(parsed.results.length).toBeGreaterThan(0);
+      for (const result of parsed.results) {
+        expect(result.file).toContain("sample.js");
+        expect(result.file).not.toContain("other.js");
+      }
+    });
+
+    it("silently filters paths that do not exist", async () => {
+      await cp(fixturesDirectory, temporaryDirectory, { recursive: true });
+
+      const { stdout, exitCode } = await runCli([
+        "check",
+        "-d",
+        temporaryDirectory,
+        "--json",
+        "sample.js",
+        "deleted-in-diff.js",
+      ]);
+
+      // Still scans sample.js and produces its matches
+      expect(exitCode).toBe(1);
+      const parsed = JSON.parse(stdout.trim()) as {
+        results: Array<{ file: string }>;
+      };
+      expect(parsed.results.length).toBeGreaterThan(0);
+      for (const result of parsed.results) {
+        expect(result.file).toContain("sample.js");
+      }
+    });
+
+    it("exits 0 with empty results when every passed path is missing", async () => {
+      await cp(fixturesDirectory, temporaryDirectory, { recursive: true });
+
+      const { stdout, exitCode } = await runCli([
+        "check",
+        "-d",
+        temporaryDirectory,
+        "--json",
+        "missing-a.js",
+        "missing-b.js",
+      ]);
+
+      expect(exitCode).toBe(0);
+      const parsed = JSON.parse(stdout.trim()) as {
+        success: boolean;
+        results: unknown[];
+      };
+      expect(parsed.success).toBe(true);
+      expect(parsed.results).toEqual([]);
+    });
+
+    it("zero paths keeps full-project scan behavior", async () => {
+      await cp(fixturesDirectory, temporaryDirectory, { recursive: true });
+      await writeFile(
+        join(temporaryDirectory, "extra.js"),
+        'eval("also-caught");\n'
+      );
+
+      const { stdout, exitCode } = await runCli([
+        "check",
+        "-d",
+        temporaryDirectory,
+        "--json",
+      ]);
+
+      expect(exitCode).toBe(1);
+      const parsed = JSON.parse(stdout.trim()) as {
+        results: Array<{ file: string }>;
+      };
+
+      // Both sample.js and extra.js matches present
+      const files = new Set(parsed.results.map((r) => r.file));
+      expect([...files].some((f) => f.includes("sample.js"))).toBe(true);
+      expect([...files].some((f) => f.includes("extra.js"))).toBe(true);
+    });
+
+    it("accepts a directory path and scans files under it", async () => {
+      await cp(fixturesDirectory, temporaryDirectory, { recursive: true });
+      await mkdir(join(temporaryDirectory, "src"), { recursive: true });
+      await writeFile(
+        join(temporaryDirectory, "src", "nested.js"),
+        'eval("in-src");\n'
+      );
+
+      const { stdout, exitCode } = await runCli([
+        "check",
+        "-d",
+        temporaryDirectory,
+        "--json",
+        "src",
+      ]);
+
+      expect(exitCode).toBe(1);
+      const parsed = JSON.parse(stdout.trim()) as {
+        results: Array<{ file: string }>;
+      };
+
+      // Only files under src/ — NOT root-level sample.js
+      expect(parsed.results.length).toBeGreaterThan(0);
+      for (const result of parsed.results) {
+        expect(result.file).toContain("src");
+        expect(result.file).not.toMatch(/^sample\.js$/);
+      }
+    });
+  });
 });

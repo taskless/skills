@@ -98,3 +98,13 @@
 - [x] 14.2 Update `packages/cli/README.md` with the new wizard flow and `--no-interactive` documentation
 - [x] 14.3 Update `packages/cli/src/help/init.txt` to reflect the new default behavior and the flag
 - [x] 14.4 Run `pnpm typecheck` and `pnpm lint` until clean
+
+## 15. `taskless check` positional path arguments
+
+- [x] 15.1 Extend `runAstGrepScan()` in `packages/cli/src/rules/scan.ts` to accept an optional `paths: string[]` parameter and append it to the `sg scan` argv
+- [x] 15.2 Update `checkCommand` in `packages/cli/src/commands/check.ts` to extract positional paths from `rawArgs` (filter out flags)
+- [x] 15.3 Resolve each positional path against the working directory and filter out paths that do not exist via `fs.stat`
+- [x] 15.4 When the original argument list was non-empty but every path was filtered out, exit 0 with empty results (skip the scan entirely) instead of falling back to full-project scan
+- [x] 15.5 Unit tests: zero paths → full scan, explicit paths → forwarded, missing paths filtered, all-missing → empty results, directory paths accepted
+- [x] 15.6 Update `packages/cli/src/help/check.txt` with the new path-argument syntax and a CI example
+- [x] 15.7 Update `packages/cli/README.md` `taskless check` section to mention path arguments

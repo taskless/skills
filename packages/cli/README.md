@@ -56,9 +56,22 @@ filesystem changes.
 Run ast-grep rules from `.taskless/rules/` against the codebase. Exits with code 1 if any error-severity matches are found.
 
 ```bash
-taskless check          # human-readable output
-taskless check --json   # JSONL output
+taskless check          # human-readable output, scans whole project
+taskless check --json   # JSON output
 ```
+
+Accepts optional positional path arguments to scan only specific files or
+directories — useful for CI workflows that only want to check changed files.
+Paths that don't exist on disk (e.g. files deleted in a diff) are silently
+filtered, so raw git-diff output can be piped in directly:
+
+```bash
+taskless check src/foo.ts src/bar.ts
+taskless check $(git diff --name-only main...HEAD)    # PR-only scan
+taskless check $(git diff --cached --name-only)       # pre-commit scan
+```
+
+If every supplied path is missing, the command exits 0 with empty results.
 
 ### `taskless auth login` / `taskless auth logout`
 

@@ -1,26 +1,39 @@
 Run Taskless rules against your codebase
 
-Scans your project using ast-grep rules defined in .taskless/rules/.
+Scans your project using ast-grep rules defined in .taskless/rules/. By
+default, scans the entire project. You can also pass specific files or
+directories as positional arguments to scan only those paths — useful for
+CI workflows that check only changed files.
 
 Prerequisites:
   Rules must exist in .taskless/rules/. Create one with `taskless rules create`.
 
 Usage:
-  taskless check [options]
+  taskless check [options] [paths...]
 
 Options:
   -d, --dir <path>   Set working directory (default: current directory)
   --json             Output results as JSON
+
+Paths:
+  Optional positional arguments. When zero paths are passed, the entire
+  project is scanned. When one or more paths are passed, only those files
+  and directories are scanned. Paths are resolved relative to the working
+  directory. Paths that do not exist on disk (e.g. files deleted in a diff)
+  are silently filtered so you can pipe raw git output directly.
 
 Output:
   Text (default):  filepath:line:col  severity  message
   JSON (--json):   { "success": true, "results": [...] }
 
 Exit Codes:
-  0   All checks passed or no rules found
+  0   All checks passed, no rules found, or all supplied paths missing
   1   Errors detected or configuration issue
 
 Examples:
   taskless check
   taskless check -d ./my-project
   taskless check --json
+  taskless check src/foo.ts src/bar.ts
+  taskless check $(git diff --name-only main...HEAD)
+  taskless check $(git diff --cached --name-only)
