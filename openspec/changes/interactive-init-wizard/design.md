@@ -113,7 +113,7 @@ Each step is a pure function returning its selection result. The top-level `runW
 
 The `taskless-ci` skill is installed into other users' repos and invoked by their agents. If it hardcodes a fixed enumeration of CI systems with exact detection logic, the skill rots the moment a new CI system gains traction. Instead the skill teaches **two patterns** (full scan / diff scan) plus the universal six-step skeleton (checkout → fetch base → diff → filter → invoke check → report), and lists common CI systems as hints rather than an exhaustive switch. Agents that recognize unlisted CI systems are told to apply the same patterns idiomatically.
 
-The skill ships no slash command — it's discovered by agents via its `description` field and doesn't need the `commandName` frontmatter key. This keeps `commands/tskl/` clean and avoids the impression that users should run `tskl:ci` directly.
+The skill ships no slash command — it's discovered by agents via its `description` field. Per the repo convention used by the other no-command skills (`taskless-create-rule-anonymous`, `taskless-improve-rule-anonymous`, `taskless-delete-rule`), its frontmatter sets `metadata.commandName: "-"`. This keeps `commands/tskl/` clean and avoids the impression that users should run `tskl:ci` directly.
 
 ### Intro banner: frozen ASCII wordmark, quad-block 60 cols
 
