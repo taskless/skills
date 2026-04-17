@@ -1,28 +1,35 @@
-Install Taskless skills
+Install or update Taskless skills
 
-Detects supported coding agent tools in your project and installs
-Taskless skills and commands for each one.
+Launches an interactive wizard that detects supported coding agent tools in
+your project, lets you pick which install locations to write to, choose any
+optional skills (e.g. taskless-ci), and optionally log in to taskless.io.
 
-Supported tools:
+Running `taskless` with no subcommand in a TTY also launches this wizard.
+In non-interactive contexts (pipes, CI) the wizard is skipped automatically.
+
+Supported install locations:
   Claude Code    .claude/ directory or CLAUDE.md file
   OpenCode       .opencode/ directory, opencode.jsonc, or opencode.json
   Cursor         .cursor/ directory or .cursorrules file
-
-If no tools are detected, skills are installed to .agents/skills/ as a
-fallback location.
+  Fallback       .agents/ (used when no other tool is detected)
 
 Usage:
   taskless init [options]
 
 Options:
-  -d, --dir <path>   Set working directory (default: current directory)
+  -d, --dir <path>     Set working directory (default: current directory)
+      --no-interactive Install every mandatory skill to every detected tool
+                       without prompting. Skips optional skills and auth.
+                       Used by CI and scripted installs.
 
 Behavior:
-  - Detects tool signals (files and directories) in the project root
-  - Installs skill files to each detected tool's skills directory
-  - Installs command files for Claude Code only
-  - Falls back to .agents/skills/ if no tools are detected
+  - Interactive (default): prompts for locations, optional skills, and auth.
+    Shows a diff against the previous install state before writing anything.
+    Ctrl-C at any step aborts cleanly with no filesystem changes.
+  - --no-interactive: installs mandatory skills to every detected tool, or to
+    .agents/skills/ as a fallback when no tools are detected. No prompts.
 
 Examples:
   taskless init
   taskless init -d ./my-project
+  taskless init --no-interactive

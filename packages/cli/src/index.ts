@@ -46,10 +46,21 @@ const main = defineCommand({
   },
   async run({ rawArgs, cmd }) {
     // citty always calls the parent's run handler, even after a subcommand.
-    // Only show help when no positional args (i.e. no subcommand) were provided.
-    if (!rawArgs.some((argument) => !argument.startsWith("-"))) {
-      await showUsage(cmd);
+    // Only take action when no positional args (i.e. no subcommand) were provided.
+    if (rawArgs.some((argument) => !argument.startsWith("-"))) {
+      return;
     }
+
+    // TTY → run the interactive wizard. Non-TTY → show help as before so
+    // scripted invocations that pipe `taskless` keep working.
+    if (process.stdout.isTTY === true) {
+      await runCommand(initCommand, {
+        rawArgs: rawArgs.filter((argument) => argument.startsWith("-")),
+      });
+      return;
+    }
+
+    await showUsage(cmd);
   },
 });
 
