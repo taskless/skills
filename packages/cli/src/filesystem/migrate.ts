@@ -47,7 +47,13 @@ async function readRawManifest(
 ): Promise<{ version: number; raw: Record<string, unknown> }> {
   try {
     const content = await readFile(join(directory, MANIFEST_FILE), "utf8");
-    const parsed = JSON.parse(content) as Record<string, unknown>;
+    const parsed: unknown = JSON.parse(content);
+    // Treat any non-object (e.g. `null`, arrays, primitives) as a corrupt
+    // manifest so migrations re-run from version 0. Reading `.version`
+    // off `null` would otherwise throw TypeError and bypass the fallback.
+    if (!isPlainObject(parsed)) {
+      return { version: 0, raw: {} };
+    }
     const version = Number(parsed.version);
     return {
       version: Number.isFinite(version) ? version : 0,
