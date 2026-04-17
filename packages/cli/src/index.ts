@@ -51,9 +51,25 @@ const main = defineCommand({
       return;
     }
 
+    // Only delegate to `init` when the only flags present are ones init
+    // also understands (`-d` / `--dir`). Help/version/schema/json flags and
+    // any unknown flags should fall through to citty's default help instead
+    // of silently launching the wizard.
+    const onlyInitFlags = rawArgs.every((argument, index) => {
+      if (!argument.startsWith("-")) return true;
+      if (argument === "-d" || argument === "--dir") return true;
+      const previous = rawArgs[index - 1];
+      if (previous === "-d" || previous === "--dir") return true;
+      return false;
+    });
+    if (!onlyInitFlags) {
+      await showUsage(cmd);
+      return;
+    }
+
     // TTY → run the interactive wizard. Non-TTY → show help as before so
     // scripted invocations that pipe `taskless` keep working.
-    if (process.stdout.isTTY === true) {
+    if (process.stdout.isTTY === true && process.stdin.isTTY === true) {
       await runCommand(initCommand, {
         rawArgs: rawArgs.filter((argument) => argument.startsWith("-")),
       });

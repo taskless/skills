@@ -18,7 +18,10 @@ import { getCliVersion } from "../wizard/intro";
 function shouldRunInteractively(noInteractiveFlag: boolean): boolean {
   if (noInteractiveFlag) return false;
   if (process.env.CI === "true" || process.env.CI === "1") return false;
-  return process.stdout.isTTY === true;
+  // Require both stdin and stdout to be TTYs — clack reads from stdin, so a
+  // piped stdin (common in scripts) would hang the wizard even when stdout
+  // is a TTY.
+  return process.stdout.isTTY === true && process.stdin.isTTY === true;
 }
 
 export const initCommand = defineCommand({
