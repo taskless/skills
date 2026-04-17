@@ -46,8 +46,16 @@ const main = defineCommand({
   },
   async run({ rawArgs, cmd }) {
     // citty always calls the parent's run handler, even after a subcommand.
-    // Only take action when no positional args (i.e. no subcommand) were provided.
-    if (rawArgs.some((argument) => !argument.startsWith("-"))) {
+    // Only take action when no positional args (i.e. no subcommand) were
+    // provided. A value following `-d`/`--dir` is a flag value, not a
+    // positional, so skip it when scanning.
+    const hasPositional = rawArgs.some((argument, index) => {
+      if (argument.startsWith("-")) return false;
+      const previous = rawArgs[index - 1];
+      if (previous === "-d" || previous === "--dir") return false;
+      return true;
+    });
+    if (hasPositional) {
       return;
     }
 
@@ -56,10 +64,11 @@ const main = defineCommand({
     // any unknown flags should fall through to citty's default help instead
     // of silently launching the wizard.
     const onlyInitFlags = rawArgs.every((argument, index) => {
-      if (!argument.startsWith("-")) return true;
+      if (!argument.startsWith("-")) {
+        const previous = rawArgs[index - 1];
+        return previous === "-d" || previous === "--dir";
+      }
       if (argument === "-d" || argument === "--dir") return true;
-      const previous = rawArgs[index - 1];
-      if (previous === "-d" || previous === "--dir") return true;
       return false;
     });
     if (!onlyInitFlags) {
@@ -68,11 +77,10 @@ const main = defineCommand({
     }
 
     // TTY → run the interactive wizard. Non-TTY → show help as before so
-    // scripted invocations that pipe `taskless` keep working.
+    // scripted invocations that pipe `taskless` keep working. Forward the
+    // full rawArgs so `-d <value>` is preserved end-to-end.
     if (process.stdout.isTTY === true && process.stdin.isTTY === true) {
-      await runCommand(initCommand, {
-        rawArgs: rawArgs.filter((argument) => argument.startsWith("-")),
-      });
+      await runCommand(initCommand, { rawArgs });
       return;
     }
 

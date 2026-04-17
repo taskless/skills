@@ -290,5 +290,36 @@ describe("check", () => {
         expect(result.file).not.toMatch(/^sample\.js$/);
       }
     });
+
+    it("treats arguments after `--` as positional paths even if they start with `-`", async () => {
+      await cp(fixturesDirectory, temporaryDirectory, { recursive: true });
+      // Create a file whose name starts with `-`; without `--`, the CLI
+      // would treat it as an unknown flag and fall back to a full scan.
+      await writeFile(
+        join(temporaryDirectory, "-weird.js"),
+        'eval("dash-prefixed");\n'
+      );
+
+      const { stdout, exitCode } = await runCli([
+        "check",
+        "-d",
+        temporaryDirectory,
+        "--json",
+        "--",
+        "-weird.js",
+      ]);
+
+      expect(exitCode).toBe(1);
+      const parsed = JSON.parse(stdout.trim()) as {
+        results: Array<{ file: string }>;
+      };
+
+      // Only the `-weird.js` file — sample.js should not be scanned
+      expect(parsed.results.length).toBeGreaterThan(0);
+      for (const result of parsed.results) {
+        expect(result.file).toContain("-weird.js");
+        expect(result.file).not.toContain("sample.js");
+      }
+    });
   });
 });

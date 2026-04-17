@@ -137,9 +137,9 @@ Rationale for the block-drawing range over braille (U+2800–U+28FF):
 - Braille font coverage is inconsistent (Menlo, Courier New, legacy Linux console fonts lack the range). Block-drawing is universally supported.
 - Non-UTF-8 locales (`LC_ALL=C`, older SSH sessions) render braille as three question marks per char; block-drawing degrades more gracefully.
 
-The `renderIntro()` function exposes `{ banner: string; version: string }` so callers can style with picocolors at call time. `NO_COLOR=1` disables ANSI escapes. The banner itself is colorless ASCII; color is applied by wrapping the whole string in one picocolors call.
+The `renderIntro()` function returns a single formatted string, with styling applied inside `wizard/intro.ts` via `chalk`. `NO_COLOR=1` disables ANSI escapes. The banner source itself remains colorless ASCII; the implementation applies color when composing the final intro string.
 
-Iteration is cheap: re-running the converter with different width/mode arguments produces new candidates, and replacing the constant in `wizard/intro.ts` is a one-line change. The converter at `tmp/ascii-tool/` is checked in as a design artifact but not imported from application code.
+Iteration is still cheap: re-running the converter with different width/mode arguments produces new candidates, and updating the banner constant in `wizard/intro.ts` is a one-line change. The converter at `tmp/ascii-tool/` is checked in as a design artifact but not imported from application code.
 
 ## Risks / Trade-offs
 
