@@ -1,4 +1,4 @@
-import { intro, outro, cancel } from "@clack/prompts";
+import { intro, outro, cancel, log } from "@clack/prompts";
 
 import { ensureTasklessDirectory } from "../filesystem/directory";
 import { SKILL_CATALOG } from "../install/catalog";
@@ -148,7 +148,9 @@ export async function runWizard(
       return finish({ status: "cancelled" });
     }
 
-    await ensureTasklessDirectory(options.cwd);
+    await ensureTasklessDirectory(options.cwd, {
+      onNotice: (message) => log.info(message),
+    });
     await applyInstallPlan(
       options.cwd,
       { targets: planTargets },

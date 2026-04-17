@@ -1,5 +1,30 @@
 {
-  "version": "2026-03-02",
-  "orgId": 32312867,
-  "repositoryUrl": "https://github.com/taskless/skills"
+  "version": 2,
+  "install": {
+    "targets": {
+      ".claude": {
+        "skills": [
+          "taskless-check",
+          "taskless-create-rule",
+          "taskless-create-rule-anonymous",
+          "taskless-delete-rule",
+          "taskless-improve-rule",
+          "taskless-improve-rule-anonymous",
+          "taskless-info",
+          "taskless-login",
+          "taskless-logout"
+        ],
+        "commands": [
+          "check.md",
+          "improve.md",
+          "info.md",
+          "login.md",
+          "logout.md",
+          "rule.md"
+        ]
+      }
+    },
+    "installedAt": "2026-04-17T01:48:11.728Z",
+    "cliVersion": "0.5.4"
+  }
 }
