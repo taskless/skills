@@ -3,15 +3,29 @@ import { join } from "node:path";
 
 import type { Migrations } from "./types";
 import init from "./migrations/0001-init";
+import installMigration from "./migrations/0002-install";
 
-interface TasklessManifest {
+export interface TasklessInstallTarget {
+  skills?: string[];
+  commands?: string[];
+}
+
+export interface TasklessInstallManifest {
+  installedAt?: string;
+  cliVersion?: string;
+  targets?: Record<string, TasklessInstallTarget>;
+}
+
+export interface TasklessManifest {
   version: number;
+  install?: TasklessInstallManifest;
 }
 
 const MANIFEST_FILE = "taskless.json";
 
 const migrations: Migrations = {
   "1": init,
+  "2": installMigration,
 };
 
 /** Sort migration keys numerically and return [version, migration] pairs */
@@ -23,12 +37,22 @@ function sortedMigrations(
     .toSorted(([a], [b]) => a - b);
 }
 
-async function readManifest(directory: string): Promise<TasklessManifest> {
+/**
+ * Read the manifest file, returning the full parsed record plus the normalized
+ * version. Unknown top-level fields are preserved so callers can round-trip
+ * them on write.
+ */
+async function readRawManifest(
+  directory: string
+): Promise<{ version: number; raw: Record<string, unknown> }> {
   try {
     const content = await readFile(join(directory, MANIFEST_FILE), "utf8");
     const parsed = JSON.parse(content) as Record<string, unknown>;
     const version = Number(parsed.version);
-    return { version: Number.isFinite(version) ? version : 0 };
+    return {
+      version: Number.isFinite(version) ? version : 0,
+      raw: parsed,
+    };
   } catch (error) {
     if (
       error &&
@@ -36,25 +60,68 @@ async function readManifest(directory: string): Promise<TasklessManifest> {
       "code" in error &&
       (error as NodeJS.ErrnoException).code === "ENOENT"
     ) {
-      return { version: 0 };
+      return { version: 0, raw: {} };
     }
     // Treat corrupt/unparseable manifest as version 0 so migrations re-run
     if (error instanceof SyntaxError) {
-      return { version: 0 };
+      return { version: 0, raw: {} };
     }
     throw error;
   }
 }
 
-async function writeManifest(
+async function writeRawManifest(
   directory: string,
-  manifest: TasklessManifest
+  raw: Record<string, unknown>
 ): Promise<void> {
   await writeFile(
     join(directory, MANIFEST_FILE),
-    JSON.stringify(manifest, null, 2) + "\n",
+    JSON.stringify(raw, null, 2) + "\n",
     "utf8"
   );
+}
+
+/**
+ * Read the full manifest, returning the typed shape. Unknown fields are
+ * discarded by this API — if you need round-trip preservation, use
+ * {@link readManifest} below and pass its `raw` object back through
+ * {@link writeManifest}.
+ */
+export async function readManifest(
+  directory: string
+): Promise<{ manifest: TasklessManifest; raw: Record<string, unknown> }> {
+  const { version, raw } = await readRawManifest(directory);
+  const install = raw.install as TasklessInstallManifest | undefined;
+  return {
+    manifest: {
+      version,
+      install: isPlainObject(install) ? install : undefined,
+    },
+    raw,
+  };
+}
+
+/**
+ * Write the manifest, merging the provided fields over any existing unknown
+ * top-level fields stored in `raw`. Callers typically pass the `raw` object
+ * returned by {@link readManifest} to preserve forward-compatible state.
+ */
+export async function writeManifest(
+  directory: string,
+  manifest: TasklessManifest,
+  raw: Record<string, unknown> = {}
+): Promise<void> {
+  const merged: Record<string, unknown> = { ...raw, version: manifest.version };
+  if (manifest.install === undefined) {
+    delete merged.install;
+  } else {
+    merged.install = manifest.install;
+  }
+  await writeRawManifest(directory, merged);
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /**
@@ -67,28 +134,34 @@ export async function runMigrations(tasklessDirectory: string): Promise<void> {
   if (sorted.length === 0) return;
 
   const maxVersion = sorted.at(-1)![0];
-  const manifest = await readManifest(tasklessDirectory);
+  const { version, raw } = await readRawManifest(tasklessDirectory);
 
-  if (manifest.version >= maxVersion) {
+  if (version >= maxVersion) {
     return;
   }
 
-  const pending = sorted.filter(([version]) => version > manifest.version);
+  const pending = sorted.filter(([v]) => v > version);
   console.error("Migrating to latest .taskless/ schema...");
-  for (const [version, migrate] of pending) {
+  for (const [v, migrate] of pending) {
     try {
       await migrate(tasklessDirectory);
     } catch (error) {
       console.error(
-        `Migration ${String(version)} failed: ${error instanceof Error ? error.message : String(error)}`
+        `Migration ${String(v)} failed: ${error instanceof Error ? error.message : String(error)}`
       );
       // Write manifest at last successful version so we don't re-run completed migrations
-      if (version > manifest.version + 1) {
-        await writeManifest(tasklessDirectory, { version: version - 1 });
+      if (v > version + 1) {
+        const partial = { ...raw, version: v - 1 };
+        await writeRawManifest(tasklessDirectory, partial);
       }
       throw error;
     }
   }
 
-  await writeManifest(tasklessDirectory, { version: maxVersion });
+  // Re-read the raw manifest so we preserve anything migrations wrote
+  const { raw: latestRaw } = await readRawManifest(tasklessDirectory);
+  await writeRawManifest(tasklessDirectory, {
+    ...latestRaw,
+    version: maxVersion,
+  });
 }

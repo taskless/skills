@@ -7,25 +7,25 @@
 
 ## 2. New `taskless-ci` skill (placeholder)
 
-- [ ] 2.1 Create `skills/taskless-ci/SKILL.md` with valid Agent Skills frontmatter (`name: taskless-ci`, description, version, author)
-- [ ] 2.2 Body is a one-paragraph placeholder stating the skill's full behavior is pending (real body lands in OSS-3)
-- [ ] 2.3 Verify the skill is picked up by the existing `import.meta.glob` bundling pattern
+- [x] 2.1 Create `skills/taskless-ci/SKILL.md` with valid Agent Skills frontmatter (`name: taskless-ci`, description, version, author)
+- [x] 2.2 Body is a one-paragraph placeholder stating the skill's full behavior is pending (real body lands in OSS-3)
+- [x] 2.3 Verify the skill is picked up by the existing `import.meta.glob` bundling pattern
 
 ## 3. Manifest migration 2
 
-- [ ] 3.1 Extend the `TasklessManifest` interface in `packages/cli/src/filesystem/migrate.ts` with the optional `install` field described in the design
-- [ ] 3.2 Update `readManifest()` / `writeManifest()` to preserve unknown top-level fields on round-trip
-- [ ] 3.3 Create `packages/cli/src/filesystem/migrations/0002-install.ts` that adds `install: {}` if absent, leaves it untouched if present (idempotent)
-- [ ] 3.4 Register migration `"2"` in the migrations record in `migrate.ts`
-- [ ] 3.5 Add unit tests: fresh project reaches `{ version: 2, install: {} }`; v1 project forward-migrates; existing `install` object is preserved
-- [ ] 3.6 Add a test proving an unknown top-level field survives a migrate + write cycle
+- [x] 3.1 Extend the `TasklessManifest` interface in `packages/cli/src/filesystem/migrate.ts` with the optional `install` field described in the design
+- [x] 3.2 Update `readManifest()` / `writeManifest()` to preserve unknown top-level fields on round-trip
+- [x] 3.3 Create `packages/cli/src/filesystem/migrations/0002-install.ts` that adds `install: {}` if absent, leaves it untouched if present (idempotent)
+- [x] 3.4 Register migration `"2"` in the migrations record in `migrate.ts`
+- [x] 3.5 Add unit tests: fresh project reaches `{ version: 2, install: {} }`; v1 project forward-migrates; existing `install` object is preserved
+- [x] 3.6 Add a test proving an unknown top-level field survives a migrate + write cycle
 
 ## 4. Install manifest read/write helpers
 
-- [ ] 4.1 Add `readInstallState(cwd)` in `packages/cli/src/install/` that returns the current `install` object (or an empty default)
-- [ ] 4.2 Add `writeInstallState(cwd, state)` that merges the new install state into `taskless.json`, preserves other fields, and writes atomically
-- [ ] 4.3 Add `computeInstallDiff(previous, next)` returning `{ additions, removals, unchanged }` grouped by target
-- [ ] 4.4 Unit tests for diff logic: brand-new target, removed target, added skill within existing target, removed skill within existing target, zero-diff re-run
+- [x] 4.1 Add `readInstallState(cwd)` in `packages/cli/src/install/` that returns the current `install` object (or an empty default)
+- [x] 4.2 Add `writeInstallState(cwd, state)` that merges the new install state into `taskless.json`, preserves other fields, and writes atomically
+- [x] 4.3 Add `computeInstallDiff(previous, next)` returning `{ additions, removals, unchanged }` grouped by target
+- [x] 4.4 Unit tests for diff logic: brand-new target, removed target, added skill within existing target, removed skill within existing target, zero-diff re-run
 
 ## 5. Refactor installer to accept explicit targets
 
