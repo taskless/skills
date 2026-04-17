@@ -1,8 +1,13 @@
-import { writeFile, mkdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 
 import { addToGitignore } from "../gitignore";
 import type { Migration } from "../types";
+
+const MANIFEST_FILE = "taskless.json";
+
+/** Fields present on v0 manifests that are obsolete in v1. */
+const V0_LEGACY_FIELDS = ["orgId", "repositoryUrl", "astGrepVersion"] as const;
 
 const README_CONTENT = `# Taskless
 
@@ -39,6 +44,36 @@ const migration: Migration = async (directory) => {
   // Create subdirectories
   await mkdir(join(directory, "rules"), { recursive: true });
   await mkdir(join(directory, "rule-tests"), { recursive: true });
+
+  // Strip legacy v0 fields from taskless.json if present
+  const manifestPath = join(directory, MANIFEST_FILE);
+  try {
+    const content = await readFile(manifestPath, "utf8");
+    const parsed = JSON.parse(content) as unknown;
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      !Array.isArray(parsed)
+    ) {
+      const raw = parsed as Record<string, unknown>;
+      let touched = false;
+      for (const field of V0_LEGACY_FIELDS) {
+        if (field in raw) {
+          delete raw[field];
+          touched = true;
+        }
+      }
+      if (touched) {
+        await writeFile(
+          manifestPath,
+          JSON.stringify(raw, null, 2) + "\n",
+          "utf8"
+        );
+      }
+    }
+  } catch {
+    // Missing or unparseable manifest — the migration runner will handle
+  }
 };
 
 export default migration;
