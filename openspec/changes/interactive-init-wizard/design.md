@@ -27,7 +27,6 @@ Constraints:
 
 **Non-Goals:**
 
-- Implementing the CI skill's actual behavior (detecting CI environment, generating `.github/workflows/*.yml`, emitting auth-in-CI guidance). OSS-3 covers that.
 - Building a `taskless uninstall` or `taskless clean` subcommand. The install manifest unlocks a future uninstall but this change doesn't ship one.
 - Active deprecation behavior (CLI checks its own version against a server-supplied floor and warns/errors). This change only passively attaches versions to events; the warning logic is a future change.
 - Changing the existing dual-skill auth pattern (`taskless-create-rule` vs `taskless-create-rule-anonymous`). That stays as-is.
@@ -109,6 +108,12 @@ Both are stored in the closure returned by `getTelemetry()` and merged into ever
 ### Wizard steps live under `packages/cli/src/wizard/`
 
 Each step is a pure function returning its selection result. The top-level `runWizard()` composes them with `@clack/prompts.group()`. This keeps the file structure discoverable, makes unit-testing individual steps straightforward (mock clack, assert step logic), and gives us a seam for the banner (which also lives in `wizard/`).
+
+### CI skill: patterns over enumeration
+
+The `taskless-ci` skill is installed into other users' repos and invoked by their agents. If it hardcodes a fixed enumeration of CI systems with exact detection logic, the skill rots the moment a new CI system gains traction. Instead the skill teaches **two patterns** (full scan / diff scan) plus the universal six-step skeleton (checkout → fetch base → diff → filter → invoke check → report), and lists common CI systems as hints rather than an exhaustive switch. Agents that recognize unlisted CI systems are told to apply the same patterns idiomatically.
+
+The skill ships no slash command — it's discovered by agents via its `description` field and doesn't need the `commandName` frontmatter key. This keeps `commands/tskl/` clean and avoids the impression that users should run `tskl:ci` directly.
 
 ### Intro banner: frozen ASCII wordmark, half-block 60 cols
 

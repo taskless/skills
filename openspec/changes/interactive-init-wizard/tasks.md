@@ -108,3 +108,14 @@
 - [x] 15.5 Unit tests: zero paths → full scan, explicit paths → forwarded, missing paths filtered, all-missing → empty results, directory paths accepted
 - [x] 15.6 Update `packages/cli/src/help/check.txt` with the new path-argument syntax and a CI example
 - [x] 15.7 Update `packages/cli/README.md` `taskless check` section to mention path arguments
+
+## 16. `taskless-ci` skill body
+
+- [x] 16.1 Replace the placeholder body in `skills/taskless-ci/SKILL.md` with agent-facing instructions covering CI discovery, scan-mode agreement, local-check gating, non-destructive config generation, and error handling
+- [x] 16.2 List common CI systems (GitHub Actions, GitLab CI, CircleCI, Jenkins, Azure Pipelines, Bitbucket Pipelines, Buildkite, Drone, Travis CI) as detection hints without making the skill an exhaustive enumeration — instruct agents to apply the same patterns to recognized-but-unlisted systems
+- [x] 16.3 Document the full-scan vs. diff-scan patterns and the per-CI diff-target variables (`github.base_ref`, `CI_MERGE_REQUEST_TARGET_BRANCH_NAME`, `CIRCLE_BRANCH`, `env.CHANGE_TARGET`, `System.PullRequest.TargetBranch`, `BITBUCKET_PR_DESTINATION_BRANCH`)
+- [x] 16.4 Include a complete GitHub Actions template as the primary reference; describe the equivalent structure for other CI systems as translation guidance rather than exhaustive templates
+- [x] 16.5 Require the skill to gate CI setup on a clean local `taskless check` (no rules → invoke `taskless-create-rule` instead)
+- [x] 16.6 Require standalone file generation (never edit existing CI files) with canonical paths per CI system and include/reference instructions for systems that need them
+- [x] 16.7 Confirm the skill frontmatter does not include `commandName` (no slash command for `taskless-ci`)
+- [x] 16.8 Verify the skill builds (vite `assertSkillVersions` passes: name, version, and catalog entry all consistent)

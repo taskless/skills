@@ -17,7 +17,7 @@ Separately, we have no way to answer "which CLI version is running in the wild?"
 - Intro renders an ASCII Taskless wordmark with `picocolors` coloring. Exact ASCII art will be iterated post-merge; the initial commit uses a placeholder.
 - Add `install` object to `.taskless/taskless.json`, keyed by target location, recording the skills and commands written to each. Persisted across runs so re-invocations can compute a diff.
 - Add migration `2` that initializes an empty `install: {}` object when an existing `taskless.json` is migrated forward.
-- Add the `taskless-ci` skill to the embedded skill bundle (contents TBD — the skill's CI-generation behavior is covered by OSS-3; this change only wires the skill into the catalog and marks it optional).
+- Add the `taskless-ci` skill to the embedded skill bundle. The skill body teaches agents two reusable patterns — full-scan and diff-scan — and directs them to integrate with whichever CI system the user already runs (GitHub Actions, GitLab CI, CircleCI, Jenkins, Azure Pipelines, Bitbucket Pipelines, or any other CI system the agent recognizes) by writing a standalone, non-destructive config. The skill does NOT register a slash command.
 - Add `cliVersion` (from `packages/cli/package.json`) and `scaffoldVersion` (from `.taskless/taskless.json`) as standard properties attached to every `posthog.capture()` event.
 - Add two new analytics events: `cli_init_completed` (rich payload: `locations`, `optionalSkills`, `authPromptShown`, `authCompleted`, `nonInteractive`, `durationMs`) and `cli_init_cancelled` (`atStep`).
 - Add positional path arguments to `taskless check`. When one or more paths are passed (e.g. `taskless check src/foo.ts src/bar.ts`), the scanner runs against only those paths; zero paths preserves the current behavior of scanning the full project. Paths that do not exist on disk (e.g. deleted files in a git diff) are silently filtered so CI pipelines can pipe raw diff output without pre-filtering. Required by the forthcoming CI skill (OSS-3) which will generate workflow files that invoke `taskless check $(git diff --name-only …)` for PR-only scanning.
@@ -26,7 +26,7 @@ Separately, we have no way to answer "which CLI version is running in the wild?"
 
 ### New Capabilities
 
-- `skill-ci`: A new skill (`taskless-ci`) that teaches agents how to wire Taskless into a developer CI pipeline. Full behavior (target CI env detection, workflow generation, auth-in-CI guidance) is deferred to a separate change that implements the skill's body; this capability's initial spec covers only its presence in the bundle and the init-wizard contract that it is optional and unselected by default.
+- `skill-ci`: A new skill (`taskless-ci`) that teaches agents how to wire Taskless into a developer CI pipeline. The skill covers full-scan and diff-scan patterns, non-destructive config generation (standalone files, never editing the user's existing CI config), no-auth defaults, and a gate that refuses to write CI config when no rules exist. Lists common CI systems as detection hints without restricting the skill to a fixed enumeration.
 
 ### Modified Capabilities
 
