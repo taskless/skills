@@ -3,7 +3,7 @@ name: taskless-ci
 description: Integrates Taskless into a developer's CI environment. Use when the user wants to set up Taskless in their CI pipeline, wire up automated rule checks on pull requests, or scaffold CI configuration for Taskless. Trigger on "set up CI", "add taskless to CI", "taskless in GitHub Actions", "run taskless on PRs", or "wire up CI for taskless".
 metadata:
   author: taskless
-  version: 0.5.4
+  version: 0.6.0
   commandName: "-"
 compatibility: Designed for Agents implementing the Agent Skills specification.
 ---
