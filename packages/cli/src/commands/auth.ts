@@ -1,10 +1,9 @@
 import { resolve } from "node:path";
 import { defineCommand } from "citty";
 
-import { deviceFlowProvider } from "../auth/device-flow";
-import { getToken, removeToken, saveToken } from "../auth/token";
+import { loginInteractive } from "../auth/login-interactive";
+import { getToken, removeToken } from "../auth/token";
 import { fetchWhoami } from "../auth/whoami";
-import { resolveRepositoryUrl } from "../util/git-remote";
 import { getTelemetry } from "../telemetry";
 
 const loginCommand = defineCommand({
@@ -24,76 +23,22 @@ const loginCommand = defineCommand({
     const telemetry = await getTelemetry(cwd);
     telemetry.capture("cli_auth_login");
 
-    const existing = await getToken(cwd);
-    if (existing) {
-      console.log("You are already logged in.");
-      console.log("Run `taskless auth logout` first to re-authenticate.");
-      return;
-    }
+    const result = await loginInteractive({ cwd });
 
-    try {
-      let repositoryUrl: string | undefined;
-      try {
-        repositoryUrl = await resolveRepositoryUrl(cwd);
-      } catch {
-        // Not a git repo or no origin — proceed without hint
+    switch (result.status) {
+      case "ok": {
+        telemetry.capture("cli_auth_login_completed");
+        return;
       }
-
-      const deviceCode =
-        await deviceFlowProvider.requestDeviceCode(repositoryUrl);
-
-      console.log(`\nOpen this URL in your browser:\n`);
-      console.log(
-        `  ${deviceCode.verification_uri_complete ?? deviceCode.verification_uri}\n`
-      );
-      console.log(`Enter code: ${deviceCode.user_code}\n`);
-      console.log("Waiting for authorization...");
-
-      const intervalMs = deviceCode.interval * 1000;
-      const expiresAt = Date.now() + deviceCode.expires_in * 1000;
-      let currentInterval = intervalMs;
-
-      while (Date.now() < expiresAt) {
-        await new Promise((resolve) => setTimeout(resolve, currentInterval));
-
-        const result = await deviceFlowProvider.pollForToken(
-          deviceCode.device_code
-        );
-
-        switch (result.status) {
-          case "success": {
-            await saveToken(result.token, cwd);
-            telemetry.capture("cli_auth_login_completed");
-            console.log("Logged in successfully.");
-            return;
-          }
-          case "slow_down": {
-            currentInterval += 5000;
-            break;
-          }
-          case "expired": {
-            console.error("Device code expired. Please try again.");
-            process.exitCode = 1;
-            return;
-          }
-          case "denied": {
-            console.error("Authorization denied.");
-            process.exitCode = 1;
-            return;
-          }
-          case "pending": {
-            break;
-          }
-        }
+      case "already_logged_in": {
+        console.log("You are already logged in.");
+        console.log("Run `taskless auth logout` first to re-authenticate.");
+        return;
       }
-
-      console.error("Device code expired. Please try again.");
-      process.exitCode = 1;
-    } catch (error) {
-      console.error(
-        error instanceof Error ? error.message : "Authentication failed."
-      );
-      process.exitCode = 1;
+      case "cancelled": {
+        process.exitCode = 1;
+        return;
+      }
     }
   },
 });
