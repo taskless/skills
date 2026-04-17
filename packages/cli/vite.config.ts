@@ -6,6 +6,8 @@ import type { Plugin } from "vite";
 import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
+import { SKILL_CATALOG } from "./src/install/catalog";
+
 const pkg = JSON.parse(
   readFileSync(resolve(import.meta.dirname, "package.json"), "utf8")
 ) as { version: string };
@@ -21,8 +23,10 @@ function assertSkillVersions(): Plugin {
         d.isDirectory()
       );
       const mismatched: string[] = [];
+      const sourceNames = new Set<string>();
 
       for (const dir of dirs) {
+        sourceNames.add(dir.name);
         const skillPath = join(skillsDir, dir.name, "SKILL.md");
         let content: string;
         try {
@@ -45,6 +49,31 @@ function assertSkillVersions(): Plugin {
         throw new Error(
           `Skill version mismatch! Run "tsx scripts/sync-skill-versions.ts" to fix.\n${mismatched.join("\n")}`
         );
+      }
+
+      const catalogNames = new Set(SKILL_CATALOG.map((s) => s.name));
+      const missingFromCatalog = [...sourceNames].filter(
+        (n) => !catalogNames.has(n)
+      );
+      const missingFromSource = [...catalogNames].filter(
+        (n) => !sourceNames.has(n)
+      );
+
+      if (missingFromCatalog.length > 0 || missingFromSource.length > 0) {
+        const lines: string[] = [];
+        if (missingFromCatalog.length > 0) {
+          lines.push(
+            `Skills present under skills/ but missing from SKILL_CATALOG in src/install/catalog.ts:`
+          );
+          for (const name of missingFromCatalog) lines.push(`  - ${name}`);
+        }
+        if (missingFromSource.length > 0) {
+          lines.push(
+            `Skills declared in SKILL_CATALOG but missing a source directory under skills/:`
+          );
+          for (const name of missingFromSource) lines.push(`  - ${name}`);
+        }
+        throw new Error(lines.join("\n"));
       }
     },
   };
