@@ -9,5 +9,6 @@ Add interactive `init` wizard. Running `taskless` in a terminal (or `taskless in
 Also adds:
 
 - `install` field in `.taskless/taskless.json` (migration 2) tracking per-target skills and commands, used by the wizard to compute a diff and surgically remove files on re-run
-- `taskless-ci` skill in the bundle as an optional opt-in (implementation body lands in a follow-up change)
+- `taskless-ci` skill in the bundle as an optional opt-in, with agent-facing instructions that cover CI discovery, full-scan/diff-scan patterns, and non-destructive config generation for any CI system the agent recognizes
+- `taskless check <paths...>` for diff-only scanning in CI (silently filters missing paths so `git diff` output can be piped in directly)
 - `cliVersion` and `scaffoldVersion` attached to every PostHog telemetry event, for deprecation tracking
