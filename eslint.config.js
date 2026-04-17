@@ -14,6 +14,7 @@ export default tseslint.config(
       "plugins/",
       "openspec/",
       "**/test/fixtures/",
+      "tmp/",
     ],
   },
   eslint.configs.recommended,

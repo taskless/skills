@@ -51,50 +51,50 @@
 
 ## 8. Wizard scaffolding
 
-- [ ] 8.1 Create `packages/cli/src/wizard/index.ts` exposing `runWizard({ cwd }): Promise<WizardResult>`
-- [ ] 8.2 Create `packages/cli/src/wizard/ask.ts` — thin wrapper around clack prompts that throws `WizardCancelled` on `isCancel()` Symbols
-- [ ] 8.3 Create `packages/cli/src/wizard/intro.ts` — `renderIntro()` returns an ASCII banner string with picocolors; respects `NO_COLOR`
-- [ ] 8.4 Add a top-level try/catch in `runWizard()` that handles `WizardCancelled`, emits `cli_init_cancelled`, and exits non-zero
+- [x] 8.1 Create `packages/cli/src/wizard/index.ts` exposing `runWizard({ cwd }): Promise<WizardResult>`
+- [x] 8.2 Create `packages/cli/src/wizard/ask.ts` — thin wrapper around clack prompts that throws `WizardCancelled` on `isCancel()` Symbols
+- [x] 8.3 Create `packages/cli/src/wizard/intro.ts` — `renderIntro()` returns an ASCII banner string with picocolors; respects `NO_COLOR`
+- [x] 8.4 Add a top-level try/catch in `runWizard()` that handles `WizardCancelled`, emits `cli_init_cancelled`, and exits non-zero
 
 ## 9. Wizard steps
 
-- [ ] 9.1 `wizard/steps/locations.ts` — multi-select showing all four known locations (detected pre-checked); re-prompt on zero selections
-- [ ] 9.2 `wizard/steps/optional-skills.ts` — multi-select reading from the catalog; all unchecked by default; zero selections is permitted
-- [ ] 9.3 `wizard/steps/auth.ts` — skip if token exists; otherwise show tradeoff text, prompt to log in, call `loginInteractive()` on accept, print hint on decline
-- [ ] 9.4 `wizard/steps/summary.ts` — render `computeInstallDiff()` result grouped by target; require confirm only when removals are present
-- [ ] 9.5 Unit tests per step: mock clack, verify the step's return value for representative inputs
+- [x] 9.1 `wizard/steps/locations.ts` — multi-select showing all four known locations (detected pre-checked); re-prompt on zero selections
+- [x] 9.2 `wizard/steps/optional-skills.ts` — multi-select reading from the catalog; all unchecked by default; zero selections is permitted
+- [x] 9.3 `wizard/steps/auth.ts` — skip if token exists; otherwise show tradeoff text, prompt to log in, call `loginInteractive()` on accept, print hint on decline
+- [x] 9.4 `wizard/steps/summary.ts` — render `computeInstallDiff()` result grouped by target; require confirm only when removals are present
+- [x] 9.5 Unit tests per step: mock clack, verify the step's return value for representative inputs
 
 ## 10. Rewire `init` command
 
-- [ ] 10.1 Add `--no-interactive` boolean flag to `init` in `packages/cli/src/commands/init.ts`
-- [ ] 10.2 When the flag is absent AND stdout is a TTY AND `CI` env var is not set: call `runWizard()` and dispatch to installer with the wizard's results
-- [ ] 10.3 When the flag is present or we detect non-interactive context: install every mandatory skill (from catalog) to every detected tool location (or `.agents/` fallback), skipping optional skills and auth
-- [ ] 10.4 Detect non-interactive context: print a stderr notice explaining the auto-switch
-- [ ] 10.5 Emit `cli_init` on entry and `cli_init_completed` on successful completion with the rich properties described in the analytics spec
+- [x] 10.1 Add `--no-interactive` boolean flag to `init` in `packages/cli/src/commands/init.ts`
+- [x] 10.2 When the flag is absent AND stdout is a TTY AND `CI` env var is not set: call `runWizard()` and dispatch to installer with the wizard's results
+- [x] 10.3 When the flag is present or we detect non-interactive context: install every mandatory skill (from catalog) to every detected tool location (or `.agents/` fallback), skipping optional skills and auth
+- [x] 10.4 Detect non-interactive context: print a stderr notice explaining the auto-switch
+- [x] 10.5 Emit `cli_init` on entry and `cli_init_completed` on successful completion with the rich properties described in the analytics spec
 
 ## 11. Bare `taskless` delegates to `init`
 
-- [ ] 11.1 Update `packages/cli/src/index.ts` so that when `rawArgs` contains no subcommand AND stdout is a TTY, `init` is invoked
-- [ ] 11.2 Non-TTY bare `taskless` continues to show top-level help (no behavior change)
-- [ ] 11.3 `taskless help` continues to show help regardless of TTY
+- [x] 11.1 Update `packages/cli/src/index.ts` so that when `rawArgs` contains no subcommand AND stdout is a TTY, `init` is invoked
+- [x] 11.2 Non-TTY bare `taskless` continues to show top-level help (no behavior change)
+- [x] 11.3 `taskless help` continues to show help regardless of TTY
 
 ## 12. Non-interactive fallback path
 
-- [ ] 12.1 Confirm `--no-interactive` matches pre-change behavior exactly for at least two integration tests (detected tools → installs; no tools → `.agents/` fallback)
-- [ ] 12.2 Confirm optional skills (`taskless-ci`) are NOT installed in `--no-interactive` path
-- [ ] 12.3 Confirm no auth prompt in `--no-interactive` path
+- [x] 12.1 Confirm `--no-interactive` matches pre-change behavior exactly for at least two integration tests (detected tools → installs; no tools → `.agents/` fallback)
+- [x] 12.2 Confirm optional skills (`taskless-ci`) are NOT installed in `--no-interactive` path
+- [x] 12.3 Confirm no auth prompt in `--no-interactive` path
 
 ## 13. Integration tests
 
-- [ ] 13.1 End-to-end test: fresh repo → wizard with mocked prompts selects `.claude/` and `taskless-ci` → files on disk match expectations and manifest records the install
-- [ ] 13.2 End-to-end test: re-run wizard deselecting `taskless-ci` → summary lists `taskless-ci` as removal → on confirm, files deleted and manifest updated
-- [ ] 13.3 End-to-end test: cancel at each step → no filesystem changes, no manifest changes, `cli_init_cancelled` event emitted with correct `atStep`
-- [ ] 13.4 End-to-end test: non-interactive install matches the pre-change behavior byte-for-byte
-- [ ] 13.5 Telemetry test: every `capture()` in a fixture contains `cliVersion` and `scaffoldVersion`
+- [x] 13.1 End-to-end test: fresh repo → wizard with mocked prompts selects `.claude/` and `taskless-ci` → files on disk match expectations and manifest records the install
+- [x] 13.2 End-to-end test: re-run wizard deselecting `taskless-ci` → summary lists `taskless-ci` as removal → on confirm, files deleted and manifest updated
+- [x] 13.3 End-to-end test: cancel at each step → no filesystem changes, no manifest changes, `cli_init_cancelled` event emitted with correct `atStep`
+- [x] 13.4 End-to-end test: non-interactive install matches the pre-change behavior byte-for-byte
+- [x] 13.5 Telemetry test: every `capture()` in a fixture contains `cliVersion` and `scaffoldVersion`
 
 ## 14. Release hygiene
 
-- [ ] 14.1 Add a changeset (or equivalent) noting the breaking change to bare `taskless`
-- [ ] 14.2 Update `packages/cli/README.md` with the new wizard flow and `--no-interactive` documentation
-- [ ] 14.3 Update `packages/cli/src/help/init.txt` to reflect the new default behavior and the flag
-- [ ] 14.4 Run `pnpm typecheck` and `pnpm lint` until clean
+- [x] 14.1 Add a changeset (or equivalent) noting the breaking change to bare `taskless`
+- [x] 14.2 Update `packages/cli/README.md` with the new wizard flow and `--no-interactive` documentation
+- [x] 14.3 Update `packages/cli/src/help/init.txt` to reflect the new default behavior and the flag
+- [x] 14.4 Run `pnpm typecheck` and `pnpm lint` until clean
