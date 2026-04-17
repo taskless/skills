@@ -61,18 +61,24 @@ export function findSgBinary(): string {
 }
 
 /** Run ast-grep scan and return parsed results */
-export async function runAstGrepScan(cwd: string): Promise<ScanResult> {
+export async function runAstGrepScan(
+  cwd: string,
+  paths: string[] = []
+): Promise<ScanResult> {
   return new Promise((resolve, reject) => {
     const sgBinary = findSgBinary();
-    const child = spawn(
-      sgBinary,
-      ["scan", "--config", ".taskless/sgconfig.yml", "--json=stream"],
-      {
-        cwd,
-        stdio: ["ignore", "pipe", "pipe"],
-        env: { ...process.env, PATH: buildPath() },
-      }
-    );
+    const argv = [
+      "scan",
+      "--config",
+      ".taskless/sgconfig.yml",
+      "--json=stream",
+      ...paths,
+    ];
+    const child = spawn(sgBinary, argv, {
+      cwd,
+      stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env, PATH: buildPath() },
+    });
 
     const results: CheckResult[] = [];
     const stderrChunks: string[] = [];

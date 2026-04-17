@@ -1,5 +1,5 @@
-import { resolve, join } from "node:path";
-import { readdir } from "node:fs/promises";
+import { resolve, join, isAbsolute, relative } from "node:path";
+import { readdir, stat } from "node:fs/promises";
 import { defineCommand } from "citty";
 
 import { runAstGrepScan } from "../rules/scan";
@@ -11,6 +11,59 @@ import {
   outputSchema as checkOutputSchema,
   errorSchema as checkErrorSchema,
 } from "../schemas/check";
+
+async function pathExists(absolutePath: string): Promise<boolean> {
+  try {
+    await stat(absolutePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Resolve each positional path against cwd and filter out any that don't
+ * exist on disk. Returns a list of paths relative to cwd so `sg scan` can
+ * be spawned from cwd and use those paths directly.
+ */
+async function filterExistingPaths(
+  cwd: string,
+  rawPaths: string[]
+): Promise<string[]> {
+  const kept: string[] = [];
+  for (const rawPath of rawPaths) {
+    const absolutePath = isAbsolute(rawPath) ? rawPath : resolve(cwd, rawPath);
+    if (await pathExists(absolutePath)) {
+      const relativePath = relative(cwd, absolutePath);
+      kept.push(relativePath === "" ? "." : relativePath);
+    }
+  }
+  return kept;
+}
+
+/**
+ * Extract positional arguments from rawArgs. citty's rawArgs contains the
+ * original argv for this subcommand, so we drop anything starting with `-`
+ * and drop known flag values (e.g. `-d <value>`).
+ */
+function extractPositionalPaths(rawArguments: string[]): string[] {
+  const paths: string[] = [];
+  for (let index = 0; index < rawArguments.length; index++) {
+    const argument = rawArguments[index]!;
+    if (argument.startsWith("-")) {
+      // Skip value for short/long flags that take a value
+      if (
+        (argument === "-d" || argument === "--dir") &&
+        index + 1 < rawArguments.length
+      ) {
+        index += 1;
+      }
+      continue;
+    }
+    paths.push(argument);
+  }
+  return paths;
+}
 
 export const checkCommand = defineCommand({
   meta: {
@@ -34,7 +87,7 @@ export const checkCommand = defineCommand({
       default: false,
     },
   },
-  async run({ args }) {
+  async run({ args, rawArgs }) {
     // --schema short-circuits: print schemas and exit
     if (args.schema) {
       printSchema({
@@ -47,6 +100,25 @@ export const checkCommand = defineCommand({
     const cwd = resolve(args.dir ?? process.cwd());
     const telemetry = await getTelemetry(cwd);
     telemetry.capture("cli_check");
+
+    const positionalPaths = extractPositionalPaths(rawArgs);
+    const hadExplicitPaths = positionalPaths.length > 0;
+    const existingPaths = hadExplicitPaths
+      ? await filterExistingPaths(cwd, positionalPaths)
+      : [];
+
+    // If the user passed paths but none exist (e.g. all-deleted diff),
+    // exit cleanly with empty results rather than falling back to a full scan.
+    if (hadExplicitPaths && existingPaths.length === 0) {
+      if (args.json) {
+        console.log(
+          JSON.stringify(
+            checkOutputSchema.parse({ success: true, results: [] })
+          )
+        );
+      }
+      return;
+    }
 
     // Check for rule files
     const rulesDirectory = join(cwd, ".taskless", "rules");
@@ -76,7 +148,7 @@ export const checkCommand = defineCommand({
     // Generate ephemeral sgconfig.yml and run scanner
     try {
       await generateSgConfig(cwd);
-      const { results } = await runAstGrepScan(cwd);
+      const { results } = await runAstGrepScan(cwd, existingPaths);
       const hasErrors = results.some((r) => r.severity === "error");
 
       // Format output
