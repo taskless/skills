@@ -54,12 +54,23 @@ async function filterExistingPaths(
 /**
  * Extract positional arguments from rawArgs. citty's rawArgs contains the
  * original argv for this subcommand, so we drop anything starting with `-`
- * and drop known flag values (e.g. `-d <value>`).
+ * and drop known flag values (e.g. `-d <value>`). Once `--` is seen, all
+ * remaining arguments are treated as positional paths (conventional POSIX
+ * end-of-options marker), which lets users pass paths that begin with `-`.
  */
 function extractPositionalPaths(rawArguments: string[]): string[] {
   const paths: string[] = [];
+  let afterDoubleDash = false;
   for (let index = 0; index < rawArguments.length; index++) {
     const argument = rawArguments[index]!;
+    if (afterDoubleDash) {
+      paths.push(argument);
+      continue;
+    }
+    if (argument === "--") {
+      afterDoubleDash = true;
+      continue;
+    }
     if (argument.startsWith("-")) {
       // Skip value for short/long flags that take a value
       if (

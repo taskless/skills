@@ -67,12 +67,14 @@ export async function runAstGrepScan(
 ): Promise<ScanResult> {
   return new Promise((resolve, reject) => {
     const sgBinary = findSgBinary();
+    // Use `--` to separate sg's flags from positional paths so that paths
+    // beginning with `-` (unusual but valid) aren't misparsed as flags.
     const argv = [
       "scan",
       "--config",
       ".taskless/sgconfig.yml",
       "--json=stream",
-      ...paths,
+      ...(paths.length > 0 ? ["--", ...paths] : []),
     ];
     const child = spawn(sgBinary, argv, {
       cwd,
