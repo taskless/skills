@@ -3,13 +3,26 @@ import { join } from "node:path";
 
 import { runMigrations } from "./migrate";
 
+export interface EnsureOptions {
+  /**
+   * Called once when a migration run is about to start. Callers that render
+   * their own UI (e.g., the interactive wizard using clack) can use this to
+   * keep the message inside their visual tree. When omitted, the migration
+   * runner falls back to its default `console.error` message.
+   */
+  onNotice?: (message: string) => void;
+}
+
 /**
  * Ensure the .taskless/ directory exists and is up-to-date by running
  * any pending migrations. Safe to call repeatedly — returns immediately
  * if already current.
  */
-export async function ensureTasklessDirectory(cwd: string): Promise<void> {
+export async function ensureTasklessDirectory(
+  cwd: string,
+  options: EnsureOptions = {}
+): Promise<void> {
   const tasklessDirectory = join(cwd, ".taskless");
   await mkdir(tasklessDirectory, { recursive: true });
-  await runMigrations(tasklessDirectory);
+  await runMigrations(tasklessDirectory, { onNotice: options.onNotice });
 }

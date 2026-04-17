@@ -124,12 +124,24 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+export interface RunMigrationsOptions {
+  /**
+   * Called once before the first pending migration runs. Defaults to a
+   * bare `console.error` notice. Callers that own their own UI can pass a
+   * custom handler to route the notice through their logger.
+   */
+  onNotice?: (message: string) => void;
+}
+
 /**
  * Run any pending migrations against the .taskless/ directory.
  * Reads the current version from taskless.json and runs migrations
  * whose numeric key is greater than the current version.
  */
-export async function runMigrations(tasklessDirectory: string): Promise<void> {
+export async function runMigrations(
+  tasklessDirectory: string,
+  options: RunMigrationsOptions = {}
+): Promise<void> {
   const sorted = sortedMigrations(migrations);
   if (sorted.length === 0) return;
 
@@ -141,7 +153,8 @@ export async function runMigrations(tasklessDirectory: string): Promise<void> {
   }
 
   const pending = sorted.filter(([v]) => v > version);
-  console.error("Migrating to latest .taskless/ schema...");
+  const notice = options.onNotice ?? ((message) => console.error(message));
+  notice("Migrating to latest .taskless/ schema...");
   for (const [v, migrate] of pending) {
     try {
       await migrate(tasklessDirectory);
