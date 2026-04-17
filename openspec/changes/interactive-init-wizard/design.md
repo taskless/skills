@@ -115,7 +115,7 @@ The `taskless-ci` skill is installed into other users' repos and invoked by thei
 
 The skill ships no slash command — it's discovered by agents via its `description` field and doesn't need the `commandName` frontmatter key. This keeps `commands/tskl/` clean and avoids the impression that users should run `tskl:ci` directly.
 
-### Intro banner: frozen ASCII wordmark, half-block 60 cols
+### Intro banner: frozen ASCII wordmark, quad-block 60 cols
 
 Ship a pre-rendered ASCII version of the Taskless wordmark, locked to 60 columns × 5 rows, produced by a one-time offline pass over `tmp/logo-dark-on-white.png` using a small `jimp`-based converter at `tmp/ascii-tool/convert.mjs`. The converter is not shipped in the CLI bundle — the output is embedded as a string constant in `wizard/intro.ts`.
 
@@ -123,17 +123,19 @@ The banner:
 
 ```
 ██████████
-▄▄▄▄    ▄▄  ▄▄█▄▄  ▄▄▄    ▄▄▄  █  ▄▄ ▀▀█    ▄▄    ▄▄▄   ▄▄▄
-███  ▄████   ▀█▀▀  ▀ ▀█  ██  ▀ █▄█▀    █   █▀ ██ ██  ▀ ██  ▀
-██  ██████    █   ▄█▀▀█   ▀▀▀█ █▀█▄    █   █▀▀▀▀  ▀▀▀█  ▀▀▀█
-█  ███████    ▀▀▀▀ ▀▀▀▀▀ ▀▀▀▀▀ ▀  ▀▀ ▀▀▀▀▀ ▀▀▀▀  ▀▀▀▀▀ ▀▀▀▀▀
+▄▄▄▄   ▗▄▄  ▗▄█▙▄▖ ▗▄▄▖   ▄▄▄ ▐█  ▄▖ ▀▀█    ▄▄▖   ▄▄▄   ▄▄▄
+██▛▘▗▟████  ▝▀█▛▀▘ ▀ ▝█▖ █▙ ▝▘▐█▗▟▀    █  ▗█▘ ▜▙ █▙ ▝▘ █▙ ▝▘
+█▛ ▗██████    █▌  ▐█▀▀█▌  ▀▀▜▙▐█▀▜▙    █  ▐█▀▀▀▀  ▀▀▜▙  ▀▀▜▙
+█▘ ███████    ▀▀▀▘▝▀▀▀▀▀ ▀▀▀▀▘▝▀  ▀▘ ▀▀▀▀▀ ▝▀▀▀▘ ▀▀▀▀▘ ▀▀▀▀▘
 ```
 
-Rationale for half-block (U+2580–U+259F) over braille (U+2800–U+28FF):
+Quad-block mode samples two source pixels horizontally per cell (versus one for half-block), producing crisper letterforms and a more faithful rendition of the curved "7" mark in the same 60×5 footprint. Quadrant chars (▖▗▘▝▙▟▚▞ etc.) live in the same legacy block-drawing range (U+2580–U+259F) as half-block chars, so the portability arguments below apply unchanged.
 
-- Screen readers announce braille as "dots 1-2-3-4-5-6..." per character — unusable for accessibility. Half-block chars are repetitive shapes that screen readers can mute.
-- Braille font coverage is inconsistent (Menlo, Courier New, legacy Linux console fonts lack the range). Half-block is in the legacy block-drawing range and universally supported.
-- Non-UTF-8 locales (`LC_ALL=C`, older SSH sessions) render braille as three question marks per char; half-block degrades more gracefully.
+Rationale for the block-drawing range over braille (U+2800–U+28FF):
+
+- Screen readers announce braille as "dots 1-2-3-4-5-6..." per character — unusable for accessibility. Block-drawing chars are repetitive shapes that screen readers can mute.
+- Braille font coverage is inconsistent (Menlo, Courier New, legacy Linux console fonts lack the range). Block-drawing is universally supported.
+- Non-UTF-8 locales (`LC_ALL=C`, older SSH sessions) render braille as three question marks per char; block-drawing degrades more gracefully.
 
 The `renderIntro()` function exposes `{ banner: string; version: string }` so callers can style with picocolors at call time. `NO_COLOR=1` disables ANSI escapes. The banner itself is colorless ASCII; color is applied by wrapping the whole string in one picocolors call.
 
