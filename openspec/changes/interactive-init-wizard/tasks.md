@@ -29,25 +29,25 @@
 
 ## 5. Refactor installer to accept explicit targets
 
-- [ ] 5.1 Change `installForTool()` (or its replacement) to accept an explicit target + skill list instead of inferring from detection
-- [ ] 5.2 Before writing, read previous install state; compute files to delete (removals) and delete them first
-- [ ] 5.3 Write selected skills/commands to selected targets
-- [ ] 5.4 After writing, call `writeInstallState()` with the current run's manifest reflecting exactly what was written
-- [ ] 5.5 Ensure deletion only touches files recorded in the previous manifest — never glob-delete
+- [x] 5.1 Change `installForTool()` (or its replacement) to accept an explicit target + skill list instead of inferring from detection
+- [x] 5.2 Before writing, read previous install state; compute files to delete (removals) and delete them first
+- [x] 5.3 Write selected skills/commands to selected targets
+- [x] 5.4 After writing, call `writeInstallState()` with the current run's manifest reflecting exactly what was written
+- [x] 5.5 Ensure deletion only touches files recorded in the previous manifest — never glob-delete
 
 ## 6. Shared interactive login
 
-- [ ] 6.1 Extract the device-code login routine from `packages/cli/src/commands/auth.ts` into `packages/cli/src/auth/login-interactive.ts`
-- [ ] 6.2 Export `loginInteractive({ cwd }): Promise<{ status: "ok" | "cancelled" }>`
-- [ ] 6.3 Update `auth login` subcommand to call `loginInteractive()` and map the result to exit code
-- [ ] 6.4 Unit test the extraction — auth login behavior is unchanged
+- [x] 6.1 Extract the device-code login routine from `packages/cli/src/commands/auth.ts` into `packages/cli/src/auth/login-interactive.ts`
+- [x] 6.2 Export `loginInteractive({ cwd }): Promise<{ status: "ok" | "cancelled" }>`
+- [x] 6.3 Update `auth login` subcommand to call `loginInteractive()` and map the result to exit code
+- [x] 6.4 Unit test the extraction — auth login behavior is unchanged
 
 ## 7. Telemetry: cliVersion and scaffoldVersion
 
-- [ ] 7.1 Bundle `packages/cli/package.json` version at build time (Vite `define` or a generated `version.ts`) — expose as a constant
-- [ ] 7.2 In `getTelemetry()`, resolve `scaffoldVersion` by reading `.taskless/taskless.json` (reuse `readManifest()`); fall back to `0` on missing/unreadable
-- [ ] 7.3 Store `cliVersion` and `scaffoldVersion` in the closure; merge them into every `capture()` property payload
-- [ ] 7.4 Unit tests: anonymous capture includes both properties; authed capture includes both properties and groups; missing manifest yields `scaffoldVersion: 0`
+- [x] 7.1 Bundle `packages/cli/package.json` version at build time (Vite `define` or a generated `version.ts`) — expose as a constant
+- [x] 7.2 In `getTelemetry()`, resolve `scaffoldVersion` by reading `.taskless/taskless.json` (reuse `readManifest()`); fall back to `0` on missing/unreadable
+- [x] 7.3 Store `cliVersion` and `scaffoldVersion` in the closure; merge them into every `capture()` property payload
+- [x] 7.4 Unit tests: anonymous capture includes both properties; authed capture includes both properties and groups; missing manifest yields `scaffoldVersion: 0`
 
 ## 8. Wizard scaffolding
 

@@ -8,6 +8,10 @@ import { decodeJwt } from "jose";
 import { decodeOrgId } from "./auth/jwt";
 import { getConfigDirectory, getToken } from "./auth/token";
 
+declare const __VERSION__: string;
+const CLI_VERSION: string =
+  typeof __VERSION__ === "string" ? __VERSION__ : "unknown";
+
 const POSTHOG_PROJECT_TOKEN =
   "phc_stymptTiUskp4zM3m9StNSGheHwjskaYagpxV7rDjZyc";
 const POSTHOG_HOST = "https://z.taskless.io";
@@ -70,6 +74,29 @@ function decodeSubject(token: string): string | undefined {
   }
 }
 
+/**
+ * Read `.taskless/taskless.json` and return its `version` field, or `0` if
+ * the file is missing, unreadable, or has no numeric version. Called once at
+ * telemetry init; the resolved value is attached as a super-property to every
+ * subsequent event.
+ */
+async function resolveScaffoldVersion(
+  cwd: string | undefined
+): Promise<number> {
+  if (!cwd) return 0;
+  try {
+    const content = await readFile(
+      join(cwd, ".taskless", "taskless.json"),
+      "utf8"
+    );
+    const parsed = JSON.parse(content) as { version?: unknown };
+    const version = Number(parsed.version);
+    return Number.isFinite(version) ? version : 0;
+  } catch {
+    return 0;
+  }
+}
+
 let instance: TelemetryClient | undefined;
 
 /**
@@ -113,6 +140,8 @@ export async function getTelemetry(cwd?: string): Promise<TelemetryClient> {
       orgId = decodeOrgId(token);
     }
 
+    const scaffoldVersion = await resolveScaffoldVersion(cwd);
+
     posthog = new PostHog(POSTHOG_PROJECT_TOKEN, {
       host: POSTHOG_HOST,
       flushAt: 1,
@@ -120,7 +149,14 @@ export async function getTelemetry(cwd?: string): Promise<TelemetryClient> {
     });
 
     // Identify the user/device
-    posthog.identify({ distinctId, properties: { cli: anonymousId } });
+    posthog.identify({
+      distinctId,
+      properties: {
+        cli: anonymousId,
+        cliVersion: CLI_VERSION,
+        scaffoldVersion,
+      },
+    });
 
     // Group identify for authenticated users with an org
     if (!anonymous && orgId !== undefined) {
@@ -140,6 +176,8 @@ export async function getTelemetry(cwd?: string): Promise<TelemetryClient> {
             properties: {
               ...properties,
               cli: anonymousId,
+              cliVersion: CLI_VERSION,
+              scaffoldVersion,
             },
             ...(!anonymous && orgId !== undefined
               ? { groups: { organization: String(orgId) } }

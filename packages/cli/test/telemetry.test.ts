@@ -122,7 +122,9 @@ describe("anonymous identity", () => {
     expect(mockIdentify).toHaveBeenCalledWith(
       expect.objectContaining({
         distinctId: existingId,
-        properties: { cli: existingId },
+        properties: expect.objectContaining({
+          cli: existingId,
+        }) as Record<string, unknown>,
       })
     );
   });
@@ -254,6 +256,69 @@ describe("capture", () => {
       unknown
     >;
     expect(captureArgument).not.toHaveProperty("groups");
+  });
+
+  it("includes cliVersion and scaffoldVersion on every anonymous capture", async () => {
+    const telemetry = await getTelemetry();
+    telemetry.capture("cli_check");
+
+    expect(mockCapture).toHaveBeenCalledWith(
+      expect.objectContaining({
+        properties: expect.objectContaining({
+          cliVersion: expect.any(String) as string,
+          scaffoldVersion: expect.any(Number) as number,
+        }) as Record<string, unknown>,
+      })
+    );
+  });
+
+  it("includes cliVersion and scaffoldVersion on authenticated capture", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "taskless-auth-props-"));
+    try {
+      // Seed a manifest with a known scaffold version
+      const tasklessDirectory = join(cwd, ".taskless");
+      await mkdir(tasklessDirectory, { recursive: true });
+      await writeFile(
+        join(tasklessDirectory, "taskless.json"),
+        JSON.stringify({ version: 2, install: {} }),
+        "utf8"
+      );
+      const jwt = makeJwt({ sub: "user-77", orgId: 123 });
+      await writeTokenFile(cwd, jwt);
+
+      const telemetry = await getTelemetry(cwd);
+      telemetry.capture("cli_rule_create");
+
+      expect(mockCapture).toHaveBeenCalledWith(
+        expect.objectContaining({
+          groups: { organization: "123" },
+          properties: expect.objectContaining({
+            cliVersion: expect.any(String) as string,
+            scaffoldVersion: 2,
+          }) as Record<string, unknown>,
+        })
+      );
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it("falls back to scaffoldVersion: 0 when manifest is missing", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "taskless-no-manifest-"));
+    try {
+      const telemetry = await getTelemetry(cwd);
+      telemetry.capture("cli_check");
+
+      expect(mockCapture).toHaveBeenCalledWith(
+        expect.objectContaining({
+          properties: expect.objectContaining({
+            scaffoldVersion: 0,
+          }) as Record<string, unknown>,
+        })
+      );
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
   });
 });
 
