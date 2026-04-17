@@ -52,7 +52,7 @@ export function renderIntro(): string {
   // emits reset codes at each newline and the reapplication flashes
   // brighter on some quadrant chars. A single truecolor attribute
   // stays flat across the whole banner.
-  const coloredBanner = chalk.hex("#3A8B9C")(BANNER);
+  const coloredBanner = chalk.hex("#2B7384")(BANNER);
   const version = chalk.dim(`v${CLI_VERSION}`);
   return `${coloredBanner}\n${version}`;
 }
