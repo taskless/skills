@@ -80,7 +80,7 @@ describe("runWizard end-to-end", () => {
     expect(result.optionalSkills).toEqual([]);
 
     expect(
-      await exists(join(cwd, ".claude", "skills", "taskless-check", "SKILL.md"))
+      await exists(join(cwd, ".claude", "skills", "taskless", "SKILL.md"))
     ).toBe(true);
 
     const manifest = JSON.parse(
@@ -89,9 +89,7 @@ describe("runWizard end-to-end", () => {
       version: number;
       install: { targets: Record<string, { skills: string[] }> };
     };
-    expect(manifest.install.targets[".claude"]?.skills).toContain(
-      "taskless-check"
-    );
+    expect(manifest.install.targets[".claude"]?.skills).toContain("taskless");
 
     expect(captureSpy).toHaveBeenCalledWith(
       "cli_init_completed",
@@ -110,13 +108,13 @@ describe("runWizard end-to-end", () => {
     const { runWizard } = await import("../src/wizard");
     await runWizard({ cwd });
     expect(
-      await exists(join(cwd, ".claude", "skills", "taskless-check", "SKILL.md"))
+      await exists(join(cwd, ".claude", "skills", "taskless", "SKILL.md"))
     ).toBe(true);
 
     // Re-run with the same selection — no diff, should complete cleanly.
     await runWizard({ cwd });
     expect(
-      await exists(join(cwd, ".claude", "skills", "taskless-check", "SKILL.md"))
+      await exists(join(cwd, ".claude", "skills", "taskless", "SKILL.md"))
     ).toBe(true);
   });
 
@@ -129,7 +127,7 @@ describe("runWizard end-to-end", () => {
     expect(result.status).toBe("cancelled");
     expect(result.cancelledStep).toBe("locations");
 
-    expect(await exists(join(cwd, ".claude", "skills", "taskless-check"))).toBe(
+    expect(await exists(join(cwd, ".claude", "skills", "taskless"))).toBe(
       false
     );
     expect(await exists(join(cwd, ".taskless", "taskless.json"))).toBe(false);

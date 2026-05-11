@@ -1,9 +1,9 @@
 ## 1. Dependencies and catalog
 
-- [ ] 1.1 Add `zod-to-json-schema` to `packages/cli/package.json`; run `pnpm install`
-- [ ] 1.2 Shrink `packages/cli/src/install/catalog.ts` to a single `{ name: "taskless", optional: false }` entry
-- [ ] 1.3 Remove `getOptionalSkillNames()` and `isOptionalSkill()` (or keep returning empty for back-compat) — there are no optional skills in the new design
-- [ ] 1.4 Update the build-time guard (Vite `assertSkillVersions` or equivalent) to expect exactly one skill in `skills/`
+- [x] 1.1 Schema embedding uses zod 4 built-in `z.toJSONSchema()` — no separate dep needed
+- [x] 1.2 Shrink `packages/cli/src/install/catalog.ts` to a single `{ name: "taskless", optional: false }` entry
+- [x] 1.3 Keep `getOptionalSkillNames()` and `isOptionalSkill()` returning empty for back-compat — there are no optional skills in the new design
+- [x] 1.4 Build-time guard (Vite `assertSkillVersions`) already verifies catalog ↔ source match; no change required since the existing logic handles any catalog size
 
 ## 2. CLI verb rename: `rules` → `rule`
 
@@ -73,13 +73,13 @@
 
 ## 9. Consolidated skill and command
 
-- [ ] 9.1 Create `skills/taskless/SKILL.md` with the new ~30-line router body. Frontmatter description: anchored on Taskless-specific phrases or `.taskless/` references; explicitly says "do NOT trigger on generic ESLint, linting, or rule requests that don't reference Taskless"
-- [ ] 9.2 SKILL.md frontmatter SHALL include `metadata.commandName: tskl` so command-installation plumbing maps the skill to the new command
-- [ ] 9.3 SKILL.md body SHALL include the "you do NOT have the steps" framing, the `.taskless/` presence check as the first step, the topic table, and the `## --anonymous` section
-- [ ] 9.4 Create `commands/tskl/tskl.md` with the new ~10-line router body that handles `$ARGUMENTS`. Argument-hint: `<describe what you want to do>`
-- [ ] 9.5 Delete the old skill directories: `skills/taskless-check`, `skills/taskless-ci`, `skills/taskless-create-rule`, `skills/taskless-create-rule-anonymous`, `skills/taskless-delete-rule`, `skills/taskless-improve-rule`, `skills/taskless-improve-rule-anonymous`, `skills/taskless-info`, `skills/taskless-login`, `skills/taskless-logout`
-- [ ] 9.6 Delete the old command files: `commands/tskl/check.md`, `commands/tskl/improve.md`, `commands/tskl/info.md`, `commands/tskl/login.md`, `commands/tskl/logout.md`, `commands/tskl/rule.md`
-- [ ] 9.7 Verify the consolidated skill builds via the existing `import.meta.glob` pattern in `packages/cli/src/install/install.ts`
+- [x] 9.1 Create `skills/taskless/SKILL.md` with the new ~30-line router body. Frontmatter description: anchored on Taskless-specific phrases or `.taskless/` references; explicitly says "do NOT trigger on generic ESLint, linting, or rule requests that don't reference Taskless"
+- [x] 9.2 SKILL.md frontmatter SHALL include `metadata.commandName: tskl` so command-installation plumbing maps the skill to the new command
+- [x] 9.3 SKILL.md body SHALL include the "you do NOT have the steps" framing, the `.taskless/` presence check as the first step, the topic table, and the `## --anonymous` section
+- [x] 9.4 Create `commands/tskl/tskl.md` with the new ~10-line router body that handles `$ARGUMENTS`. Argument-hint: `<describe what you want to do>`
+- [x] 9.5 Delete the old skill directories: `skills/taskless-check`, `skills/taskless-ci`, `skills/taskless-create-rule`, `skills/taskless-create-rule-anonymous`, `skills/taskless-delete-rule`, `skills/taskless-improve-rule`, `skills/taskless-improve-rule-anonymous`, `skills/taskless-info`, `skills/taskless-login`, `skills/taskless-logout`
+- [x] 9.6 Delete the old command files: `commands/tskl/check.md`, `commands/tskl/improve.md`, `commands/tskl/info.md`, `commands/tskl/login.md`, `commands/tskl/logout.md`, `commands/tskl/rule.md`
+- [x] 9.7 Verify the consolidated skill builds via the existing `import.meta.glob` pattern in `packages/cli/src/install/install.ts`
 
 ## 10. Wizard simplification and non-TTY routing
 

@@ -4,16 +4,7 @@ export interface SkillDescriptor {
 }
 
 export const SKILL_CATALOG: readonly SkillDescriptor[] = [
-  { name: "taskless-check", optional: false },
-  { name: "taskless-ci", optional: true },
-  { name: "taskless-create-rule", optional: false },
-  { name: "taskless-create-rule-anonymous", optional: false },
-  { name: "taskless-delete-rule", optional: false },
-  { name: "taskless-improve-rule", optional: false },
-  { name: "taskless-improve-rule-anonymous", optional: false },
-  { name: "taskless-info", optional: false },
-  { name: "taskless-login", optional: false },
-  { name: "taskless-logout", optional: false },
+  { name: "taskless", optional: false },
 ];
 
 export function getMandatorySkillNames(): string[] {

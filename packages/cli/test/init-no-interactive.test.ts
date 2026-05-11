@@ -28,7 +28,7 @@ describe("taskless init --no-interactive", () => {
     await rm(cwd, { recursive: true, force: true });
   });
 
-  it("installs mandatory skills to detected tools without any prompt", async () => {
+  it("installs the consolidated skill to detected tools without any prompt", async () => {
     await mkdir(join(cwd, ".claude"), { recursive: true });
 
     const { stdout } = await execFileAsync("node", [
@@ -41,26 +41,9 @@ describe("taskless init --no-interactive", () => {
 
     expect(stdout).toContain("Claude Code: installed");
 
-    // Mandatory skill present
     expect(
-      await exists(join(cwd, ".claude", "skills", "taskless-check", "SKILL.md"))
+      await exists(join(cwd, ".claude", "skills", "taskless", "SKILL.md"))
     ).toBe(true);
-  });
-
-  it("does NOT install optional skills (taskless-ci) in --no-interactive", async () => {
-    await mkdir(join(cwd, ".claude"), { recursive: true });
-
-    await execFileAsync("node", [
-      binPath,
-      "init",
-      "--no-interactive",
-      "-d",
-      cwd,
-    ]);
-
-    expect(
-      await exists(join(cwd, ".claude", "skills", "taskless-ci", "SKILL.md"))
-    ).toBe(false);
   });
 
   it("falls back to .agents/ when no tools are detected", async () => {
@@ -74,7 +57,7 @@ describe("taskless init --no-interactive", () => {
 
     expect(stdout).toContain("No tools detected. Using fallback: .agents/");
     expect(
-      await exists(join(cwd, ".agents", "skills", "taskless-check", "SKILL.md"))
+      await exists(join(cwd, ".agents", "skills", "taskless", "SKILL.md"))
     ).toBe(true);
   });
 
