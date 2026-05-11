@@ -35,7 +35,9 @@ The CLI:
 
 ## Errors
 
-`update` is non-interactive and silent on success. On failure, exits
+`update` is non-interactive. On success it exits 0 and prints a
+human-readable summary of skills/commands added, removed, or kept in
+sync (same surface as `init --no-interactive`). On failure it exits
 non-zero with the error message on stderr.
 
 ## See Also

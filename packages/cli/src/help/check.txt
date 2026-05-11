@@ -36,28 +36,37 @@ or after rule create/improve to validate.
 3. **Parse the JSON output.** Shape:
    ```json
    {
-     "success": true,
+     "success": false,
      "results": [
        {
-         "filePath": "src/foo.ts",
-         "line": 12,
-         "column": 4,
+         "source": "ast-grep",
+         "ruleId": "no-eval",
          "severity": "error",
-         "message": "...",
-         "ruleId": "..."
+         "message": "Avoid eval()",
+         "note": null,
+         "file": "src/foo.ts",
+         "range": {
+           "start": { "line": 12, "column": 4 },
+           "end":   { "line": 12, "column": 14 }
+         },
+         "matchedText": "eval(input)",
+         "fix": null
        }
      ]
    }
    ```
 
-4. **Report findings to the user.** Group by file. Show severity,
-   message, and rule ID for each finding. The `success` field reflects
-   whether any rule matches were found: `success: true` means the
-   codebase is clean, `success: false` means findings exist (an
-   expected outcome, not an error). The `{ ok: false, code, message }`
-   envelope is only emitted when the scan itself fails (e.g.
-   `SCAN_FAILED`); only consult that envelope when the command exits
-   abnormally without a normal results payload.
+4. **Report findings to the user.** Group by `file`. Show `severity`,
+   `message`, and `ruleId` for each finding; the `range.start` is the
+   useful line/column to surface. The `success` field reflects only
+   error-severity findings: `success: false` means at least one
+   `severity: "error"` finding exists (exit code 1); `success: true`
+   with a non-empty `results` array means there are only
+   warning/info/hint findings (exit code 0); `success: true` with an
+   empty `results` array means the codebase is clean. Findings are
+   never reported via the `{ ok: false, code, message }` envelope —
+   the envelope only appears when the scan itself fails (e.g.
+   `SCAN_FAILED`) and the normal results payload is absent.
 
 ## Exit codes
 

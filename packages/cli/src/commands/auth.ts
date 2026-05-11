@@ -36,8 +36,12 @@ const loginCommand = defineCommand({
     const startedAt = Date.now();
     telemetry.capture("cli_auth_login");
 
+    /** Tracks the last emitted error code so the completion event can include it. */
+    let lastErrorCode: CliErrorCode | undefined;
+
     /** Emit an error in the right channel and set exit code. */
     const fail = (code: CliErrorCode, message: string): void => {
+      lastErrorCode = code;
       if (args.json) {
         writeJsonError(code, message);
       } else {
@@ -51,6 +55,7 @@ const loginCommand = defineCommand({
       telemetry.capture("cli_auth_login_completed", {
         success: false,
         durationMs: Date.now() - startedAt,
+        errorCode: lastErrorCode,
       });
       return;
     }
@@ -95,6 +100,7 @@ const loginCommand = defineCommand({
       telemetry.capture("cli_auth_login_completed", {
         success,
         durationMs: Date.now() - startedAt,
+        ...(success ? {} : { errorCode: lastErrorCode }),
       });
     }
   },
