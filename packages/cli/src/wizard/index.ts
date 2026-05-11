@@ -1,13 +1,11 @@
 import { intro, outro, cancel, log } from "@clack/prompts";
 
 import { ensureTasklessDirectory } from "../filesystem/directory";
-import { SKILL_CATALOG } from "../install/catalog";
 import {
   applyInstallPlan,
   AGENTS_FALLBACK,
   getEmbeddedCommands,
   getEmbeddedSkills,
-  type EmbeddedSkill,
   type EmbeddedCommand,
   type InstallPlanTarget,
   type ToolDescriptor,
@@ -18,7 +16,6 @@ import { getTelemetry } from "../telemetry";
 import { WizardCancelled } from "./ask";
 import { getCliVersion, renderIntro } from "./intro";
 import { promptLocations } from "./steps/locations";
-import { promptOptionalSkills } from "./steps/optional-skills";
 import { promptAuth } from "./steps/auth";
 import { renderSummaryAndConfirm } from "./steps/summary";
 
@@ -69,21 +66,6 @@ const TOOL_BY_INSTALL_DIR: Record<string, ToolDescriptor> = {
   ".agents": AGENTS_FALLBACK,
 };
 
-function resolveSkillsForSelection(
-  embeddedSkills: EmbeddedSkill[],
-  optionalSelection: string[]
-): EmbeddedSkill[] {
-  const optionalSet = new Set(optionalSelection);
-  const result: EmbeddedSkill[] = [];
-  for (const descriptor of SKILL_CATALOG) {
-    const include = !descriptor.optional || optionalSet.has(descriptor.name);
-    if (!include) continue;
-    const embedded = embeddedSkills.find((s) => s.name === descriptor.name);
-    if (embedded) result.push(embedded);
-  }
-  return result;
-}
-
 export async function runWizard(
   options: RunWizardOptions
 ): Promise<WizardResult> {
@@ -92,7 +74,8 @@ export async function runWizard(
 
   let cancelledStep: string | undefined;
   let locations: string[] = [];
-  let optionalSkills: string[] = [];
+  // Optional skills no longer exist post-consolidation — always empty.
+  const optionalSkills: string[] = [];
   let authPromptShown = false;
   let authCompleted = false;
 
@@ -101,17 +84,14 @@ export async function runWizard(
 
   try {
     locations = await promptLocations(options.cwd);
-    optionalSkills = await promptOptionalSkills();
     const authResult = await promptAuth(options.cwd);
     authPromptShown = authResult.prompted;
     authCompleted = authResult.loggedIn;
 
     const embeddedSkills = getEmbeddedSkills();
     const embeddedCommands = getEmbeddedCommands();
-    const selectedSkills = resolveSkillsForSelection(
-      embeddedSkills,
-      optionalSkills
-    );
+    // Catalog has one entry now (`taskless`); install all embedded skills.
+    const selectedSkills = embeddedSkills;
 
     const planTargets: InstallPlanTarget[] = locations.map((directory) => {
       const tool = TOOL_BY_INSTALL_DIR[directory];
