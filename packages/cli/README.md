@@ -33,13 +33,15 @@ Outputs CLI version, tool status, and login info as JSON to stdout:
 
 Launches an interactive wizard that detects supported tool directories in the
 current project (`.claude/`, `.opencode/`, `.cursor/`, `.agents/`), lets you
-pick which ones to install into, optionally includes the `taskless-ci` skill,
-and walks through the auth tradeoff before writing anything. Running `taskless`
-with no subcommand in a TTY also launches this wizard.
+pick which ones to install into, and walks through the auth tradeoff before
+writing anything. Running `taskless` with no subcommand in a TTY also launches
+this wizard. Without a TTY, bare `taskless` prints a short context preamble
+followed by the topic index from `taskless help`.
 
-For CI and scripted installs, pass `--no-interactive` to skip all prompts.
-This installs every mandatory skill to every detected tool, or falls back to
-`.agents/skills/` when no tools are detected:
+In v0.7+, there is exactly one skill (`taskless`) and one command (`tskl`) —
+no opt-in selection needed.
+
+For CI and scripted installs, pass `--no-interactive` to skip all prompts:
 
 ```bash
 taskless init                    # interactive wizard (default in a TTY)
@@ -48,8 +50,9 @@ taskless init --no-interactive   # scripted install, no prompts
 
 The wizard records what it installed in `.taskless/taskless.json` so later
 runs can compute a diff and surgically remove files that are no longer
-selected. Cancelling the wizard at any step (Ctrl-C) aborts cleanly with no
-filesystem changes.
+selected. Upgrading from v0.6 automatically removes the obsolete per-task
+skills and commands during this diff. Cancelling the wizard at any step
+(Ctrl-C) aborts cleanly with no filesystem changes.
 
 ### `taskless check`
 
@@ -99,6 +102,29 @@ taskless rule delete no-console-log
 ### `taskless --help`
 
 Lists available subcommands.
+
+### `taskless help [topic]`
+
+Returns agent-facing recipes. With no args, prints the topic index. With a
+topic (e.g. `taskless help rule create`), prints the full step-by-step recipe
+for that operation, including an embedded JSON Schema for any `--from` input
+and a table of stable error codes. Append `--anonymous` to fetch the
+local-only variant where one exists (currently `rule create`/`rule improve`).
+
+Recipes are how the consolidated `taskless` skill stays small while still
+covering every operation — the skill body is a router that fetches the
+relevant recipe on demand.
+
+### `--anonymous` flag
+
+Recognized on every command. Behavior matrix:
+
+- `rule create` / `rule improve` — exits with a pointer to
+  `taskless help <topic> --anonymous`. The local-only flow runs in the agent
+  per the recipe variant.
+- `info` — skips the API/auth probe; reports local state only.
+- `auth login` — rejected (auth commands cannot be anonymous).
+- All others — accepted as no-op.
 
 ## For skill authors
 
