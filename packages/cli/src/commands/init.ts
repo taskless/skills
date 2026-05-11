@@ -81,6 +81,44 @@ export const initCommand = defineCommand({
   },
 });
 
+export const updateCommand = defineCommand({
+  meta: {
+    name: "update",
+    description:
+      "Update Taskless skills in detected tools (non-interactive install)",
+  },
+  args: {
+    dir: {
+      type: "string",
+      alias: "d",
+      description: "Working directory",
+    },
+    anonymous: {
+      type: "boolean",
+      description: "Accepted for compatibility; update has no auth dependency",
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const cwd = resolve(args.dir ?? process.cwd());
+    const telemetry = await getTelemetry(cwd);
+    const startedAt = Date.now();
+    telemetry.capture("cli_update");
+
+    let success = false;
+    try {
+      await runNonInteractive(cwd);
+      success = true;
+    } finally {
+      telemetry.capture("cli_update_completed", {
+        locations: await detectedLocationDirectories(cwd),
+        success,
+        durationMs: Date.now() - startedAt,
+      });
+    }
+  },
+});
+
 async function runNonInteractive(cwd: string): Promise<void> {
   await ensureTasklessDirectory(cwd);
 

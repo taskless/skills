@@ -31,6 +31,7 @@ Otherwise, follow the same flow as the `taskless` skill:
 
 | User wants                 | Topic                                 |
 | -------------------------- | ------------------------------------- |
+| Update Taskless skills     | run `npx @taskless/cli update`        |
 | Create a new rule          | `npx @taskless/cli help rule create`  |
 | Improve an existing rule   | `npx @taskless/cli help rule improve` |
 | Delete a rule              | `npx @taskless/cli help rule delete`  |

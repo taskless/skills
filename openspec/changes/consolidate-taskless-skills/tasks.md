@@ -122,7 +122,7 @@
 
 ## 14. Capability spec deletion (filesystem cleanup)
 
-- [ ] 14.1 After this change is archived, the spec deltas will guide moving these to the `archive` state. The deletion of `openspec/specs/skill-create-rule/`, `skill-improve-rule/`, `skill-delete-rule/`, `skill-auth-login/`, `skill-auth-logout/`, `skill-ci/`, `cli-flag-schema/` happens at archive time, not implementation time. No action required during apply
+- [x] ~~14.1 After this change is archived, the spec deltas will guide moving these to the `archive` state. The deletion of `openspec/specs/skill-create-rule/`, `skill-improve-rule/`, `skill-delete-rule/`, `skill-auth-login/`, `skill-auth-logout/`, `skill-ci/`, `cli-flag-schema/` happens at archive time, not implementation time. No action required during apply~~
 
 ## 15. Release hygiene
 

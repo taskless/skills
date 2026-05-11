@@ -94,6 +94,36 @@ describe("taskless init --no-interactive", () => {
     expect(stdout).toContain("Claude Code: installed");
   });
 
+  it("`taskless update` runs the same non-interactive install path", async () => {
+    await mkdir(join(cwd, ".claude"), { recursive: true });
+
+    const { stdout } = await execFileAsync("node", [
+      binPath,
+      "update",
+      "-d",
+      cwd,
+    ]);
+
+    expect(stdout).toContain("Claude Code: installed");
+    expect(
+      await exists(join(cwd, ".claude", "skills", "taskless", "SKILL.md"))
+    ).toBe(true);
+  });
+
+  it("`taskless update` falls back to .agents/ when no tools are detected", async () => {
+    const { stdout } = await execFileAsync("node", [
+      binPath,
+      "update",
+      "-d",
+      cwd,
+    ]);
+
+    expect(stdout).toContain("No tools detected. Using fallback: .agents/");
+    expect(
+      await exists(join(cwd, ".agents", "skills", "taskless", "SKILL.md"))
+    ).toBe(true);
+  });
+
   it("writes taskless.json with install state recorded", async () => {
     await mkdir(join(cwd, ".claude"), { recursive: true });
 
