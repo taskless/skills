@@ -49,12 +49,12 @@
 
 ## 7. `tskl help` extensions: template, schemas, variants, no-args index
 
-- [ ] 7.1 Define the recipe template (Goal/Preconditions/Steps/Schema/Errors/See Also) and add the versioned header (`# Topic: <name> (CLI v<x.y.z> / topic v<n>)`) to every help file
-- [ ] 7.2 Extend `packages/cli/src/commands/help.ts` to recognize a `--anonymous` flag; when set, look up `<topic>.anonymous.txt` first and fall back to `<topic>.txt`
-- [ ] 7.3 Add a build-time map of which topics have anonymous variants — derived from `import.meta.glob` matching `*.anonymous.txt`
-- [ ] 7.4 Add `zod-to-json-schema` integration: each topic recipe that has a `--from` input contains its JSON schema as a code-fenced block. Generate at build time or runtime; runtime is fine given small dep footprint
-- [ ] 7.5 Update `packages/cli/src/commands/help.ts` no-args output to include a human slug (paragraph explaining what the command does for human vs. agent) followed by a topic disambiguation table
-- [ ] 7.6 Emit `help_<topic>` telemetry event on every topic fetch; emit `help_index` on no-args fetch
+- [ ] 7.1 Define the recipe template (Goal/Preconditions/Steps/Schema/Errors/See Also) and add the versioned header (`# Topic: <name> (CLI v<x.y.z> / topic v<n>)`) to every help file (deferred to task 8: recipe authoring)
+- [x] 7.2 Extend `packages/cli/src/commands/help.ts` to recognize a `--anonymous` flag; when set, look up `<topic>.anonymous.txt` first and fall back to `<topic>.txt`
+- [x] 7.3 Add a build-time map of which topics have anonymous variants — derived from `import.meta.glob` matching `*.anonymous.txt`
+- [x] 7.4 Add JSON schema embedding via the `{{INPUT_SCHEMA}}` placeholder. Recipes that include the marker get the JSON Schema rendered from the corresponding Zod input via `z.toJSONSchema()` (zod 4 built-in; no extra dep). `{{CLI_VERSION}}` placeholder also supported for the recipe header
+- [x] 7.5 Update `packages/cli/src/commands/help.ts` no-args output to include a human slug (paragraph explaining what the command does for human vs. agent) followed by a topic disambiguation table
+- [x] 7.6 Emit `help_<topic>` telemetry event on every topic fetch; emit `help_index` on no-args fetch (already done in task 11; this task adds the `anonymous` property to the topic event)
 - [ ] 7.7 Add unit tests for variant fallback, no-args index format, and the new telemetry events
 
 ## 8. Author the seven topic recipes
