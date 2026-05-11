@@ -1,0 +1,125 @@
+## 1. Dependencies and catalog
+
+- [ ] 1.1 Add `zod-to-json-schema` to `packages/cli/package.json`; run `pnpm install`
+- [ ] 1.2 Shrink `packages/cli/src/install/catalog.ts` to a single `{ name: "taskless", optional: false }` entry
+- [ ] 1.3 Remove `getOptionalSkillNames()` and `isOptionalSkill()` (or keep returning empty for back-compat) — there are no optional skills in the new design
+- [ ] 1.4 Update the build-time guard (Vite `assertSkillVersions` or equivalent) to expect exactly one skill in `skills/`
+
+## 2. CLI verb rename: `rules` → `rule`
+
+- [ ] 2.1 Rename the citty subcommand definition in `packages/cli/src/commands/rules.ts` so it registers under `rule` (singular). The source file MAY stay named `rules.ts`
+- [ ] 2.2 Update `packages/cli/src/index.ts` (or wherever subcommands are wired) to register `rule` instead of `rules`
+- [ ] 2.3 Rename help files: `packages/cli/src/help/rules-create.txt` → `rule-create.txt`, `rules-improve.txt` → `rule-improve.txt`, `rules-delete.txt` → `rule-delete.txt`, `rules-verify.txt` → `rule-verify.txt`, `rules-meta.txt` → `rule-meta.txt`, `rules.txt` → `rule.txt`
+- [ ] 2.4 Update help-file content to reference `taskless rule create` etc. throughout (no `rules` in body text)
+- [ ] 2.5 Search the repo for stale `rules create`/`rules improve`/etc. references and update them: docs, comments, error messages
+- [ ] 2.6 Update tests in `packages/cli/test/` to invoke the renamed subcommand
+- [ ] 2.7 Confirm `pnpm typecheck` and `pnpm lint` are clean after rename
+
+## 3. Global `--anonymous` flag
+
+- [ ] 3.1 Add `anonymous: { type: "boolean", default: false }` to every action command's `args` block in `packages/cli/src/commands/{auth,check,info,rules}.ts`
+- [ ] 3.2 In `auth login`: when `args.anonymous` is true, exit 1 with a clear "auth commands cannot be anonymous" message
+- [ ] 3.3 In `auth logout`: accept and no-op
+- [ ] 3.4 In `info`: when `args.anonymous` is true, skip the API/auth probe and report local state only
+- [ ] 3.5 In `check`, `rule delete`, `rule verify`, `rule meta`, `init`: accept and no-op
+- [ ] 3.6 In `rule create` and `rule improve`: when `args.anonymous` is true, dispatch to the local-only flow that today's `taskless-create-rule-anonymous` and `taskless-improve-rule-anonymous` skills described — moved into the CLI itself (see task 5)
+- [ ] 3.7 Add unit tests covering the per-command behavior matrix
+- [ ] 3.8 Document the flag in the consolidated SKILL.md and in each topic recipe's `## Anonymous mode` note (or in the `<topic>.anonymous.txt` variant where applicable)
+
+## 4. Audit action commands for self-sufficient file writes
+
+- [ ] 4.1 Read each existing skill body (`taskless-create-rule`, `taskless-improve-rule`, `taskless-delete-rule`, `taskless-check`, `taskless-info`, `taskless-login`, `taskless-logout`, `taskless-ci`) and identify any post-CLI work the agent currently does (writing files, copying outputs, parsing JSON to construct artifacts)
+- [ ] 4.2 For each gap, move the work into the corresponding CLI command. Action commands SHALL write all their outputs to disk themselves; agents invoke and report
+- [ ] 4.3 Add unit tests proving each action command writes the expected files end-to-end with no agent-side post-processing
+- [ ] 4.4 Update help recipe content (task 7) to reflect the simplified agent flow
+
+## 5. Anonymous flow absorption into CLI
+
+- [ ] 5.1 Move the local-only rule-creation flow (today in `skills/taskless-create-rule-anonymous/SKILL.md`) into `packages/cli/src/commands/rules.ts` as the `--anonymous` branch of `rule create`
+- [ ] 5.2 Move the local-only rule-improvement flow (today in `skills/taskless-improve-rule-anonymous/SKILL.md`) into `packages/cli/src/commands/rules.ts` as the `--anonymous` branch of `rule improve`
+- [ ] 5.3 Add unit tests proving the `--anonymous` branches write the same artifacts the anonymous skills produced
+- [ ] 5.4 Note: the verify feedback loop (today driven by the agent in the anonymous skill) stays agent-driven — the recipe orchestrates it via `tskl rule verify`. The CLI provides the verify primitive; the agent owns the loop
+
+## 6. Standardize CLI error output for recipe references
+
+- [ ] 6.1 Define a stable error-code enum in `packages/cli/src/types/errors.ts` (or extend the existing `GeneratorErrorCode`) covering at minimum: `AUTH_REQUIRED`, `NO_GITHUB_REMOTE`, `RULE_GENERATION_FAILED`, `RULE_NOT_FOUND`, `INVALID_INPUT`, `NETWORK_ERROR`
+- [ ] 6.2 When any action command exits with an error AND `--json` was set, output `{ "ok": false, "code": "<CODE>", "message": "<human message>" }` to stdout and a non-zero exit code
+- [ ] 6.3 Update existing error-throwing sites to use the standardized codes
+- [ ] 6.4 Add unit tests proving each error path emits the correct code in `--json` mode
+
+## 7. `tskl help` extensions: template, schemas, variants, no-args index
+
+- [ ] 7.1 Define the recipe template (Goal/Preconditions/Steps/Schema/Errors/See Also) and add the versioned header (`# Topic: <name> (CLI v<x.y.z> / topic v<n>)`) to every help file
+- [ ] 7.2 Extend `packages/cli/src/commands/help.ts` to recognize a `--anonymous` flag; when set, look up `<topic>.anonymous.txt` first and fall back to `<topic>.txt`
+- [ ] 7.3 Add a build-time map of which topics have anonymous variants — derived from `import.meta.glob` matching `*.anonymous.txt`
+- [ ] 7.4 Add `zod-to-json-schema` integration: each topic recipe that has a `--from` input contains its JSON schema as a code-fenced block. Generate at build time or runtime; runtime is fine given small dep footprint
+- [ ] 7.5 Update `packages/cli/src/commands/help.ts` no-args output to include a human slug (paragraph explaining what the command does for human vs. agent) followed by a topic disambiguation table
+- [ ] 7.6 Emit `help_<topic>` telemetry event on every topic fetch; emit `help_index` on no-args fetch
+- [ ] 7.7 Add unit tests for variant fallback, no-args index format, and the new telemetry events
+
+## 8. Author the seven topic recipes
+
+- [ ] 8.1 Author `packages/cli/src/help/rule-create.txt` (API-backed flow) — Goal/Preconditions/Steps/Schema/Errors/See Also; include the JSON schema for the `--from` input
+- [ ] 8.2 Author `packages/cli/src/help/rule-create.anonymous.txt` (local-only flow) — distinct steps, no API references, includes the verify loop the agent owns
+- [ ] 8.3 Author `packages/cli/src/help/rule-improve.txt` (API-backed flow) — preserve the verify loop end-to-end
+- [ ] 8.4 Author `packages/cli/src/help/rule-improve.anonymous.txt` (local-only flow)
+- [ ] 8.5 Author `packages/cli/src/help/rule-delete.txt` — short; no schema needed; deletes by rule ID
+- [ ] 8.6 Author `packages/cli/src/help/check.txt` — already exists, restructure into the template format
+- [ ] 8.7 Author `packages/cli/src/help/auth.txt` — combined login/logout/status with branches per the user's intent
+- [ ] 8.8 Author `packages/cli/src/help/info.txt` — local state report, version, auth state
+- [ ] 8.9 Author `packages/cli/src/help/ci.txt` — port the existing `taskless-ci` skill body's content into the recipe template
+- [ ] 8.10 Author `packages/cli/src/help/init.txt` — short; mostly directs the agent to tell the user to run `npx @taskless/cli` themselves
+- [ ] 8.11 For each recipe, include the `## Errors` section listing the error codes from task 6 and a user-facing fix per code
+
+## 9. Consolidated skill and command
+
+- [ ] 9.1 Create `skills/taskless/SKILL.md` with the new ~30-line router body. Frontmatter description: anchored on Taskless-specific phrases or `.taskless/` references; explicitly says "do NOT trigger on generic ESLint, linting, or rule requests that don't reference Taskless"
+- [ ] 9.2 SKILL.md frontmatter SHALL include `metadata.commandName: tskl` so command-installation plumbing maps the skill to the new command
+- [ ] 9.3 SKILL.md body SHALL include the "you do NOT have the steps" framing, the `.taskless/` presence check as the first step, the topic table, and the `## --anonymous` section
+- [ ] 9.4 Create `commands/tskl/tskl.md` with the new ~10-line router body that handles `$ARGUMENTS`. Argument-hint: `<describe what you want to do>`
+- [ ] 9.5 Delete the old skill directories: `skills/taskless-check`, `skills/taskless-ci`, `skills/taskless-create-rule`, `skills/taskless-create-rule-anonymous`, `skills/taskless-delete-rule`, `skills/taskless-improve-rule`, `skills/taskless-improve-rule-anonymous`, `skills/taskless-info`, `skills/taskless-login`, `skills/taskless-logout`
+- [ ] 9.6 Delete the old command files: `commands/tskl/check.md`, `commands/tskl/improve.md`, `commands/tskl/info.md`, `commands/tskl/login.md`, `commands/tskl/logout.md`, `commands/tskl/rule.md`
+- [ ] 9.7 Verify the consolidated skill builds via the existing `import.meta.glob` pattern in `packages/cli/src/install/install.ts`
+
+## 10. Wizard simplification and non-TTY routing
+
+- [ ] 10.1 Delete the optional-skills wizard step file (`packages/cli/src/wizard/steps/optional-skills.ts` or equivalent) and its tests
+- [ ] 10.2 Update `packages/cli/src/wizard/index.ts` to remove the optional-skills step from the `runWizard()` composition
+- [ ] 10.3 Update `packages/cli/src/commands/init.ts` so that when invoked with no args AND no TTY, it prints the non-TTY preamble + `help` index (see proposal "Non-TTY routing"). Explicit `npx @taskless/cli init` (with no TTY) preserves the existing `--no-interactive` fallback behavior
+- [ ] 10.4 Add unit tests for the new non-TTY routing path
+- [ ] 10.5 Update `packages/cli/src/install/install.ts` install reporting to print "removed N obsolete skills" and "removed M obsolete commands" alongside "installed 1 skill" so users see the cleanup
+
+## 11. Telemetry rename
+
+- [ ] 11.1 Rename existing capture sites in `packages/cli/src/commands/help.ts` from `cli_help_<topic>` to `help_<topic>`; emit `help_index` on no-args fetch
+- [ ] 11.2 Rename action-start events to `cli_<action>` (e.g. `cli_rule_create`, `cli_rule_improve`, `cli_check`); add corresponding `cli_<action>_completed` events with success/failure properties
+- [ ] 11.3 Remove the old `cli_help`, `cli_help_<topic>`, `cli_init_completed` (renamed to `cli_init_completed`), etc. event names where superseded
+- [ ] 11.4 Update unit tests covering telemetry to expect the new event names
+
+## 12. Remove `--schema` flag and capability
+
+- [ ] 12.1 Remove `--schema` flag from every command's `args` block in `packages/cli/src/commands/*.ts`
+- [ ] 12.2 Delete any code paths that handle `--schema` (likely in command run() bodies)
+- [ ] 12.3 Delete or repurpose the `cli-flag-schema` capability spec file (handled by the spec delta, but verify no orphan code references)
+- [ ] 12.4 Update tests that exercised `--schema` — they get replaced by tests in task 7.4 that verify schemas are embedded in `tskl help` output
+
+## 13. Migration cleanup via existing state
+
+- [ ] 13.1 Verify `packages/cli/src/install/state.ts` already records every skill file written per target (read the existing implementation; it should). If not, extend so it does
+- [ ] 13.2 Verify `applyInstallPlan()` (or equivalent in `install.ts`) deletes files recorded in previous state but absent from current plan. Add tests if missing
+- [ ] 13.3 Add an integration test: simulate a v0.6 install (state file lists the 10 old skills), run new init, assert all 10 are deleted and 1 new skill is written
+- [ ] 13.4 Confirm the existing version-check pattern in installed skill bodies surfaces "out of date" prominently for v0.6 users (this is already in place; just verify it still triggers correctly with v0.7's manifest version)
+
+## 14. Capability spec deletion (filesystem cleanup)
+
+- [ ] 14.1 After this change is archived, the spec deltas will guide moving these to the `archive` state. The deletion of `openspec/specs/skill-create-rule/`, `skill-improve-rule/`, `skill-delete-rule/`, `skill-auth-login/`, `skill-auth-logout/`, `skill-ci/`, `cli-flag-schema/` happens at archive time, not implementation time. No action required during apply
+
+## 15. Release hygiene
+
+- [ ] 15.1 Add a changeset noting BREAKING: CLI verb rename (`rules` → `rule`), removal of `--schema` flag, removal of individual skill names, telemetry event rename, hard cut to v0.7.0
+- [ ] 15.2 Update `packages/cli/README.md` reflecting the consolidated skill, single command, `--anonymous` flag, and new `tskl help` flow
+- [ ] 15.3 Update `packages/cli/src/help/init.txt` (renamed from `init.txt` if needed) reflecting the new bare-`taskless` no-TTY routing
+- [ ] 15.4 Update root `README.md` reflecting the user-facing changes
+- [ ] 15.5 Update `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` version to 0.7.0; description optionally clarified
+- [ ] 15.6 Run `pnpm typecheck` and `pnpm lint` until clean
+- [ ] 15.7 Run `pnpm cli` end-to-end against a scratch directory: install, fetch help for each topic, run a `rule create`, run `check`, run `auth login --anonymous` (expect error)

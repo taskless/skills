@@ -1,0 +1,91 @@
+# Skill: Taskless
+
+## ADDED Requirements
+
+### Requirement: Single consolidated taskless skill replaces per-task skills
+
+The skills bundle SHALL contain exactly one skill named `taskless`. This skill SHALL replace the per-task skills `taskless-check`, `taskless-create-rule`, `taskless-create-rule-anonymous`, `taskless-improve-rule`, `taskless-improve-rule-anonymous`, `taskless-delete-rule`, `taskless-info`, `taskless-login`, `taskless-logout`, and `taskless-ci`. The skill SHALL be installed into every detected tool location (Claude Code, OpenCode, Cursor, etc.) per the existing install plumbing.
+
+#### Scenario: Bundle contains exactly one skill
+
+- **WHEN** the CLI bundle is built
+- **THEN** `import.meta.glob("../../../../skills/**/SKILL.md")` SHALL match exactly one file at `skills/taskless/SKILL.md`
+
+#### Scenario: Skill catalog has one entry
+
+- **WHEN** `getMandatorySkillNames()` is called
+- **THEN** it SHALL return `["taskless"]`
+- **AND** `getOptionalSkillNames()` SHALL return `[]`
+
+#### Scenario: Old skill directories are removed
+
+- **WHEN** the v0.7.0 release is built
+- **THEN** none of the directories `skills/taskless-check`, `skills/taskless-ci`, `skills/taskless-create-rule`, `skills/taskless-create-rule-anonymous`, `skills/taskless-delete-rule`, `skills/taskless-improve-rule`, `skills/taskless-improve-rule-anonymous`, `skills/taskless-info`, `skills/taskless-login`, or `skills/taskless-logout` SHALL exist in the repository
+
+### Requirement: Skill description anchors triggers on Taskless-specific phrases
+
+The consolidated skill's `description` frontmatter field SHALL anchor triggers on either an explicit reference to "Taskless" in the user's message OR a reference to the `.taskless/` directory or files within it (rules, rule-tests, rule-metadata). The description SHALL explicitly instruct the agent NOT to trigger on generic ESLint, linting, or rule requests that don't reference Taskless.
+
+#### Scenario: Description includes anchored trigger phrases
+
+- **WHEN** the skill `description` field is read
+- **THEN** it SHALL include trigger phrases such as "create/add/write a taskless rule", "improve/fix/iterate on this taskless rule", "run taskless", "taskless login", "add taskless to CI"
+- **AND** SHALL include an explicit "Do NOT trigger on" clause covering generic ESLint and linting requests
+
+#### Scenario: Description is at most 1024 characters
+
+- **WHEN** the skill `description` field length is measured
+- **THEN** it SHALL be at most 1024 characters (Agent Skills spec limit)
+
+### Requirement: Skill body is a router, not an inline recipe
+
+The consolidated skill body SHALL NOT contain step-by-step instructions for any individual Taskless task. The body SHALL be a router that:
+
+1. States explicitly that the agent does NOT have the steps for any Taskless action in its context
+2. Instructs the agent to fetch the canonical recipe via `npx @taskless/cli help <topic>` before proceeding
+3. Provides a topic disambiguation table mapping user intents to topic names
+4. Includes a `## --anonymous` section explaining the global flag's behavior
+5. Includes a first-step `.taskless/` presence check with graceful failure ("ask the user to confirm they meant Taskless")
+
+The body SHALL be no more than 60 lines of markdown to keep the always-loaded surface small.
+
+#### Scenario: Skill body warns against improvising
+
+- **WHEN** the skill body is read by an agent
+- **THEN** it SHALL contain explicit framing such as "You do NOT have the steps... do not improvise from prior knowledge"
+
+#### Scenario: Skill body lists available topics
+
+- **WHEN** the skill body is read by an agent
+- **THEN** it SHALL include a table or list mapping user intents (create rule, improve rule, delete rule, check, auth, ci) to the corresponding `tskl help <topic>` invocations
+
+#### Scenario: Skill body checks for .taskless directory
+
+- **WHEN** the skill is invoked
+- **THEN** the body's first step SHALL instruct the agent to check whether `.taskless/` exists in the working directory
+- **AND** to ask the user to confirm Taskless is what they meant if the directory is absent
+
+### Requirement: Skill maps to a single tskl command
+
+The consolidated skill's frontmatter SHALL include `metadata.commandName: tskl` so that command-installation plumbing maps the skill to the new single command file at `commands/tskl/tskl.md`. The command file SHALL be a thin doorway that accepts a free-form `$ARGUMENTS` ask, infers a topic if possible, and otherwise asks the user what they want to do.
+
+#### Scenario: Frontmatter declares the command mapping
+
+- **WHEN** the skill frontmatter is parsed
+- **THEN** `metadata.commandName` SHALL equal `tskl`
+
+#### Scenario: Old command files are removed
+
+- **WHEN** the v0.7.0 release is built
+- **THEN** none of `commands/tskl/check.md`, `commands/tskl/improve.md`, `commands/tskl/info.md`, `commands/tskl/login.md`, `commands/tskl/logout.md`, or `commands/tskl/rule.md` SHALL exist in the repository
+- **AND** exactly one file `commands/tskl/tskl.md` SHALL exist
+
+#### Scenario: Slash command accepts free-form arguments
+
+- **WHEN** a user invokes `/tskl` with arguments (e.g. `/tskl create a rule for no console.log`)
+- **THEN** the command body SHALL instruct the agent to infer the topic from `$ARGUMENTS`, fetch the recipe via `npx @taskless/cli help <topic>`, and proceed
+
+#### Scenario: Slash command without arguments asks the user
+
+- **WHEN** a user invokes `/tskl` with no arguments
+- **THEN** the command body SHALL instruct the agent to ask the user what they want to do with Taskless before proceeding
