@@ -1,0 +1,36 @@
+name: PR OpenSpec Archive Check
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check-openspec-archived:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fail if any unarchived OpenSpec change exists
+        run: |
+          set -euo pipefail
+
+          if [ ! -d openspec/changes ]; then
+            echo "openspec/changes does not exist — nothing to check."
+            exit 0
+          fi
+
+          UNARCHIVED=$(find openspec/changes -mindepth 1 -maxdepth 1 -type d ! -name archive)
+
+          if [ -n "$UNARCHIVED" ]; then
+            echo "::error::Unarchived OpenSpec change directories found under openspec/changes/:"
+            echo "$UNARCHIVED" | sed 's|^|  - |'
+            echo ""
+            echo "Every change must be moved under openspec/changes/archive/ before merge."
+            echo "Run the openspec archive workflow (e.g. /openspec-archive-change <name>) and commit the result."
+            exit 1
+          fi
+
+          echo "No unarchived OpenSpec changes — OK."
