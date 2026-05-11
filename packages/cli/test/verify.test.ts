@@ -1,16 +1,10 @@
 import { mkdtemp, rm, writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-import { resolve } from "node:path";
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { stringify } from "yaml";
 
 import { verifyRule, getSchemaPayload } from "../src/rules/verify";
-
-const execFileAsync = promisify(execFile);
-const CLI_PATH = resolve(import.meta.dirname, "..", "dist", "index.js");
 
 describe("verifyRule", () => {
   let temporaryDirectory: string;
@@ -348,21 +342,5 @@ describe("getSchemaPayload", () => {
     expect(
       examples.some((example) => example.description.includes("Composite"))
     ).toBe(true);
-  });
-});
-
-describe("rules verify CLI", () => {
-  it("--schema --json outputs valid JSON with expected keys", async () => {
-    const { stdout } = await execFileAsync("node", [
-      CLI_PATH,
-      "rules",
-      "verify",
-      "--schema",
-      "--json",
-    ]);
-    const payload = JSON.parse(stdout) as Record<string, unknown>;
-    expect(payload).toHaveProperty("astGrepSchema");
-    expect(payload).toHaveProperty("tasklessRequirements");
-    expect(payload).toHaveProperty("examples");
   });
 });

@@ -98,10 +98,10 @@
 
 ## 12. Remove `--schema` flag and capability
 
-- [ ] 12.1 Remove `--schema` flag from every command's `args` block in `packages/cli/src/commands/*.ts`
-- [ ] 12.2 Delete any code paths that handle `--schema` (likely in command run() bodies)
-- [ ] 12.3 Delete or repurpose the `cli-flag-schema` capability spec file (handled by the spec delta, but verify no orphan code references)
-- [ ] 12.4 Update tests that exercised `--schema` — they get replaced by tests in task 7.4 that verify schemas are embedded in `tskl help` output
+- [x] 12.1 Remove `--schema` flag from every command's `args` block in `packages/cli/src/commands/*.ts`
+- [x] 12.2 Delete any code paths that handle `--schema` (likely in command run() bodies)
+- [x] 12.3 Delete or repurpose the `cli-flag-schema` capability spec file (handled by the spec delta, but verify no orphan code references)
+- [x] 12.4 Update tests that exercised `--schema` — they get replaced by tests in task 7.4 that verify schemas are embedded in `tskl help` output
 
 ## 13. Migration cleanup via existing state
 

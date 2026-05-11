@@ -10,7 +10,6 @@ Usage:
 Options:
   -d, --dir <path>   Set working directory (default: current directory)
   --json             Output results as JSON
-  --schema           Print output/error JSON Schemas and exit
 
 Output:
   Displays the rule's sidecar metadata fields (ticketId, generatedAt, etc.).

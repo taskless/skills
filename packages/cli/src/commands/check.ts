@@ -5,7 +5,6 @@ import { defineCommand } from "citty";
 import { runAstGrepScan } from "../rules/scan";
 import { formatText } from "../util/format";
 import { generateSgConfig } from "../filesystem/sgconfig";
-import { printSchema } from "../util/schema-output";
 import { getTelemetry } from "../telemetry";
 import {
   outputSchema as checkOutputSchema,
@@ -102,22 +101,8 @@ export const checkCommand = defineCommand({
       description: "Output as JSON",
       default: false,
     },
-    schema: {
-      type: "boolean",
-      description: "Print input/output/error JSON Schemas and exit",
-      default: false,
-    },
   },
   async run({ args, rawArgs }) {
-    // --schema short-circuits: print schemas and exit
-    if (args.schema) {
-      printSchema({
-        output: checkOutputSchema,
-        error: checkErrorSchema,
-      });
-      return;
-    }
-
     const cwd = resolve(args.dir ?? process.cwd());
     const telemetry = await getTelemetry(cwd);
     telemetry.capture("cli_check");

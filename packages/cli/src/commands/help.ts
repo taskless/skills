@@ -64,7 +64,7 @@ export function createHelpCommand(subCommands: SubCommandsDef) {
     },
     async run({ args, rawArgs }) {
       // Extract positional args from rawArgs, skipping flags and their values.
-      // --dir/-d take a value; --json/--schema are boolean and do not.
+      // --dir/-d take a value; --json is boolean and does not.
       const valueFlagSet = new Set(["--dir", "-d"]);
       const positionals: string[] = [];
       for (let index = 0; index < rawArgs.length; index++) {
