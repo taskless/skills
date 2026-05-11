@@ -99,6 +99,11 @@ export const checkCommand = defineCommand({
       description: "Output as JSON",
       default: false,
     },
+    anonymous: {
+      type: "boolean",
+      description: "Accepted for compatibility; check has no auth dependency",
+      default: false,
+    },
   },
   async run({ args, rawArgs }) {
     const cwd = resolve(args.dir ?? process.cwd());

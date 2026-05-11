@@ -17,12 +17,27 @@ const loginCommand = defineCommand({
       alias: "d",
       description: "Working directory",
     },
+    anonymous: {
+      type: "boolean",
+      description: "Rejected: auth commands cannot be anonymous",
+      default: false,
+    },
   },
   async run({ args }) {
     const cwd = resolve(args.dir ?? process.cwd());
     const telemetry = await getTelemetry(cwd);
     const startedAt = Date.now();
     telemetry.capture("cli_auth_login");
+
+    if (args.anonymous) {
+      console.error("Error: auth commands cannot be anonymous.");
+      process.exitCode = 1;
+      telemetry.capture("cli_auth_login_completed", {
+        success: false,
+        durationMs: Date.now() - startedAt,
+      });
+      return;
+    }
 
     let success = false;
     try {
@@ -63,6 +78,11 @@ const logoutCommand = defineCommand({
       type: "string",
       alias: "d",
       description: "Working directory",
+    },
+    anonymous: {
+      type: "boolean",
+      description: "Accepted for compatibility; logout is already local",
+      default: false,
     },
   },
   async run({ args }) {
