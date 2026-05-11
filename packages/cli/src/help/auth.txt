@@ -1,7 +1,70 @@
-Manage authentication with taskless.io
+# Topic: auth     (CLI v{{CLI_VERSION}} / topic v1)
 
-Commands:
-  login    Authenticate via device flow
-  logout   Remove saved credentials
+## Goal
+Manage Taskless authentication. Three branches:
+- **Login** — start the device-code flow and wait for the user to
+  approve in their browser.
+- **Logout** — remove the saved token.
+- **Status** — check whether a token is present and whose identity
+  it represents.
 
-Run `taskless help auth <command>` for details on a specific command.
+## Preconditions
+- `.taskless/` directory exists.
+- For login: the user has a browser to approve the device code.
+
+## Steps
+
+Pick the branch matching the user's intent.
+
+### Login
+
+1. Run:
+   ```
+   npx @taskless/cli auth login
+   ```
+2. The CLI prints a URL and a device code. Tell the user to open the
+   URL and enter the code.
+3. The CLI polls until the token is approved. On success, the token
+   is written to `.taskless/.env.local.json` and a confirmation is
+   printed.
+4. Report success. Suggest `taskless info` to verify identity.
+
+The `--anonymous` flag is rejected on `auth login` — it errors with
+"auth commands cannot be anonymous". Don't pass it.
+
+### Logout
+
+1. Run:
+   ```
+   npx @taskless/cli auth logout
+   ```
+2. The CLI removes the saved token (or reports "Not logged in" if
+   none was present).
+3. Report the outcome.
+
+### Status (no subcommand)
+
+1. Run:
+   ```
+   npx @taskless/cli auth
+   ```
+2. Output is one of:
+   - "Not logged in." (with hint to run `auth login`)
+   - "Logged in as <user> (<orgs>)."
+   - "Logged in, but unable to verify identity." (token expired or
+     revoked — suggest re-login)
+3. Report to the user.
+
+## Errors
+
+When `--json` is set, failures emit `{ ok: false, code, message }`:
+
+| code             | meaning                                    | fix                          |
+|------------------|--------------------------------------------|------------------------------|
+| `NETWORK_ERROR`  | Device flow / token endpoint unreachable   | Check connectivity; retry    |
+| `AUTH_REQUIRED`  | Token expired or invalid (status branch)   | Re-run `taskless auth login` |
+
+## See Also
+
+- `taskless help info` — see auth state and skill versions
+- `taskless help rule create` — first action that requires auth

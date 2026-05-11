@@ -1,29 +1,103 @@
-Improve an existing rule with guidance
+# Topic: rule improve     (CLI v{{CLI_VERSION}} / topic v1)
 
-Reads a JSON file containing the rule ID and improvement guidance, submits
-it to the Taskless API, and writes the updated rule and test files to
-.taskless/rules/ and .taskless/rule-tests/.
+## Goal
+Iterate on an existing Taskless rule. The CLI submits the user's
+guidance to the Taskless API iterate endpoint, which returns an
+updated rule that overwrites the original on disk. The agent's job
+is to gather the right ruleId + guidance + supporting references and
+to report the result.
 
-Prerequisites:
-  Run `npx @taskless/cli@latest auth login` to authenticate first.
-  Your repository must have a GitHub origin remote.
+If the user wants the local-only flow (no API call), fetch
+`taskless help rule improve --anonymous` instead.
 
-Usage:
-  taskless rule improve --from <file> [options]
+## Preconditions
+- User is logged in.
+- Repository has a GitHub origin remote.
+- The target rule exists in `.taskless/rules/<id>.yml`.
+- The rule has metadata at `.taskless/rule-metadata/<id>.yml` (the
+  `ticketId` is required by the iterate endpoint). If metadata is
+  missing, the rule was created in anonymous mode and cannot be
+  iterated via the API path — fetch the anonymous variant instead.
 
-Options:
-  --from <file>      Path to a JSON file containing the improve request (required)
-  -d, --dir <path>   Set working directory (default: current directory)
-  --json             Output results as JSON
+## Steps
 
-JSON File Fields:
-  ruleId       (required) The rule request ID to improve
-  guidance     (required) Description of what should change
-  references   (optional) Array of { filename, content } objects providing context
+1. **Confirm auth.** Run `npx @taskless/cli info --json` and check
+   `loggedIn`. If false, fetch `taskless help auth`.
 
-Output:
-  Lists updated rule and test file paths.
+2. **Identify the rule to improve.** If the user named one, use it.
+   Otherwise, list rules in `.taskless/rules/` and ask which one.
+   Read the existing rule file so you can summarize what it does.
 
-Examples:
-  taskless rule improve --from request.json
-  taskless rule improve --from .taskless/.tmp-improve-request.json --json
+3. **Fetch the rule's metadata.** Run:
+   ```
+   npx @taskless/cli rule meta <id> --json
+   ```
+   This returns the `ticketId` needed for the iterate request. If the
+   metadata is missing, the rule cannot be iterated via API — fetch
+   `taskless help rule improve --anonymous` instead.
+
+4. **Gather improvement guidance.** Ask the user what should change:
+   - Are there false positives we need to exclude?
+   - Are there missed cases we need to catch?
+   - Is the message confusing or misleading?
+   - Should the severity change?
+
+5. **Collect supporting references.** Ask the user for any code
+   examples that should be:
+   - **Not flagged** (currently flagged but shouldn't be) — false
+     positive references.
+   - **Flagged** (currently passing but should be caught) — false
+     negative references.
+
+   Each reference is `{ filename: string, content: string }`. Multiple
+   references are an array.
+
+6. **Confirm the request.** Summarize the rule, the guidance, and
+   the references before submitting.
+
+7. **Write the JSON payload.** Build a JSON object matching the input
+   schema below and write it to `.taskless/.tmp-improve-request.json`.
+
+8. **Invoke the CLI.** Run:
+   ```
+   npx @taskless/cli rule improve --from .taskless/.tmp-improve-request.json --json
+   ```
+   This may take 30–60 seconds while the API generates the update.
+
+9. **Clean up.** Delete `.taskless/.tmp-improve-request.json`
+   regardless of success or failure.
+
+10. **Report results.** The CLI overwrites the rule file (and its
+    test file) with the updated version. Show the file paths and a
+    summary of what changed. Suggest fetching `taskless help check`
+    to validate.
+
+## Input schema
+
+The `--from` JSON file conforms to:
+
+```json
+{{INPUT_SCHEMA}}
+```
+
+`ruleId` is the original rule's ticket ID (returned by
+`taskless rule meta <id> --json`), not the YAML file name.
+
+## Errors
+
+When `--json` is set, failures emit `{ ok: false, code, message }`:
+
+| code                     | meaning                                | fix                                          |
+|--------------------------|----------------------------------------|----------------------------------------------|
+| `AUTH_REQUIRED`          | not logged in                          | fetch `taskless help auth`                   |
+| `NO_GITHUB_REMOTE`       | no GitHub origin remote                | tell the user; we cannot proceed             |
+| `INVALID_INPUT`          | `--from` JSON failed validation        | re-read input schema, fix, retry             |
+| `RULE_NOT_FOUND`         | metadata missing for the given rule    | use anonymous variant or recreate via create |
+| `NETWORK_ERROR`          | API submit/poll failed                 | report and suggest retry                     |
+| `RULE_GENERATION_FAILED` | API returned a generation failure      | report; suggest enriching guidance/references |
+
+## See Also
+
+- `taskless help rule improve --anonymous` — local-only flow
+- `taskless help rule create` — make a new rule from scratch
+- `taskless help check` — validate the updated rule

@@ -1,29 +1,98 @@
-Create a new rule from a JSON file
+# Topic: rule create     (CLI v{{CLI_VERSION}} / topic v1)
 
-Reads a JSON file describing the desired rule, submits it to the Taskless
-API for generation, and writes the resulting rule and test files to
-.taskless/rules/ and .taskless/rule-tests/.
+## Goal
+Generate a new ast-grep rule from a description and write the rule and
+its tests to the user's `.taskless/` directory. The CLI calls the
+Taskless API to do the generation; the agent's job is to enrich the
+user's description before submitting and to report the result.
 
-Prerequisites:
-  Run `npx @taskless/cli@latest auth login` to authenticate first.
-  Your repository must have a GitHub origin remote.
+If the user wants the local-only flow (no API call), fetch
+`taskless help rule create --anonymous` instead.
 
-Usage:
-  taskless rule create --from <file> [options]
+## Preconditions
+- User is logged in (`taskless info --json` reports `loggedIn: true`).
+  If not, fetch `taskless help auth` first.
+- Repository has a GitHub origin remote.
+- `.taskless/` directory exists (otherwise the user has not run
+  `npx @taskless/cli` to install Taskless).
 
-Options:
-  --from <file>      Path to a JSON file containing the rule request (required)
-  -d, --dir <path>   Set working directory (default: current directory)
-  --json             Output results as JSON
+## Steps
 
-JSON File Fields:
-  prompt         (required) Description of the pattern to detect
-  successCases   (optional) Array of example code strings that should pass
-  failureCases   (optional) Array of example code strings that should fail
+1. **Confirm auth.** Run `npx @taskless/cli info --json` and check the
+   `loggedIn` field. If false, fetch `taskless help auth` and follow the
+   login recipe before continuing. If the user explicitly wants
+   anonymous mode, fetch `taskless help rule create --anonymous` instead.
 
-Output:
-  Lists generated rule and test file paths.
+2. **Gather the rule description.** Even if the user already provided
+   one, ask clarifying questions:
+   - What specific code pattern should be flagged? (concrete examples)
+   - In what language?
+   - Are there contexts where the pattern is acceptable?
 
-Examples:
-  taskless rule create --from request.json
-  taskless rule create --from .taskless/.tmp-rule-request.json --json
+3. **Check for similar existing rules.** Scan `.taskless/rules/` for
+   rule files. Read each rule's `message`, `note`, and `rule` fields.
+   If any overlap with the user's request, show the user and ask:
+   "It looks like you already have a rule that covers something
+   similar. Would you like to improve the existing rule instead?"
+   If yes, fetch `taskless help rule improve` instead.
+
+4. **Enrich the request.**
+   - Search the codebase for real instances of the pattern. Show the
+     user what you found.
+   - Ask for additional success and failure cases.
+   - Read `.gitignore`, ESLint configs, and `tsconfig.json` `exclude`
+     for default exclusion patterns. Present them as defaults.
+   - Ask about additional exclusions (e.g. `.d.ts` files, tests).
+   - Infer the primary language from the codebase. Confirm with the
+     user. Include it in the `prompt` field.
+
+5. **Confirm the enriched request.** Before submitting, summarize:
+   - The full prompt (including language and exclusion notes)
+   - The success case(s)
+   - The failure case(s)
+
+6. **Write the JSON payload.** Build a JSON object matching the input
+   schema below and write it to `.taskless/.tmp-rule-request.json`.
+
+7. **Invoke the CLI.** Run:
+   ```
+   npx @taskless/cli rule create --from .taskless/.tmp-rule-request.json --json
+   ```
+   This may take 30–60 seconds while the API generates the rule.
+
+8. **Clean up.** Delete `.taskless/.tmp-rule-request.json` regardless
+   of success or failure.
+
+9. **Report results.** The CLI writes the generated rule to
+   `.taskless/rules/<id>.yml`, tests to `.taskless/rule-tests/<id>.yml`,
+   and metadata to `.taskless/rule-metadata/<id>.yml`. Show the user
+   the file paths. Suggest fetching `taskless help check` to validate.
+
+## Input schema
+
+The `--from` JSON file conforms to:
+
+```json
+{{INPUT_SCHEMA}}
+```
+
+Each example in `successCases` and `failureCases` is a separate
+string. Multi-line code goes in a single string with literal newlines.
+
+## Errors
+
+When `--json` is set, failures emit `{ ok: false, code, message }`:
+
+| code                     | meaning                            | fix                                         |
+|--------------------------|------------------------------------|---------------------------------------------|
+| `AUTH_REQUIRED`          | not logged in                      | fetch `taskless help auth`                  |
+| `NO_GITHUB_REMOTE`       | no GitHub origin remote            | tell the user; we cannot proceed            |
+| `INVALID_INPUT`          | `--from` JSON failed validation    | re-read the input schema, fix, retry        |
+| `NETWORK_ERROR`          | API submit/poll failed             | report and suggest retry                    |
+| `RULE_GENERATION_FAILED` | API returned a generation failure  | report the message; suggest enriching prompt |
+
+## See Also
+
+- `taskless help rule create --anonymous` — local-only flow (no API)
+- `taskless help rule improve` — iterate on an existing rule
+- `taskless help check` — validate the new rule against the codebase

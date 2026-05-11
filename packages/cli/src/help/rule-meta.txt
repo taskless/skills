@@ -1,19 +1,30 @@
-Show sidecar metadata for a rule
+# Topic: rule meta     (CLI v{{CLI_VERSION}} / topic v1)
 
-Reads the metadata file for a generated rule from .taskless/rule-metadata/
-and displays its contents. Metadata includes the ticket ID used for
-iterating on the rule, generation timestamp, and schema version.
+## Goal
+Read sidecar metadata for an API-generated rule. Used internally by
+the `rule improve` recipe to fetch the `ticketId` needed for iteration.
 
-Usage:
-  taskless rule meta <id> [options]
+## Preconditions
+- The rule was created via the API path (anonymous-mode rules have
+  no metadata sidecar).
+- `.taskless/rule-metadata/<id>.yml` exists.
 
-Options:
-  -d, --dir <path>   Set working directory (default: current directory)
-  --json             Output results as JSON
+## Steps
 
-Output:
-  Displays the rule's sidecar metadata fields (ticketId, generatedAt, etc.).
+```
+npx @taskless/cli rule meta <id> --json
+```
 
-Examples:
-  taskless rule meta no-console-log
-  taskless rule meta no-console-log --json
+Returns the metadata fields: `ticketId`, `generatedAt`, schema
+version, etc.
+
+## Errors
+
+| code             | meaning                              | fix                                |
+|------------------|--------------------------------------|------------------------------------|
+| `RULE_NOT_FOUND` | metadata sidecar missing             | Use anonymous improve flow instead |
+| `INVALID_INPUT`  | metadata file malformed              | File is corrupted; re-create rule  |
+
+## See Also
+
+- `taskless help rule improve` — the primary consumer of this command

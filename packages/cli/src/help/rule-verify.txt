@@ -1,20 +1,58 @@
-Validate a rule against the ast-grep schema and run tests
+# Topic: rule verify     (CLI v{{CLI_VERSION}} / topic v1)
 
-Performs three layers of validation:
-  1. Schema validation against the official ast-grep rule schema
-  2. Taskless requirement checks (required fields, regex-requires-kind)
-  3. Test execution via sg test (if test file exists)
+## Goal
+Validate a rule against the ast-grep schema and run its test cases.
+Primary consumer is the anonymous create/improve flow (the verify
+feedback loop), but agents can also call it directly to lint a rule.
 
-Usage:
-  taskless rule verify <id> [options]
+## Preconditions
+- `.taskless/rules/<id>.yml` exists.
+- Optionally `.taskless/rule-tests/<id>-*.yml` exists (test cases run
+  if present).
+- No auth required.
 
-Arguments:
-  <id>   Rule ID to verify (matches .taskless/rules/<id>.yml)
+## Steps
 
-Options:
-  -d, --dir <path>   Set working directory (default: current directory)
-  --json             Output as JSON
+```
+npx @taskless/cli rule verify <id> --json
+```
 
-Examples:
-  taskless rule verify no-eval
-  taskless rule verify no-eval --json
+Three layers of validation run in order:
+
+1. **Schema** — YAML conforms to the ast-grep rule schema.
+2. **Requirements** — Taskless-required fields present (`id`,
+   `language`, `severity`, `message`, `rule`); `regex` always
+   accompanied by `kind`.
+3. **Tests** — `sg test` runs the test file. Each `valid` case must
+   not match; each `invalid` case must match.
+
+Output (JSON):
+```json
+{
+  "ruleId": "no-eval",
+  "success": false,
+  "schema":       { "valid": true,  "errors": [] },
+  "requirements": { "valid": false, "errors": ["missing severity"] },
+  "tests":        { "valid": true,  "passed": 4, "failed": 0, "errors": [] }
+}
+```
+
+When iterating in a feedback loop (anonymous create/improve), read
+the per-layer errors, fix the rule or tests, re-run. Cap at 3
+attempts and report to the user if still failing.
+
+## Exit codes
+
+- `0` — All three layers passed.
+- `1` — Any layer failed (or `--json` missing required ID).
+
+## Errors
+
+| code             | meaning              | fix                              |
+|------------------|----------------------|----------------------------------|
+| `INVALID_INPUT`  | Rule ID not provided | Pass the rule ID positionally    |
+
+## See Also
+
+- `taskless help rule create --anonymous` — primary consumer (loop)
+- `taskless help rule improve --anonymous` — primary consumer (loop)

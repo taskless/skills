@@ -1,0 +1,88 @@
+# Topic: rule improve (anonymous)     (CLI v{{CLI_VERSION}} / topic v1)
+
+## Goal
+Iterate on an existing ast-grep rule **locally** without contacting
+the Taskless API. You (the agent) edit the rule YAML directly, then
+validate with `rule verify` in a feedback loop.
+
+## Preconditions
+- `.taskless/` directory exists and contains the target rule.
+- The agent can read/write files and run shell commands.
+- No auth required.
+
+## Steps
+
+1. **Identify the target rule.** If the user named one, use it.
+   Otherwise, list `.taskless/rules/` and ask which one. Read the
+   rule file and any test file (`.taskless/rule-tests/<id>-*.yml`).
+
+2. **Gather improvement guidance.** Ask:
+   - Are there false positives (cases currently flagged but
+     shouldn't be)? Get concrete examples.
+   - Are there false negatives (cases passing but should be
+     caught)? Get concrete examples.
+   - Should the message, severity, or note change?
+
+3. **Plan the change.** Decide whether to:
+   - Tighten the `rule` (add `inside`, `not`, more specific `kind`)
+   - Loosen the `rule` (relax constraints, add `any` alternatives)
+   - Add `ignores` patterns for files/paths to skip
+   - Adjust `message`/`severity`/`note`
+   Summarize the planned change before editing.
+
+4. **Edit the rule file.** Make the change directly in
+   `.taskless/rules/<id>.yml`. Preserve the existing `id`,
+   `language`, and `severity` unless the user explicitly asked to
+   change them.
+
+5. **Update test cases.** Add the new false-positive examples to the
+   `valid:` list and the new false-negative examples to the
+   `invalid:` list in `.taskless/rule-tests/<id>-*.yml`.
+
+6. **Run the verify feedback loop.** Run:
+   ```
+   npx @taskless/cli rule verify <id> --json
+   ```
+   - If `success: true`: report success.
+   - If `success: false`: read the per-layer errors, fix, re-run.
+     Repeat up to 3 times. After 3 failed attempts, report to the
+     user with the latest errors and ask for guidance.
+
+   Common fixes:
+   - New tests fail → the rule still doesn't catch the case;
+     refine the pattern.
+   - Old tests broke → the new rule is too aggressive; add an
+     `ignores` clause or constrain `kind`.
+   - Schema errors → the YAML structure drifted; check fields.
+
+7. **Report results.** Show:
+   - The updated rule file path
+   - The updated test file path
+   - A diff-style summary of what changed
+   Suggest fetching `taskless help check` to validate against the
+   broader codebase.
+
+## Important Notes
+
+- Rules created in anonymous mode have no metadata sidecar — that's
+  fine. This recipe doesn't need or write metadata.
+- If the rule was originally created via the API path (has metadata),
+  you can still use this anonymous recipe to iterate locally. The
+  metadata sidecar is preserved untouched.
+- Do NOT make any HTTP requests to taskless.io.
+
+## Errors
+
+The verify primitive returns structured errors per layer:
+
+| layer          | what failure means                           | fix                                       |
+|----------------|----------------------------------------------|-------------------------------------------|
+| `schema`       | YAML doesn't match ast-grep schema           | Fix rule structure                         |
+| `requirements` | Missing Taskless-required field              | Add `id`/`language`/`severity`/etc.        |
+| `tests`        | A test case behaved unexpectedly             | Fix the rule pattern OR the test case      |
+
+## See Also
+
+- `taskless help rule improve` — API-backed flow (auth required)
+- `taskless help rule create --anonymous` — make a new rule locally
+- `taskless help check` — validate the updated rule
