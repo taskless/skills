@@ -105,10 +105,10 @@
 
 ## 13. Migration cleanup via existing state
 
-- [ ] 13.1 Verify `packages/cli/src/install/state.ts` already records every skill file written per target (read the existing implementation; it should). If not, extend so it does
-- [ ] 13.2 Verify `applyInstallPlan()` (or equivalent in `install.ts`) deletes files recorded in previous state but absent from current plan. Add tests if missing
-- [ ] 13.3 Add an integration test: simulate a v0.6 install (state file lists the 10 old skills), run new init, assert all 10 are deleted and 1 new skill is written
-- [ ] 13.4 Confirm the existing version-check pattern in installed skill bodies surfaces "out of date" prominently for v0.6 users (this is already in place; just verify it still triggers correctly with v0.7's manifest version)
+- [x] 13.1 Verify `packages/cli/src/install/state.ts` already records every skill file written per target (verified — `applyInstallPlan` writes a fresh state on every run including all skills/commands per target)
+- [x] 13.2 Verify `applyInstallPlan()` deletes files recorded in previous state but absent from current plan (verified — `computeInstallDiff()` produces removals which `applyInstallPlan` deletes before writing)
+- [x] 13.3 Add an integration test: simulate a v0.6 install (state file lists the 10 old skills + 6 commands), run new install, assert all 16 are deleted and 1 new skill + 1 new command are written. Test added in `apply-install-plan.test.ts`
+- [x] 13.4 The version-check via `metadata.version` in installed skill bodies vs. `__VERSION__` in `checkStaleness()` surfaces "out of date" via `info` (existing behavior, no change required)
 
 ## 14. Capability spec deletion (filesystem cleanup)
 
