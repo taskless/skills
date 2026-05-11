@@ -8,125 +8,51 @@ Defines the `rules` subcommand group for the Taskless CLI, including `create`, `
 
 ### Requirement: Rules subcommand group exists
 
-The CLI SHALL register a `rules` subcommand group with `create`, `improve`, and `delete` as nested subcommands. Running `taskless rules` with no subcommand SHALL display help text listing the available rules subcommands.
+The CLI SHALL expose the rule operations under the `rule` (singular) subcommand group. The user-facing surface SHALL be `taskless rule create`, `taskless rule improve`, `taskless rule delete`, `taskless rule verify`, and `taskless rule meta`. The internal source filename (`packages/cli/src/commands/rules.ts`) MAY remain plural — only the user-visible subcommand name changes.
 
-#### Scenario: Rules help is displayed
+The previous plural form `taskless rules <subcommand>` SHALL NOT work in v0.7.0 — there is no compatibility alias.
 
-- **WHEN** a user runs `taskless rules`
-- **THEN** the CLI SHALL print help text listing `create`, `improve`, and `delete` subcommands
+#### Scenario: Singular subcommand registers correctly
+
+- **WHEN** a user runs `taskless rule create --from req.json`
+- **THEN** the CLI SHALL invoke the rule-create handler
+
+#### Scenario: Plural subcommand is no longer recognized
+
+- **WHEN** a user runs `taskless rules create --from req.json`
+- **THEN** the CLI SHALL exit with an error indicating the subcommand is unknown
+- **AND** the error message SHOULD suggest `taskless rule create`
 
 ### Requirement: Rules create reads request from stdin
 
-The `taskless rules create` command SHALL read a JSON request payload from a file specified by the `--from <file>` argument. The payload SHALL conform to the shape `{ prompt: string, successCases?: string[], failureCases?: string[] }`. The `prompt` field is required. If `--from` is not provided, the CLI SHALL print an error message with usage examples and exit with a non-zero exit code. If the file does not exist or contains invalid JSON, the CLI SHALL print an appropriate error and exit with a non-zero exit code.
+The `taskless rule create` command SHALL accept a `--from <file>` flag specifying a JSON file containing the rule request. (Note: previously named `rules create`; renamed to singular.)
 
-#### Scenario: Valid JSON from file
+#### Scenario: rule create with --from file
 
-- **WHEN** a user runs `taskless rules create --from request.json` and `request.json` contains valid JSON with a `prompt` field
-- **THEN** the CLI SHALL read the file, parse the JSON, and proceed to submit it to the API
-
-#### Scenario: Missing --from flag
-
-- **WHEN** a user runs `taskless rules create` without the `--from` flag
-- **THEN** the CLI SHALL print an error indicating `--from <file>` is required with a usage example
-- **AND** the CLI SHALL exit with a non-zero exit code
-
-#### Scenario: File not found
-
-- **WHEN** a user runs `taskless rules create --from missing.json` and the file does not exist
-- **THEN** the CLI SHALL print an error indicating the file was not found
-- **AND** the CLI SHALL exit with a non-zero exit code
-
-#### Scenario: Invalid JSON in file
-
-- **WHEN** a user runs `taskless rules create --from bad.json` and the file contains invalid JSON
-- **THEN** the CLI SHALL print an error indicating the file is not valid JSON
-- **AND** the CLI SHALL exit with a non-zero exit code
-
-#### Scenario: Missing required fields
-
-- **WHEN** a user provides a file missing the `prompt` field
-- **THEN** the CLI SHALL print an error indicating the missing field
-- **AND** the CLI SHALL exit with a non-zero exit code
+- **WHEN** a user runs `taskless rule create --from .taskless/.tmp-rule-request.json --json`
+- **THEN** the CLI SHALL read the JSON file and submit it to the API
 
 ### Requirement: Rules create resolves identity from JWT and git remote
 
-The `taskless rules create` command SHALL resolve `orgId` and `repositoryUrl` using the `resolveIdentity()` function. `orgId` SHALL be extracted from the JWT's `orgId` claim (decoded via `jose`). `repositoryUrl` SHALL be inferred from `git remote get-url origin`, canonicalized to `https://github.com/{owner}/{repo}`. If identity resolution fails, the CLI SHALL print a descriptive error and exit with a non-zero exit code.
-
-#### Scenario: Identity resolved from JWT and git remote
-
-- **WHEN** the stored JWT contains an `orgId` claim and the repository has a valid GitHub `origin` remote
-- **THEN** the CLI SHALL use the JWT's `orgId` and the inferred `repositoryUrl` in the API request
-
-#### Scenario: JWT lacks orgId (stale token)
-
-- **WHEN** the stored JWT does not contain an `orgId` claim
-- **THEN** the CLI SHALL print an error: "Your auth token is missing organization info. Run `taskless auth login` to re-authenticate."
-- **AND** the CLI SHALL exit with a non-zero exit code
-
-#### Scenario: Git remote not available
-
-- **WHEN** `git remote get-url origin` fails
-- **THEN** the CLI SHALL print an error about the missing git remote
-- **AND** the CLI SHALL exit with a non-zero exit code
+`taskless rule create` resolves user identity from the stored JWT and the git remote per the existing identity resolution requirements. (Renamed to singular.)
 
 ### Requirement: Rules create requires authentication
 
-The `taskless rules create` command SHALL require a valid auth token. The token SHALL be resolved using the existing `getToken()` utility (env var first, then file). If no token is available, the CLI SHALL print an error directing the user to run `taskless auth login` and exit with a non-zero exit code.
+`taskless rule create` SHALL require authentication unless the new `--anonymous` flag is set. When `--anonymous` is set, the command SHALL invoke the local-only flow (see "Rule create supports anonymous local-only flow" below) instead of submitting to the API. (Renamed to singular; new anonymous branch.)
 
-#### Scenario: No token available
+#### Scenario: rule create without --anonymous requires auth
 
-- **WHEN** a user runs `taskless rules create` with no `TASKLESS_TOKEN` env var and no token file
-- **THEN** the CLI SHALL print an error indicating authentication is required
-- **AND** the CLI SHALL suggest running `taskless auth login`
-- **AND** the CLI SHALL exit with a non-zero exit code
+- **WHEN** a user runs `taskless rule create --from req.json` without being logged in
+- **THEN** the CLI SHALL exit with code 1 and an `AUTH_REQUIRED` error
 
-#### Scenario: Token from env var
+#### Scenario: rule create --anonymous skips auth
 
-- **WHEN** `TASKLESS_TOKEN` is set
-- **THEN** the CLI SHALL use it as the bearer token for API requests
-
-#### Scenario: Token from file
-
-- **WHEN** `TASKLESS_TOKEN` is not set and a token file exists
-- **THEN** the CLI SHALL use the file-based token for API requests
+- **WHEN** a user runs `taskless rule create --from req.json --anonymous` without being logged in
+- **THEN** the CLI SHALL invoke the local-only flow without checking auth
 
 ### Requirement: Rules create submits to API and polls for results
 
-The `taskless rules create` command SHALL POST to `POST /cli/api/request` with `orgId`, `repositoryUrl`, `prompt`, and optional `language`, `successCase`, `failureCase`. It SHALL receive a `requestId` in the response and poll `GET /cli/api/request/:requestId` at a 15-second interval until the status reaches `generated` or `failed`.
-
-#### Scenario: Successful rule generation
-
-- **WHEN** the API accepts the request and rule generation completes
-- **THEN** the CLI SHALL receive a `requestId`, poll until status is `generated`, and proceed to write files
-
-#### Scenario: Rule generation fails
-
-- **WHEN** the request status returns `failed` with an error message
-- **THEN** the CLI SHALL print the error message
-- **AND** the CLI SHALL exit with a non-zero exit code
-
-#### Scenario: API returns validation error
-
-- **WHEN** the API returns HTTP 400 with `error: "validation_error"` and a `details` array
-- **THEN** the CLI SHALL print the validation details
-- **AND** the CLI SHALL exit with a non-zero exit code
-
-#### Scenario: Repository not accessible
-
-- **WHEN** the API returns HTTP 403 with `error: "repository_not_accessible"`
-- **THEN** the CLI SHALL print an error indicating the repository is not accessible to the organization
-- **AND** the CLI SHALL exit with a non-zero exit code
-
-#### Scenario: Organization not found
-
-- **WHEN** the API returns HTTP 404 with `error: "organization_not_found"`
-- **THEN** the CLI SHALL print an error indicating the organization was not found
-- **AND** the CLI SHALL exit with a non-zero exit code
-
-#### Scenario: Polling shows progressive status
-
-- **WHEN** the CLI is polling and the status transitions from `accepted` to `building`
-- **THEN** the CLI SHALL update the progress message to reflect the current status
+`taskless rule create` (without `--anonymous`) submits to the API and polls per the existing requirement. (Renamed to singular.)
 
 ### Requirement: Rules create uses a network interface with stub
 
@@ -144,185 +70,60 @@ The API calls for rule generation (`POST /cli/api/request` and `GET /cli/api/req
 
 ### Requirement: Rules create writes rule files to disk
 
-When rule generation completes, the CLI SHALL write each generated rule to `.taskless/rules/{kebab-id}.yml`. The file content SHALL be the `content` field of the generated rule serialized as YAML. If a file with the same name already exists, it SHALL be overwritten.
+`taskless rule create` SHALL write the generated rule file to `.taskless/rules/<id>.yml` regardless of whether `--anonymous` was set. The agent invoking the command SHALL NOT be expected to write rule files itself. (Renamed to singular; this strengthens the existing requirement to apply to both branches.)
 
-#### Scenario: Single rule generated
+#### Scenario: Both branches write rule files
 
-- **WHEN** the API returns one rule with id `no-console-log`
-- **THEN** the CLI SHALL write `.taskless/rules/no-console-log.yml` containing the rule serialized as YAML
-
-#### Scenario: Multiple rules generated
-
-- **WHEN** the API returns two rules with ids `no-console-log` and `no-inner-html`
-- **THEN** the CLI SHALL write `.taskless/rules/no-console-log.yml` and `.taskless/rules/no-inner-html.yml`
-
-#### Scenario: Existing rule file is overwritten
-
-- **WHEN** `.taskless/rules/no-console-log.yml` already exists and the API returns a rule with id `no-console-log`
-- **THEN** the CLI SHALL overwrite the existing file with the new content
+- **WHEN** `taskless rule create` succeeds (with or without `--anonymous`)
+- **THEN** `.taskless/rules/<id>.yml` SHALL exist on disk
 
 ### Requirement: Rules create writes test files to disk
 
-When rule generation completes and a rule includes test cases, the CLI SHALL write test files to `.taskless/rule-tests/{kebab-id}-{timestamp}-test.yml`. The timestamp SHALL be the current date formatted as `YYYYMMDD`. The test file SHALL contain the rule id, valid snippets, and invalid snippets serialized as YAML.
-
-#### Scenario: Rule with test cases
-
-- **WHEN** the API returns a rule with id `no-console-log` that includes test cases
-- **THEN** the CLI SHALL write `.taskless/rule-tests/no-console-log-20260302-test.yml`
-- **AND** the file SHALL contain `id`, `valid`, and `invalid` fields
-
-#### Scenario: Rule without test cases
-
-- **WHEN** the API returns a rule with no `tests` field
-- **THEN** the CLI SHALL NOT write a test file for that rule
-
-#### Scenario: Rules directory is created if missing
-
-- **WHEN** `.taskless/rules/` or `.taskless/rule-tests/` does not exist
-- **THEN** the CLI SHALL create the directory before writing files
+`taskless rule create` SHALL write generated test files to `.taskless/rule-tests/<id>.yml` regardless of whether `--anonymous` was set. (Renamed; strengthened.)
 
 ### Requirement: Rules create outputs results
 
-After writing files, the CLI SHALL output a summary to stdout. In text mode, the summary SHALL include a list of files written. In JSON mode (`--json`), the full generation result SHALL be output along with the file paths written.
-
-#### Scenario: Text output
-
-- **WHEN** `taskless rules create` completes without `--json`
-- **THEN** stdout SHALL include a list of written file paths
-
-#### Scenario: JSON output
-
-- **WHEN** `taskless rules create` completes with `--json`
-- **THEN** stdout SHALL contain a JSON object with the full result and an array of written file paths
+`taskless rule create` outputs results per the existing requirement. (Renamed to singular.) Output SHALL be human-readable by default; `--json` produces machine-readable output. On failure with `--json` set, the output SHALL be the standardized error envelope `{ ok: false, code: "<CODE>", message: "<...>" }` per the `cli` capability requirements.
 
 ### Requirement: Rules create shows progress during polling
 
-While polling for the request result, the CLI SHALL display a waiting message to stderr so the user knows the command is active. The message SHALL reflect the current status (`accepted`, `building`).
-
-#### Scenario: Polling shows progress
-
-- **WHEN** the CLI is polling for a request result
-- **THEN** the CLI SHALL print a waiting/progress message to stderr indicating the current status
+`taskless rule create` shows progress per the existing requirement when polling the API (the `--anonymous` branch does not poll an API and SHOULD show progress for the local agent-driven steps if applicable). (Renamed to singular.)
 
 ### Requirement: Rules improve reads request from file
 
-The `taskless rules improve` command SHALL read a JSON request payload from a file specified by the `--from <file>` argument. The payload SHALL conform to the shape `{ ruleId: string, guidance: string, references?: Array<{ filename: string, content: string }> }`. The `ruleId` and `guidance` fields are required. If `--from` is not provided, the CLI SHALL print an error message with usage examples and exit with a non-zero exit code.
-
-#### Scenario: Valid JSON from file
-
-- **WHEN** a user runs `taskless rules improve --from request.json` and `request.json` contains valid JSON with `ruleId` and `guidance` fields
-- **THEN** the CLI SHALL read the file, parse the JSON, and proceed to submit it to the API
-
-#### Scenario: Missing --from flag
-
-- **WHEN** a user runs `taskless rules improve` without the `--from` flag
-- **THEN** the CLI SHALL print an error indicating `--from <file>` is required with a usage example
-- **AND** the CLI SHALL exit with a non-zero exit code
-
-#### Scenario: Missing required ruleId field
-
-- **WHEN** a user provides a file missing the `ruleId` field
-- **THEN** the CLI SHALL print an error indicating the missing field
-- **AND** the CLI SHALL exit with a non-zero exit code
-
-#### Scenario: Missing required guidance field
-
-- **WHEN** a user provides a file missing the `guidance` field
-- **THEN** the CLI SHALL print an error indicating the missing field
-- **AND** the CLI SHALL exit with a non-zero exit code
+`taskless rule improve` SHALL accept a `--from <file>` flag specifying a JSON file containing the iterate request. (Renamed to singular.)
 
 ### Requirement: Rules improve requires authentication
 
-The `taskless rules improve` command SHALL require a valid auth token resolved via `getToken()`. If no token is available, the CLI SHALL print an error directing the user to run `taskless auth login` and exit with a non-zero exit code.
-
-#### Scenario: No token available
-
-- **WHEN** a user runs `taskless rules improve` with no token available
-- **THEN** the CLI SHALL print an error indicating authentication is required
-- **AND** the CLI SHALL exit with a non-zero exit code
+`taskless rule improve` SHALL require authentication unless `--anonymous` is set. (Renamed; new anonymous branch.)
 
 ### Requirement: Rules improve submits to iterate API and polls for results
 
-The `taskless rules improve` command SHALL POST to `/cli/api/rule/{ruleId}/iterate` with `orgId` resolved from the JWT's `orgId` claim (via `resolveIdentity()`), `guidance`, and optional `references`. It SHALL receive a `requestId` in the response and poll `GET /cli/api/rule/{requestId}` at a 15-second interval until the status reaches `generated` or `failed`.
-
-#### Scenario: Successful rule iteration
-
-- **WHEN** the API accepts the iterate request and generation completes
-- **THEN** the CLI SHALL receive a `requestId`, poll until status is `generated`, and proceed to write files
-
-#### Scenario: Rule iteration fails
-
-- **WHEN** the request status returns `failed` with an error message
-- **THEN** the CLI SHALL print the error message
-- **AND** the CLI SHALL exit with a non-zero exit code
-
-#### Scenario: Identity resolved from JWT and git remote
-
-- **WHEN** the `rules improve` command resolves identity
-- **THEN** it SHALL use `resolveIdentity()` to obtain `orgId` from the JWT claim
-- **AND** it SHALL NOT read `orgId` from `taskless.json`
+`taskless rule improve` (without `--anonymous`) submits and polls per the existing requirement. (Renamed.)
 
 ### Requirement: Rules improve writes updated files to disk
 
-When iteration completes, the CLI SHALL write each rule to `.taskless/rules/{kebab-id}.yml` and test files to `.taskless/rule-tests/{kebab-id}-{timestamp}-test.yml`, overwriting existing files. This uses the same file-writing logic as `rules create`.
-
-#### Scenario: Updated rule overwrites existing file
-
-- **WHEN** the API returns an updated rule with id `no-console-log`
-- **THEN** the CLI SHALL overwrite `.taskless/rules/no-console-log.yml` with the new content
+`taskless rule improve` SHALL write updated rule files to disk in both branches. (Renamed; strengthened.)
 
 ### Requirement: Rules improve outputs results
 
-After writing files, the CLI SHALL output a summary. In text mode, it SHALL list written file paths. In JSON mode (`--json`), it SHALL output a JSON object with `requestId`, `rules` array, and `files` array.
-
-#### Scenario: JSON output
-
-- **WHEN** `taskless rules improve` completes with `--json`
-- **THEN** stdout SHALL contain a JSON object with `success`, `requestId`, `rules`, and `files` fields
+`taskless rule improve` outputs results per the existing requirement. (Renamed.) Failure output with `--json` SHALL use the standardized error envelope.
 
 ### Requirement: Rules improve has a help entry
 
-The `rules improve` subcommand SHALL have a help file at `packages/cli/src/help/rules-improve.txt` describing usage, options, and JSON file fields. The rules help index SHALL list `improve` alongside `create` and `delete`.
-
-#### Scenario: Help is accessible
-
-- **WHEN** a user runs `taskless help rules improve`
-- **THEN** the CLI SHALL display the improve help text with usage, options, and JSON field descriptions
+`taskless help rule improve` SHALL return the recipe per `cli-help` requirements. (Renamed; the help filename becomes `rule-improve.txt` with an optional `rule-improve.anonymous.txt` variant.)
 
 ### Requirement: Rules delete removes rule and test files
 
-The `taskless rules delete <id>` command SHALL remove `.taskless/rules/{id}.yml` and any matching files in `.taskless/rule-tests/` that begin with `{id}-`. If the rule file does not exist, the CLI SHALL print an error and exit with a non-zero exit code.
-
-#### Scenario: Successful deletion
-
-- **WHEN** a user runs `taskless rules delete no-console-log` and `.taskless/rules/no-console-log.yml` exists
-- **THEN** the CLI SHALL delete `.taskless/rules/no-console-log.yml`
-- **AND** the CLI SHALL delete any files matching `.taskless/rule-tests/no-console-log-*-test.yml`
-- **AND** the CLI SHALL print a confirmation message
-
-#### Scenario: Rule not found
-
-- **WHEN** a user runs `taskless rules delete no-console-log` and `.taskless/rules/no-console-log.yml` does not exist
-- **THEN** the CLI SHALL print an error indicating the rule was not found
-- **AND** the CLI SHALL exit with a non-zero exit code
+`taskless rule delete <id>` SHALL remove the corresponding rule file and any test files. (Renamed.) Accepts `--anonymous` as a no-op.
 
 ### Requirement: Rules delete does not require authentication
 
-The `taskless rules delete` command SHALL NOT require an auth token. It operates only on local files.
-
-#### Scenario: Delete works without auth
-
-- **WHEN** a user runs `taskless rules delete <id>` with no token available
-- **THEN** the CLI SHALL proceed with the deletion without checking for authentication
+`taskless rule delete` does not require authentication per the existing requirement. (Renamed.)
 
 ### Requirement: Rules delete accepts the id argument
 
-The `taskless rules delete` command SHALL accept a positional argument specifying the rule ID to delete. The ID SHALL match the filename stem (without `.yml` extension) in `.taskless/rules/`.
-
-#### Scenario: ID matches filename
-
-- **WHEN** a user runs `taskless rules delete no-console-log`
-- **THEN** the CLI SHALL look for `.taskless/rules/no-console-log.yml`
+`taskless rule delete <id>` accepts the rule ID as a positional argument per the existing requirement. (Renamed.)
 
 ### Requirement: Codegen script fetches official ast-grep rule schema
 
@@ -371,112 +172,65 @@ The generated JSON Schema file SHALL be importable by the CLI bundle via Vite. T
 
 ### Requirement: Verify subcommand validates rules against ast-grep schema
 
-The CLI SHALL support a `taskless rules verify` subcommand that validates a rule file against the ast-grep Zod schema, applies Taskless-specific requirements, and runs test cases. The subcommand SHALL accept a positional `<id>` argument identifying the rule to verify.
-
-#### Scenario: Verify a valid rule with passing tests
-
-- **WHEN** a user runs `taskless rules verify no-eval`
-- **THEN** the CLI SHALL read `.taskless/rules/no-eval.yml`
-- **AND** validate it against the ast-grep Zod schema
-- **AND** check Taskless-specific requirements
-- **AND** run `sg test` for the rule's test cases
-- **AND** report success with a summary of checks passed
-
-#### Scenario: Verify a rule that fails schema validation
-
-- **WHEN** a user runs `taskless rules verify bad-rule` and the rule YAML contains unknown fields or invalid types
-- **THEN** the CLI SHALL report the specific schema validation errors
-- **AND** exit with code 1
-
-#### Scenario: Verify a rule with no test file
-
-- **WHEN** a user runs `taskless rules verify orphan-rule` and no matching test file exists in `.taskless/rule-tests/`
-- **THEN** the CLI SHALL report a Taskless requirement failure: missing test file
-- **AND** skip the test execution layer
-
-#### Scenario: Verify a nonexistent rule
-
-- **WHEN** a user runs `taskless rules verify nonexistent`
-- **THEN** the CLI SHALL report that `.taskless/rules/nonexistent.yml` was not found
-- **AND** exit with code 1
+`taskless rule verify` SHALL validate rules against the ast-grep schema per the existing requirement. (Renamed from `rules verify` to `rule verify`.) Accepts `--anonymous` as a no-op.
 
 ### Requirement: Verify performs three layers of validation
 
-The verify subcommand SHALL execute validation in three sequential layers: (1) Zod schema validation against the ast-grep rule schema, (2) Taskless requirement checks, and (3) test execution via `sg test`. If an earlier layer fails, subsequent layers SHALL still execute to provide complete feedback.
-
-#### Scenario: Layer 1 — Schema validation
-
-- **WHEN** the rule file is parsed as YAML
-- **THEN** the CLI SHALL validate the resulting object against the ast-grep Zod schema
-- **AND** report all validation errors with field paths
-
-#### Scenario: Layer 2 — Taskless requirement checks
-
-- **WHEN** the rule passes or fails schema validation
-- **THEN** the CLI SHALL additionally check that `id`, `language`, `severity`, `message`, and `rule` fields are present
-- **AND** check that any rule using `regex` also specifies `kind` at the same level
-- **AND** check that a matching test file exists in `.taskless/rule-tests/`
-
-#### Scenario: Layer 3 — Test execution via sg test
-
-- **WHEN** a matching test file exists
-- **THEN** the CLI SHALL generate `sgconfig.yml` via `generateSgConfig()`
-- **AND** run `sg test --config .taskless/sgconfig.yml` using the existing `findSgBinary()` resolver
-- **AND** parse the output to report pass/fail counts for valid and invalid test cases
-
-#### Scenario: All layers run regardless of earlier failures
-
-- **WHEN** Layer 1 reports schema errors
-- **THEN** Layer 2 and Layer 3 SHALL still execute
-- **AND** the output SHALL include results from all three layers
+`taskless rule verify` performs the three layers of validation per the existing requirement. (Renamed.)
 
 ### Requirement: Verify supports JSON output
 
-The verify subcommand SHALL support the global `--json` flag. When enabled, the output SHALL be a JSON object with per-layer results.
-
-#### Scenario: JSON output for successful verification
-
-- **WHEN** a user runs `taskless rules verify no-eval --json`
-- **THEN** the CLI SHALL output a JSON object with structure: `{ "success": true, "ruleId": "no-eval", "schema": { "valid": true, "errors": [] }, "requirements": { "valid": true, "checks": [...] }, "tests": { "valid": true, "passed": <n>, "failed": 0 } }`
-
-#### Scenario: JSON output for failed verification
-
-- **WHEN** a user runs `taskless rules verify bad-rule --json` and the rule fails Layer 2
-- **THEN** the CLI SHALL output a JSON object with `"success": false` and the failing layer SHALL have `"valid": false` with descriptive error entries
+`taskless rule verify --json` outputs results in the documented JSON shape. On failure, the standardized error envelope is used. (Renamed.)
 
 ### Requirement: Verify schema mode dumps combined schema for agent consumption
 
-The verify subcommand SHALL support a `--schema` flag that dumps the combined ast-grep schema, Taskless requirements, and annotated examples as JSON. When `--schema` is provided, no rule ID is required and no validation is performed.
+The `taskless rule verify --schema` mode is REMOVED in v0.7.0 — schemas are now embedded in `tskl help rule create` recipe output via `zod-to-json-schema`. (Renamed and superseded.)
 
-#### Scenario: Schema output with --schema flag
+#### Scenario: --schema flag is no longer accepted
 
-- **WHEN** a user runs `taskless rules verify --schema --json`
-- **THEN** the CLI SHALL output a JSON object with three top-level keys: `astGrepSchema` (the full official ast-grep rule JSON Schema for agent reference), `tasklessRequirements` (required fields and additional rules), and `examples` (curated annotated rule examples)
-- **AND** exit with code 0
-
-#### Scenario: Schema output includes curated examples
-
-- **WHEN** the `--schema` output is examined
-- **THEN** the `examples` array SHALL include at least: a simple pattern match example, a regex-with-kind example, and a composite rule using `any`/`all`
-
-#### Scenario: Schema flag does not require auth
-
-- **WHEN** a user runs `taskless rules verify --schema` without being authenticated
-- **THEN** the command SHALL succeed without requiring a token
+- **WHEN** a user runs `taskless rule verify --schema`
+- **THEN** the CLI SHALL exit with an error indicating the flag is unknown
 
 ### Requirement: Verify respects global flags
 
-The verify subcommand SHALL respect the global `-d` (working directory) and `--schema` (print Zod schemas) flags consistent with other CLI subcommands.
+`taskless rule verify` respects global flags including `--dir` per the existing requirement. (Renamed.) Also accepts the new `--anonymous` flag as a no-op.
 
-#### Scenario: Verify uses custom directory
+### Requirement: Rule create supports anonymous local-only flow
 
-- **WHEN** a user runs `taskless rules verify no-eval -d /path/to/repo`
-- **THEN** the CLI SHALL look for `.taskless/rules/no-eval.yml` in `/path/to/repo`
+When `taskless rule create --anonymous` is invoked, the CLI SHALL execute the local-only rule-creation flow (previously implemented as the `taskless-create-rule-anonymous` skill body). The flow SHALL:
 
-#### Scenario: Verify --schema prints Zod schemas
+1. NOT submit any request to the Taskless API
+2. Generate the ast-grep rule using local logic (Claude SDK, agent-driven generation, or whatever the migrated implementation prefers — see design.md)
+3. Write the rule file to `.taskless/rules/<id>.yml`
+4. Write any generated test files to `.taskless/rule-tests/<id>.yml`
+5. NOT write a metadata sidecar (the API-backed branch does)
+6. Return the same output format as the API-backed branch (paths to created files)
 
-- **WHEN** a user runs `taskless rules verify --schema` (without `--json`)
-- **THEN** the CLI SHALL print the combined schema payload in the standard `--schema` output format
+#### Scenario: rule create --anonymous skips API
+
+- **WHEN** a user runs `taskless rule create --from req.json --anonymous`
+- **THEN** the CLI SHALL NOT make any HTTP request to the Taskless API
+- **AND** SHALL produce a rule file under `.taskless/rules/`
+
+#### Scenario: rule create --anonymous produces no metadata sidecar
+
+- **WHEN** `taskless rule create --anonymous` succeeds
+- **THEN** no file under `.taskless/rule-metadata/` SHALL be written for the new rule
+
+### Requirement: Rule improve supports anonymous local-only flow
+
+When `taskless rule improve --anonymous` is invoked, the CLI SHALL execute the local-only rule-improvement flow (previously implemented as the `taskless-improve-rule-anonymous` skill body). The flow SHALL:
+
+1. NOT submit any request to the Taskless API iterate endpoint
+2. Update the rule file in place using local logic
+3. Support the verify feedback loop by exposing the `rule verify` primitive that the agent invokes between edits
+4. Return the same output format as the API-backed branch
+
+#### Scenario: rule improve --anonymous skips API
+
+- **WHEN** a user runs `taskless rule improve --from iterate.json --anonymous`
+- **THEN** the CLI SHALL NOT make any HTTP request to the Taskless API
+- **AND** SHALL update the target rule file
 
 ## API Contract
 
