@@ -90,7 +90,7 @@ const createCommand = defineCommand({
       // 1. Read and validate --from file
       if (!args.from) {
         fail(
-          "--from is required. Provide a path to a JSON file.\n  Example: taskless rules create --from request.json"
+          "--from is required. Provide a path to a JSON file.\n  Example: taskless rule create --from request.json"
         );
       }
 
@@ -287,7 +287,7 @@ const improveCommand = defineCommand({
       // 1. Read and validate --from file
       if (!args.from) {
         fail(
-          "--from is required. Provide a path to a JSON file.\n  Example: taskless rules improve --from request.json"
+          "--from is required. Provide a path to a JSON file.\n  Example: taskless rule improve --from request.json"
         );
       }
 
@@ -601,7 +601,7 @@ const verifyCommand = defineCommand({
           );
         } else {
           console.error(
-            "Error: Rule ID is required.\n  Usage: taskless rules verify <id>"
+            "Error: Rule ID is required.\n  Usage: taskless rule verify <id>"
           );
         }
         process.exitCode = 1;
@@ -657,9 +657,9 @@ const verifyCommand = defineCommand({
   },
 });
 
-export const rulesCommand = defineCommand({
+export const ruleCommand = defineCommand({
   meta: {
-    name: "rules",
+    name: "rule",
     description: "Manage Taskless rules",
   },
   subCommands: {

@@ -5,7 +5,7 @@ import { checkCommand } from "./commands/check";
 import { initCommand } from "./commands/init";
 import { infoCommand } from "./commands/info";
 import { createHelpCommand } from "./commands/help";
-import { rulesCommand } from "./commands/rules";
+import { ruleCommand } from "./commands/rules";
 import { shutdownTelemetry } from "./telemetry";
 import { CliError } from "./util/cli-error";
 
@@ -14,7 +14,7 @@ const subCommands = {
   info: infoCommand,
   check: checkCommand,
   auth: authCommand,
-  rules: rulesCommand,
+  rule: ruleCommand,
 };
 
 const main = defineCommand({

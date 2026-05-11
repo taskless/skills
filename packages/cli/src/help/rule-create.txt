@@ -9,7 +9,7 @@ Prerequisites:
   Your repository must have a GitHub origin remote.
 
 Usage:
-  taskless rules create --from <file> [options]
+  taskless rule create --from <file> [options]
 
 Options:
   --from <file>      Path to a JSON file containing the rule request (required)
@@ -25,5 +25,5 @@ Output:
   Lists generated rule and test file paths.
 
 Examples:
-  taskless rules create --from request.json
-  taskless rules create --from .taskless/.tmp-rule-request.json --json
+  taskless rule create --from request.json
+  taskless rule create --from .taskless/.tmp-rule-request.json --json

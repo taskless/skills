@@ -149,7 +149,7 @@ export const checkCommand = defineCommand({
           );
         } else {
           console.log(
-            "No rules configured. Create one with `taskless rules create`."
+            "No rules configured. Create one with `taskless rule create`."
           );
         }
         success = true;

@@ -77,23 +77,23 @@ If every supplied path is missing, the command exits 0 with empty results.
 
 Authenticate with taskless.io using the device flow. Tokens are stored in `~/.config/taskless/auth.json`.
 
-### `taskless rules create`
+### `taskless rule create`
 
 Generate ast-grep rules via the taskless.io API. Reads a JSON request from stdin, submits it, polls for results, and writes rule and test files to `.taskless/rules/` and `.taskless/rule-tests/`.
 
 ```bash
-echo '{"prompt": "detect console.log usage"}' | taskless rules create
-echo '{"prompt": "find innerHTML assignments", "language": "typescript"}' | taskless rules create --json
+echo '{"prompt": "detect console.log usage"}' | taskless rule create
+echo '{"prompt": "find innerHTML assignments", "language": "typescript"}' | taskless rule create --json
 ```
 
 Requires authentication and a `.taskless/taskless.json` with `orgId` and `repositoryUrl`.
 
-### `taskless rules delete <id>`
+### `taskless rule delete <id>`
 
 Remove a rule file and its associated test files from disk. No authentication required.
 
 ```bash
-taskless rules delete no-console-log
+taskless rule delete no-console-log
 ```
 
 ### `taskless --help`

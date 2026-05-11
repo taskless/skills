@@ -5,4 +5,4 @@ Commands:
   improve   Improve an existing rule with guidance
   delete    Delete a rule and its test files
 
-Run `taskless help rules <command>` for details on a specific command.
+Run `taskless help rule <command>` for details on a specific command.

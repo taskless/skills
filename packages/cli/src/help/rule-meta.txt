@@ -5,7 +5,7 @@ and displays its contents. Metadata includes the ticket ID used for
 iterating on the rule, generation timestamp, and schema version.
 
 Usage:
-  taskless rules meta <id> [options]
+  taskless rule meta <id> [options]
 
 Options:
   -d, --dir <path>   Set working directory (default: current directory)
@@ -15,5 +15,5 @@ Output:
   Displays the rule's sidecar metadata fields (ticketId, generatedAt, etc.).
 
 Examples:
-  taskless rules meta no-console-log
-  taskless rules meta no-console-log --json
+  taskless rule meta no-console-log
+  taskless rule meta no-console-log --json
