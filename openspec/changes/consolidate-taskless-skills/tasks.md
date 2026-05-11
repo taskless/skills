@@ -28,10 +28,20 @@
 
 ## 4. Audit action commands for self-sufficient file writes
 
-- [ ] 4.1 Read each existing skill body (`taskless-create-rule`, `taskless-improve-rule`, `taskless-delete-rule`, `taskless-check`, `taskless-info`, `taskless-login`, `taskless-logout`, `taskless-ci`) and identify any post-CLI work the agent currently does (writing files, copying outputs, parsing JSON to construct artifacts)
-- [ ] 4.2 For each gap, move the work into the corresponding CLI command. Action commands SHALL write all their outputs to disk themselves; agents invoke and report
-- [ ] 4.3 Add unit tests proving each action command writes the expected files end-to-end with no agent-side post-processing
-- [ ] 4.4 Update help recipe content (task 7) to reflect the simplified agent flow
+- [x] 4.1 Audited each command:
+  - `rule create` (API) — CLI writes rule + test + metadata files via writeRuleFile/writeRuleTestFile/writeRuleMetaFiles. Agent only invokes and reports.
+  - `rule improve` (API) — CLI writes updated rule + test files. Same pattern.
+  - `rule create --anonymous` / `rule improve --anonymous` — Per Option A, the CLI rejects with a pointer to the local-only recipe. The AGENT writes files via its own tools per the recipe. Self-write doesn't apply (intentional design choice).
+  - `rule delete` — CLI deletes files. Self-writes.
+  - `rule verify` — Read-only; no writes.
+  - `rule meta` — Read-only.
+  - `check` — Read-only scanner.
+  - `info` — Read-only state report.
+  - `auth login` — CLI writes the token to `.taskless/.env.local.json`.
+  - `auth logout` — CLI removes the token.
+- [x] 4.2 No gaps identified — every action command that produces artifacts writes them itself
+- [ ] 4.3 Existing tests cover write paths (apply-install-plan, login-interactive, rules-from); explicit "agent does nothing post-CLI" assertions deferred to follow-up
+- [x] 4.4 Recipes (task 8) describe the agent flow as "invoke and report" wherever applicable
 
 ## 5. Anonymous flow absorption into CLI
 
@@ -116,10 +126,10 @@
 
 ## 15. Release hygiene
 
-- [ ] 15.1 Add a changeset noting BREAKING: CLI verb rename (`rules` → `rule`), removal of `--schema` flag, removal of individual skill names, telemetry event rename, hard cut to v0.7.0
-- [ ] 15.2 Update `packages/cli/README.md` reflecting the consolidated skill, single command, `--anonymous` flag, and new `tskl help` flow
-- [ ] 15.3 Update `packages/cli/src/help/init.txt` (renamed from `init.txt` if needed) reflecting the new bare-`taskless` no-TTY routing
-- [ ] 15.4 Update root `README.md` reflecting the user-facing changes
-- [ ] 15.5 Update `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` version to 0.7.0; description optionally clarified
-- [ ] 15.6 Run `pnpm typecheck` and `pnpm lint` until clean
-- [ ] 15.7 Run `pnpm cli` end-to-end against a scratch directory: install, fetch help for each topic, run a `rule create`, run `check`, run `auth login --anonymous` (expect error)
+- [x] 15.1 Add a changeset noting BREAKING: CLI verb rename (`rules` → `rule`), removal of `--schema` flag, removal of individual skill names, telemetry event rename. v0.x semver — minor bump (0.6 → 0.7) per project convention
+- [x] 15.2 Update `packages/cli/README.md` reflecting the consolidated skill, single command, `--anonymous` flag, and new `taskless help` flow
+- [x] 15.3 `init.txt` updated as part of task 8 recipe authoring (uses the new template)
+- [x] 15.4 Update root `README.md` reflecting the user-facing changes
+- [ ] 15.5 `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` versions are managed by `pnpm bump` (changesets workflow) — they bump automatically when the changeset is consumed. `pnpm bump` is part of the `pnpm release` flow
+- [x] 15.6 `pnpm typecheck` and `pnpm lint` clean
+- [ ] 15.7 End-to-end smoke test against scratch directory deferred — recipe content was smoke-tested via `node packages/cli/dist/index.js help <topic>` instead
