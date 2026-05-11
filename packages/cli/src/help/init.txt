@@ -1,35 +1,50 @@
-Install or update Taskless skills
+# Topic: init     (CLI v{{CLI_VERSION}} / topic v1)
 
-Launches an interactive wizard that detects supported coding agent tools in
-your project, lets you pick which install locations to write to, choose any
-optional skills (e.g. taskless-ci), and optionally log in to taskless.io.
+## Goal
+Install or update the Taskless skill into the user's coding-agent
+tools (Claude Code, OpenCode, Cursor, etc.). The user runs this
+themselves — the agent's role is mostly to point the user at the
+right command when they need to install or upgrade.
 
-Running `taskless` with no subcommand in a TTY also launches this wizard.
-In non-interactive contexts (pipes, CI) the wizard is skipped automatically.
+## Preconditions
+- None at the user level. The command works in any directory and
+  bootstraps `.taskless/` on first run.
+- For interactive mode: a TTY (running from a terminal).
 
-Supported install locations:
-  Claude Code    .claude/ directory or CLAUDE.md file
-  OpenCode       .opencode/ directory, opencode.jsonc, or opencode.json
-  Cursor         .cursor/ directory or .cursorrules file
-  Fallback       .agents/ (used when no other tool is detected)
+## Steps
 
-Usage:
-  taskless init [options]
+The user should run:
+```
+npx @taskless/cli
+```
+(no subcommand). In a TTY this launches the interactive wizard. In
+non-TTY contexts it prints the topic index instead.
 
-Options:
-  -d, --dir <path>     Set working directory (default: current directory)
-      --no-interactive Install every mandatory skill to every detected tool
-                       without prompting. Skips optional skills and auth.
-                       Used by CI and scripted installs.
+For scripted installs (CI, Dockerfiles):
+```
+npx @taskless/cli init --no-interactive
+```
 
-Behavior:
-  - Interactive (default): prompts for locations, optional skills, and auth.
-    Shows a diff against the previous install state before writing anything.
-    Ctrl-C at any step aborts cleanly with no filesystem changes.
-  - --no-interactive: installs mandatory skills to every detected tool, or to
-    .agents/skills/ as a fallback when no tools are detected. No prompts.
+The wizard will:
+1. Detect installed tools (Claude Code, OpenCode, Cursor) and let
+   the user pick install locations.
+2. Show the auth tradeoff and offer to log in (skippable).
+3. Show a diff against the previous install state before writing.
+4. Write the consolidated `taskless` skill (and `tskl` command for
+   Claude Code) to each selected location.
+5. Update `.taskless/taskless.json` with the install manifest.
 
-Examples:
-  taskless init
-  taskless init -d ./my-project
-  taskless init --no-interactive
+If the user is on v0.6 or earlier, the wizard removes the obsolete
+per-task skills (taskless-check, taskless-create-rule, etc.) and the
+old slash commands as part of the install. The summary shows what
+was removed.
+
+## Errors
+
+- Wizard cancelled (Ctrl-C) → no filesystem writes. Re-run when ready.
+- No tools detected → falls back to `.agents/skills/`.
+
+## See Also
+
+- `taskless help info` — verify what's installed and check staleness
+- `taskless help auth` — authenticate after installing

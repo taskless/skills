@@ -1,0 +1,116 @@
+# Topic: rule create (anonymous)     (CLI v{{CLI_VERSION}} / topic v1)
+
+## Goal
+Create a new ast-grep rule **locally** without contacting the Taskless
+API. You (the agent) derive the rule yourself using the ast-grep
+schema as a guide, write the rule and test files, then validate them
+using `rule verify` in a feedback loop.
+
+## Preconditions
+- `.taskless/` directory exists.
+- The agent can read/write files and run shell commands.
+- No auth required.
+
+## Steps
+
+1. **Learn the ast-grep rule format.** Read the embedded schema below
+   to understand what fields are valid. The schema bundles:
+   - The official ast-grep rule JSON Schema.
+   - Taskless-specific required fields (`id`, `language`, `severity`,
+     `message`, `rule`).
+   - Annotated examples for common patterns (simple match, regex with
+     kind, composite rules using `any`/`all`/`has`/`inside`).
+
+2. **Gather the rule description.** Even if the user already provided
+   one, ask clarifying questions:
+   - What specific code pattern should be flagged? (concrete examples)
+   - What language is it in?
+   - Are there exceptions or edge cases where the pattern is OK?
+   - Can they show valid and invalid examples?
+
+3. **Check for similar existing rules.** Scan `.taskless/rules/`. If
+   anything overlaps, point it out and ask whether the user wants to
+   improve an existing rule via `taskless help rule improve --anonymous`.
+
+4. **Search the codebase for real instances.** Show the user what you
+   found and confirm any exclusions.
+
+5. **Derive the rule.** Write a YAML file at `.taskless/rules/<id>.yml`
+   with at minimum:
+   - `id`: kebab-case identifier (e.g. `no-eval`, `prefer-const`)
+   - `language`: target language
+   - `severity`: `error`, `warning`, `info`, or `hint`
+   - `message`: concise single-line explanation
+   - `rule`: the ast-grep rule object
+
+   Optional but useful: `note` (multi-line guidance, supports markdown),
+   `fix` (auto-fix pattern), `ignores` (file patterns to skip).
+
+6. **Write test cases.** Create `.taskless/rule-tests/<id>-YYYYMMDD-test.yml`
+   with `id`, `valid: [...]`, and `invalid: [...]` arrays. Include at
+   least 2 valid and 2 invalid cases. Use real patterns from the
+   codebase where possible.
+
+7. **Run the verify feedback loop.** Run:
+   ```
+   npx @taskless/cli rule verify <id> --json
+   ```
+   - If `success: true`: the rule passes. Report success to the user.
+   - If `success: false`: read the per-layer errors (`schema`,
+     `requirements`, `tests`). Fix the rule or tests. Re-run verify.
+     Repeat up to 3 times. If still failing after 3 iterations, report
+     to the user with the latest errors.
+
+   Common fixes:
+   - Schema errors → check field types against the ast-grep schema.
+   - Missing required fields → add what the requirements list demands.
+   - Regex without kind → add a `kind` field alongside any `regex`.
+   - Test failures → adjust pattern or test cases so valid cases pass
+     and invalid cases trigger.
+
+8. **Report results.** Show the rule file path, test file path, and a
+   one-line summary of what the rule detects. Suggest fetching
+   `taskless help check` to validate against the broader codebase.
+
+## Important Notes
+
+- Do NOT write files to `.taskless/rule-metadata/`. Anonymous rules
+  have no metadata sidecar (the API path uses metadata for
+  iteration; anonymous rules iterate directly via file edits).
+- Do NOT make any HTTP requests to taskless.io.
+- The verify feedback loop is the quality gate — always run it before
+  reporting success.
+
+## ast-grep schema
+
+(The full ast-grep schema, Taskless requirements, and curated examples
+are embedded here. They are large; read carefully.)
+
+```json
+{{INPUT_SCHEMA}}
+```
+
+> Note: in this anonymous flow, the {{INPUT_SCHEMA}} placeholder
+> renders the rule-create input shape (a `prompt` description plus
+> example arrays). To see the full ast-grep YAML schema with examples,
+> consult the ast-grep documentation at https://ast-grep.github.io/.
+> A future CLI version will embed the full ast-grep schema directly
+> in this recipe.
+
+## Errors
+
+When `--json` is set on `rule verify`, failures emit a structured
+result. The relevant fields:
+
+| code            | meaning                                  | fix                                        |
+|-----------------|------------------------------------------|--------------------------------------------|
+| `INVALID_INPUT` | Rule ID missing or malformed             | Pass a valid rule ID                       |
+| (schema layer)  | YAML didn't match ast-grep schema        | Fix the rule structure                     |
+| (req layer)    | Missing Taskless-required field          | Add `id`/`language`/`severity`/etc.        |
+| (tests layer)  | A test case didn't behave as expected    | Fix the rule pattern OR the test case      |
+
+## See Also
+
+- `taskless help rule create` — API-backed flow (auth required)
+- `taskless help rule improve --anonymous` — iterate locally
+- `taskless help check` — validate the new rule against the codebase

@@ -59,17 +59,17 @@
 
 ## 8. Author the seven topic recipes
 
-- [ ] 8.1 Author `packages/cli/src/help/rule-create.txt` (API-backed flow) — Goal/Preconditions/Steps/Schema/Errors/See Also; include the JSON schema for the `--from` input
-- [ ] 8.2 Author `packages/cli/src/help/rule-create.anonymous.txt` (local-only flow) — distinct steps, no API references, includes the verify loop the agent owns
-- [ ] 8.3 Author `packages/cli/src/help/rule-improve.txt` (API-backed flow) — preserve the verify loop end-to-end
-- [ ] 8.4 Author `packages/cli/src/help/rule-improve.anonymous.txt` (local-only flow)
-- [ ] 8.5 Author `packages/cli/src/help/rule-delete.txt` — short; no schema needed; deletes by rule ID
-- [ ] 8.6 Author `packages/cli/src/help/check.txt` — already exists, restructure into the template format
-- [ ] 8.7 Author `packages/cli/src/help/auth.txt` — combined login/logout/status with branches per the user's intent
-- [ ] 8.8 Author `packages/cli/src/help/info.txt` — local state report, version, auth state
-- [ ] 8.9 Author `packages/cli/src/help/ci.txt` — port the existing `taskless-ci` skill body's content into the recipe template
-- [ ] 8.10 Author `packages/cli/src/help/init.txt` — short; mostly directs the agent to tell the user to run `npx @taskless/cli` themselves
-- [ ] 8.11 For each recipe, include the `## Errors` section listing the error codes from task 6 and a user-facing fix per code
+- [x] 8.1 Author `packages/cli/src/help/rule-create.txt` (API-backed flow) — Goal/Preconditions/Steps/Schema/Errors/See Also; embeds the JSON schema via `{{INPUT_SCHEMA}}`
+- [x] 8.2 Author `packages/cli/src/help/rule-create.anonymous.txt` (local-only flow) — distinct steps, no API references, includes the verify loop the agent owns
+- [x] 8.3 Author `packages/cli/src/help/rule-improve.txt` (API-backed flow) — preserves the verify loop end-to-end
+- [x] 8.4 Author `packages/cli/src/help/rule-improve.anonymous.txt` (local-only flow)
+- [x] 8.5 Author `packages/cli/src/help/rule-delete.txt` — short; no schema needed; deletes by rule ID
+- [x] 8.6 Author `packages/cli/src/help/check.txt` — restructured into the template format
+- [x] 8.7 Author `packages/cli/src/help/auth.txt` — combined login/logout/status with branches; replaces the per-subcommand `auth-login.txt` and `auth-logout.txt` (deleted)
+- [x] 8.8 Author `packages/cli/src/help/info.txt` — local state report, version, auth state
+- [x] 8.9 Author `packages/cli/src/help/ci.txt` — ported from the v0.6 `taskless-ci` skill body into the recipe template
+- [x] 8.10 Author `packages/cli/src/help/init.txt` — directs the user to run `npx @taskless/cli` themselves; describes wizard behavior + the v0.6→v0.7 cleanup
+- [x] 8.11 For each recipe, include the `## Errors` section listing the error codes from task 6 and a user-facing fix per code
 
 ## 9. Consolidated skill and command
 

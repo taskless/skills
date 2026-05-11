@@ -1,8 +1,22 @@
-Manage Taskless rules
+# Topic: rule     (CLI v{{CLI_VERSION}} / topic v1)
 
-Commands:
-  create    Create a new rule from a description
-  improve   Improve an existing rule with guidance
-  delete    Delete a rule and its test files
+## Goal
+Umbrella for rule operations. Use the specific subcommand for the
+action you want.
 
-Run `taskless help rule <command>` for details on a specific command.
+## Subcommands
+
+| Subcommand          | Recipe                                       |
+|---------------------|----------------------------------------------|
+| Create a rule       | `taskless help rule create`                  |
+| Improve a rule      | `taskless help rule improve`                 |
+| Delete a rule       | `taskless help rule delete`                  |
+| Verify a rule       | `taskless help rule verify` (agent-internal) |
+| Read rule metadata  | `taskless help rule meta`   (agent-internal) |
+
+For local-only flows on create/improve, append `--anonymous` to the
+help fetch.
+
+## See Also
+
+- `taskless help check` — run all configured rules

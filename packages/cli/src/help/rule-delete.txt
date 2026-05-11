@@ -1,20 +1,44 @@
-Delete a rule and its test files
+# Topic: rule delete     (CLI v{{CLI_VERSION}} / topic v1)
 
-Removes a rule YAML file and any associated test files from the project.
+## Goal
+Remove a rule and its associated test files from `.taskless/`. Does
+not contact the Taskless API; purely a local filesystem operation.
 
-Usage:
-  taskless rule delete <rule-id> [options]
+## Preconditions
+- `.taskless/` directory exists.
+- The target rule file exists at `.taskless/rules/<id>.yml`.
+- No auth required.
 
-Options:
-  -d, --dir <path>   Set working directory (default: current directory)
+## Steps
 
-Arguments:
-  rule-id   The rule identifier (matches the filename without extension)
+1. **Identify the rule.** If the user named one, use it. Otherwise,
+   list `.taskless/rules/` and ask which one. Confirm the user's
+   intent — deletion is destructive.
 
-Exit Codes:
-  0   Rule deleted successfully
-  1   Rule not found
+2. **Invoke the CLI.** Run:
+   ```
+   npx @taskless/cli rule delete <id>
+   ```
 
-Examples:
-  taskless rule delete no-console-log
-  taskless rule delete detect-innerhtml -d ./my-project
+   The CLI removes:
+   - `.taskless/rules/<id>.yml`
+   - All matching `.taskless/rule-tests/<id>-*.yml` files
+   - `.taskless/rule-metadata/<id>.yml` (if present)
+
+3. **Report results.** Show the user what was deleted. If the rule
+   had metadata (was API-generated), note that the rule cannot be
+   re-iterated via the API path after deletion.
+
+## Errors
+
+When `--json` is set, failures emit `{ ok: false, code, message }`:
+
+| code             | meaning                  | fix                                  |
+|------------------|--------------------------|--------------------------------------|
+| `RULE_NOT_FOUND` | Rule file does not exist | Confirm the ID; list rules first     |
+| `INVALID_INPUT`  | No rule ID provided      | Pass the rule ID as positional arg   |
+
+## See Also
+
+- `taskless help rule create` — make a new rule
+- `taskless help check` — run remaining rules to confirm nothing broke

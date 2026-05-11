@@ -1,0 +1,196 @@
+# Topic: ci     (CLI v{{CLI_VERSION}} / topic v1)
+
+## Goal
+Wire `taskless check` into the user's existing CI so rules run
+automatically on pushes and pull requests. Integrate with what they
+already have — never replace or edit their main pipeline.
+
+This recipe teaches two patterns (full scan and diff scan) that
+translate to any CI system. Common systems are listed as hints; if
+you recognize one not on the list, apply the same patterns.
+
+## Preconditions
+- `.taskless/` directory exists and contains at least one rule. (If
+  no rules exist, instruct the user to fetch
+  `taskless help rule create` first — wiring CI with zero rules
+  produces an always-green check that gives false confidence.)
+- A local `taskless check` succeeds (or fails with real findings the
+  user is OK with seeing in CI's first run).
+- No auth required for CI — `check` is unauthenticated.
+
+## Steps
+
+### 1. Discover the user's CI system
+
+Scan the repo root for CI config files. Hints (not exhaustive):
+
+| File / directory                          | CI system           |
+|-------------------------------------------|---------------------|
+| `.github/workflows/*.yml`                 | GitHub Actions      |
+| `.gitlab-ci.yml`                          | GitLab CI           |
+| `.circleci/config.yml`                    | CircleCI            |
+| `Jenkinsfile`                             | Jenkins             |
+| `azure-pipelines.yml`                     | Azure Pipelines     |
+| `bitbucket-pipelines.yml`                 | Bitbucket Pipelines |
+| `.buildkite/`                             | Buildkite           |
+| `.drone.yml`                              | Drone               |
+| `.travis.yml`                             | Travis CI           |
+
+Sum up what you found and confirm with the user. If zero match, ask
+which CI they use. If multiple match, ask which should run Taskless.
+
+### 2. Agree on the scan pattern
+
+- **Full scan** — `taskless check`. Scans everything. Best for runs
+  on the main/default branch.
+- **Diff scan** — `taskless check $(git diff --name-only ...)`.
+  Faster for PR builds. Per-CI diff target var:
+
+  | CI                  | Target branch variable                       |
+  |---------------------|----------------------------------------------|
+  | GitHub Actions      | `github.base_ref`                            |
+  | GitLab CI           | `CI_MERGE_REQUEST_TARGET_BRANCH_NAME`        |
+  | CircleCI            | `CIRCLE_BRANCH` (fetch main and diff against)|
+  | Jenkins             | `env.CHANGE_TARGET`                          |
+  | Azure Pipelines     | `System.PullRequest.TargetBranch`            |
+  | Bitbucket Pipelines | `BITBUCKET_PR_DESTINATION_BRANCH`            |
+
+  `taskless check` silently filters paths that don't exist, so raw
+  `git diff --name-only` output can pipe in directly.
+
+**Recommended default:** diff scan on PRs, full scan on pushes to
+main.
+
+### 3. Verify locally first
+
+Run `npx @taskless/cli check`:
+- Clean pass → proceed.
+- "No rules configured" → stop. Fetch `taskless help rule create`.
+- Findings → tell the user CI will fail; ask whether to fix,
+  suppress, or proceed knowing the first CI run will be red.
+
+### 4. Generate the config
+
+Rules:
+1. Write a NEW standalone file. Never modify the user's existing
+   CI config.
+2. Prefer the CI's native include mechanism. Tell the user the one
+   line they need to add to their main config.
+3. If the file you'd write already exists, ask before overwriting.
+
+Canonical paths:
+
+| CI                  | File path                                    |
+|---------------------|----------------------------------------------|
+| GitHub Actions      | `.github/workflows/taskless.yml` (standalone, no include needed) |
+| GitLab CI           | `.taskless/ci/gitlab.yml` (user adds `include`)                 |
+| CircleCI            | `.taskless/ci/circleci-job.yml` (no include — user copies job) |
+| Jenkins             | `.taskless/ci/taskless.Jenkinsfile` (user `load()`s)            |
+| Azure Pipelines     | `.taskless/ci/azure-taskless.yml` (user references via `template:`) |
+| Bitbucket Pipelines | `.taskless/ci/bitbucket-pipelines.yml` (user merges manually)   |
+| Other               | `.taskless/ci/<system>.<ext>` + clear wiring instructions       |
+
+### 5. GitHub Actions reference template
+
+The reference template — translate the same shape (checkout with
+full history, set up Node, conditional check) for other CIs.
+
+Substitute `{{PACKAGE_MANAGER_DLX}}` with `npx @taskless/cli`,
+`pnpm dlx @taskless/cli`, `yarn dlx @taskless/cli`, or
+`bunx @taskless/cli` based on `pnpm-lock.yaml`/`yarn.lock`/`bun.lockb`.
+
+```yaml
+name: Taskless
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Taskless check
+        run: |
+          if [ "${{ '{{ github.event_name }}' }}" = "pull_request" ]; then
+            git fetch origin "${{ '{{ github.base_ref }}' }}" --depth=1
+            FILES=$(git diff --name-only "origin/${{ '{{ github.base_ref }}' }}...HEAD")
+            if [ -z "$FILES" ]; then
+              echo "No changed files."
+              exit 0
+            fi
+            {{PACKAGE_MANAGER_DLX}} check $FILES
+          else
+            {{PACKAGE_MANAGER_DLX}} check
+          fi
+```
+
+Simplifications:
+- Full-scan only → drop the `if`, just run `{{PACKAGE_MANAGER_DLX}} check`.
+- Diff-scan only → remove the `push:` trigger.
+
+### 6. Translate to other CIs
+
+The six universal steps:
+1. Set up Node (v20 default; match the user's existing CI version).
+2. Fetch with full depth (or enough to reach the target branch).
+3. Fetch the target branch.
+4. Compute changed files with `git diff --name-only "origin/<target>...HEAD"`.
+5. Exit early if the diff is empty.
+6. Call `{{PACKAGE_MANAGER_DLX}} check $FILES` for PR builds, or
+   `{{PACKAGE_MANAGER_DLX}} check` for main-branch builds.
+
+YAML for GitHub/GitLab/Azure/Bitbucket; Groovy for Jenkins;
+different structure for CircleCI. The six steps stay the same.
+
+### 7. Authentication in CI
+
+`taskless check` does NOT require authentication. The generated CI
+config works out of the box with no secrets. Only mention auth if
+the user explicitly asks to run authenticated commands (e.g.
+`rule create`/`rule improve`) in CI — uncommon.
+
+### 8. Package manager caveats
+
+- **pnpm**: `pnpm dlx` works but has slow cold starts. If the user's
+  pipeline already sets up pnpm, suggest adding `@taskless/cli` as a
+  dev dep and calling it via `pnpm taskless check`.
+- **Yarn v1 (classic)**: doesn't support `yarn dlx`. Use `npx`.
+- **Bun**: `bunx` works.
+
+### 9. Report back
+
+Show:
+1. The path written and a 10–15 line excerpt.
+2. For CIs needing manual wiring, the exact `include:` / reference
+   line for their main config.
+3. `git status` so they can review before committing.
+4. A note that the first CI run exercises rules — if existing
+   matches exist, CI will fail until fixed or suppressed.
+
+## Errors
+
+- **No rules** → fetch `taskless help rule create`. Don't write CI
+  config.
+- **Unrecognized CI** → produce a generic `.taskless/ci/check.sh`
+  script implementing the six universal steps. Be upfront it's a
+  starting point.
+- **Target CI file exists, user declines overwrite** → stop. Show
+  what you would have written; let them reconcile manually.
+
+## See Also
+
+- `taskless help check` — the command being wired into CI
+- `taskless help rule create` — required if no rules exist yet

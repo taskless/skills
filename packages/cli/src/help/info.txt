@@ -1,21 +1,67 @@
-Show Taskless CLI information
+# Topic: info     (CLI v{{CLI_VERSION}} / topic v1)
 
-Outputs a JSON object with the CLI version, installed tool/skill status,
-and authentication state.
+## Goal
+Report local Taskless state: CLI version, installed skill versions
+per detected tool, and (unless `--anonymous`) the user's auth state.
+Used as a health check, for staleness detection, and to confirm
+which version of the CLI/skills the agent is talking to.
 
-Usage:
-  taskless info [options]
+## Preconditions
+- None. Works in any directory; doesn't require `.taskless/`.
 
-Options:
-  -d, --dir <path>   Set working directory (default: current directory)
+## Steps
 
-Output:
-  A JSON object with the following fields:
-    version    CLI version string
-    tools      Array of detected tools with installed skill versions
-    loggedIn   Whether a valid auth token is available
-    auth       User details when logged in (user, email, orgs)
+1. **Invoke the CLI** with JSON output:
+   ```
+   npx @taskless/cli info --json
+   ```
+   For an offline/local-only state report (no auth probe), pass
+   `--anonymous`:
+   ```
+   npx @taskless/cli info --json --anonymous
+   ```
 
-Examples:
-  taskless info
-  taskless info -d ./my-project
+2. **Parse the response.** Shape:
+   ```json
+   {
+     "success": true,
+     "version": "0.7.0",
+     "tools": [
+       {
+         "name": "Claude Code",
+         "skills": [
+           { "name": "taskless", "installedVersion": "0.7.0",
+             "currentVersion": "0.7.0", "current": true }
+         ]
+       }
+     ],
+     "loggedIn": true,
+     "auth": { "user": "...", "email": "...", "orgs": ["..."] }
+   }
+   ```
+
+3. **Report to the user.** Summarize:
+   - CLI version
+   - For each tool: number of installed skills, count out-of-date
+   - Auth: logged in as <user> (orgs) OR not logged in
+
+4. **Suggest reinit on staleness.** If any skill has `current: false`,
+   suggest `npx @taskless/cli` to reinstall and pull the latest
+   bundle.
+
+## Errors
+
+When `--json` is set, failures emit `{ ok: false, code, message }`:
+
+| code              | meaning                          | fix                       |
+|-------------------|----------------------------------|---------------------------|
+| `INTERNAL_ERROR`  | Internal schema validation       | Report; likely a CLI bug  |
+
+(Network errors during the auth probe are silently swallowed —
+`info` falls back to reporting `loggedIn: false` rather than
+failing.)
+
+## See Also
+
+- `taskless help auth` — log in / log out / status detail
+- `taskless help check` — run rules against the codebase
