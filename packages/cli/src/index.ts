@@ -2,7 +2,7 @@ import { defineCommand, runCommand, showUsage } from "citty";
 
 import { authCommand } from "./commands/auth";
 import { checkCommand } from "./commands/check";
-import { initCommand } from "./commands/init";
+import { initCommand, updateCommand } from "./commands/init";
 import { infoCommand } from "./commands/info";
 import { createHelpCommand } from "./commands/help";
 import { ruleCommand } from "./commands/rules";
@@ -11,6 +11,7 @@ import { CliError } from "./util/cli-error";
 
 const subCommands = {
   init: initCommand,
+  update: updateCommand,
   info: infoCommand,
   check: checkCommand,
   auth: authCommand,

@@ -39,7 +39,8 @@ confirm, offer to run `npx @taskless/cli` to install. Otherwise, stop.
 
 | User wants                 | Topic                                 |
 | -------------------------- | ------------------------------------- |
-| Install or update          | tell user to run `npx @taskless/cli`  |
+| First-time install         | tell user to run `npx @taskless/cli`  |
+| Update existing install    | `npx @taskless/cli update`            |
 | Create a new rule          | `npx @taskless/cli help rule create`  |
 | Improve an existing rule   | `npx @taskless/cli help rule improve` |
 | Delete a rule              | `npx @taskless/cli help rule delete`  |

@@ -1,0 +1,44 @@
+# Topic: update     (CLI v{{CLI_VERSION}} / topic v1)
+
+## Goal
+Update Taskless skills in the user's coding-agent tools to the
+latest bundled version. Non-interactive — no wizard, no prompts.
+Installs to all detected tool locations using the same logic as
+`taskless init --no-interactive`, but exposed as its own subcommand
+so the agent can run it directly without explaining flags.
+
+This is the right command when the user has Taskless already
+installed and just wants to refresh to a new version (e.g. after
+running `npx @taskless/cli@latest`).
+
+## Preconditions
+- None at the user level. Works in any directory.
+- For tool detection: at least one of `.claude/`, `.opencode/`,
+  `.cursor/`, or a related marker file exists. Otherwise installs
+  to `.agents/skills/` as a fallback.
+
+## Steps
+
+```
+npx @taskless/cli update
+```
+
+The CLI:
+1. Detects installed tools (Claude Code, OpenCode, Cursor, etc.)
+2. Reads the previous install state from `.taskless/taskless.json`
+3. Computes the diff (skills/commands to add, remove)
+4. Writes the consolidated `taskless` skill (and `tskl` command for
+   tools that support commands) to each detected location
+5. Removes obsolete files from prior versions
+6. Updates the install manifest
+7. Prints a summary including what was added and removed
+
+## Errors
+
+`update` is non-interactive and silent on success. On failure, exits
+non-zero with the error message on stderr.
+
+## See Also
+
+- `taskless help init` — interactive variant (wizard with prompts)
+- `taskless help info` — verify what's installed and check staleness
