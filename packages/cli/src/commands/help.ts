@@ -78,23 +78,11 @@ export function createHelpCommand(subCommands: SubCommandsDef) {
 
       const cwd = resolve(args.dir);
       const telemetry = await getTelemetry(cwd);
-      if (positionals.length === 0) {
-        telemetry.capture("cli_help");
-      } else {
-        const commandEvents: Record<string, string> = {
-          auth: "cli_help_auth",
-          check: "cli_help_check",
-          info: "cli_help_info",
-          init: "cli_help_init",
-          rules: "cli_help_rule",
-        };
-        const first = positionals[0] as string;
-        const event = commandEvents[first] ?? "cli_help";
-        telemetry.capture(event, { topic: positionals.join(" ") });
-      }
 
       if (positionals.length === 0) {
-        // No args: show command index
+        // help_index: agent fetched the topic list
+        telemetry.capture("help_index");
+
         console.log("Taskless CLI\n");
         console.log("Commands:");
 
@@ -121,8 +109,13 @@ export function createHelpCommand(subCommands: SubCommandsDef) {
       const content = helpMap.get(key);
 
       if (content) {
+        // help_<topic>: agent fetched a specific recipe (intent signal)
+        const topicEvent = `help_${key.replaceAll("-", "_")}`;
+        telemetry.capture(topicEvent, { topic: positionals.join(" ") });
         console.log(content.trimEnd());
       } else {
+        // help_unknown: agent asked for a topic that does not exist
+        telemetry.capture("help_unknown", { topic: positionals.join(" ") });
         console.error(`Unknown command: ${positionals.join(" ")}`);
         console.error("Run `taskless help` for available commands.");
         process.exitCode = 1;

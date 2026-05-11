@@ -91,10 +91,10 @@
 
 ## 11. Telemetry rename
 
-- [ ] 11.1 Rename existing capture sites in `packages/cli/src/commands/help.ts` from `cli_help_<topic>` to `help_<topic>`; emit `help_index` on no-args fetch
-- [ ] 11.2 Rename action-start events to `cli_<action>` (e.g. `cli_rule_create`, `cli_rule_improve`, `cli_check`); add corresponding `cli_<action>_completed` events with success/failure properties
-- [ ] 11.3 Remove the old `cli_help`, `cli_help_<topic>`, `cli_init_completed` (renamed to `cli_init_completed`), etc. event names where superseded
-- [ ] 11.4 Update unit tests covering telemetry to expect the new event names
+- [x] 11.1 Rename existing capture sites in `packages/cli/src/commands/help.ts` from `cli_help_<topic>` to `help_<topic>`; emit `help_index` on no-args fetch
+- [x] 11.2 Rename action-start events to `cli_<action>` (e.g. `cli_rule_create`, `cli_rule_improve`, `cli_check`); add corresponding `cli_<action>_completed` events with success/failure properties
+- [x] 11.3 Remove the old `cli_help`, `cli_help_<topic>`, `cli_init_completed` (renamed to `cli_init_completed`), etc. event names where superseded
+- [x] 11.4 Update unit tests covering telemetry to expect the new event names
 
 ## 12. Remove `--schema` flag and capability
 

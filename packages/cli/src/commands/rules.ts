@@ -69,6 +69,7 @@ const createCommand = defineCommand({
   async run({ args }) {
     const cwd = resolve(args.dir ?? process.cwd());
     const telemetry = await getTelemetry(cwd);
+    const startedAt = Date.now();
     telemetry.capture("cli_rule_create");
 
     /** Emit an error and exit, respecting --json mode */
@@ -84,147 +85,157 @@ const createCommand = defineCommand({
       throw new CliError(message);
     }
 
-    // 1. Read and validate --from file
-    if (!args.from) {
-      fail(
-        "--from is required. Provide a path to a JSON file.\n  Example: taskless rules create --from request.json"
-      );
-    }
-
-    const filePath = resolve(cwd, args.from);
-    let fileContent: string;
+    let success = false;
     try {
-      fileContent = await readFile(filePath, "utf8");
-    } catch {
-      fail(`Could not read file "${args.from}".`);
-    }
-
-    let rawJson: unknown;
-    try {
-      rawJson = JSON.parse(fileContent) as unknown;
-    } catch {
-      fail(`"${args.from}" is not valid JSON.`);
-    }
-
-    let request: ReturnType<typeof createInputSchema.parse>;
-    try {
-      request = createInputSchema.parse(rawJson);
-    } catch (error) {
-      if (error instanceof ZodError) {
+      // 1. Read and validate --from file
+      if (!args.from) {
         fail(
-          `Invalid input: ${error.issues.map((issue) => issue.message).join(", ")}`
+          "--from is required. Provide a path to a JSON file.\n  Example: taskless rules create --from request.json"
         );
       }
-      fail(error instanceof Error ? error.message : String(error));
-    }
 
-    // 2. Resolve identity (orgId from JWT, repositoryUrl from git remote)
-    let identity;
-    try {
-      identity = await resolveIdentity(cwd);
-    } catch (error) {
-      fail(error instanceof Error ? error.message : String(error));
-    }
-
-    // 3. Submit rule to API
-    let ruleId: string;
-    try {
-      const response = await submitRule(identity.token, {
-        orgId: identity.orgId,
-        repositoryUrl: identity.repositoryUrl,
-        prompt: request.prompt,
-        successCases: request.successCases,
-        failureCases: request.failureCases,
-      });
-      ruleId = response.ruleId;
-    } catch (error) {
-      fail(error instanceof Error ? error.message : String(error));
-    }
-
-    // 4. Poll for results
-    console.error(`Rule submitted (${ruleId}). Waiting for generation...`);
-
-    while (true) {
-      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-
-      let status;
+      const filePath = resolve(cwd, args.from);
+      let fileContent: string;
       try {
-        status = await pollRuleStatus(identity.token, ruleId);
+        fileContent = await readFile(filePath, "utf8");
+      } catch {
+        fail(`Could not read file "${args.from}".`);
+      }
+
+      let rawJson: unknown;
+      try {
+        rawJson = JSON.parse(fileContent) as unknown;
+      } catch {
+        fail(`"${args.from}" is not valid JSON.`);
+      }
+
+      let request: ReturnType<typeof createInputSchema.parse>;
+      try {
+        request = createInputSchema.parse(rawJson);
       } catch (error) {
-        fail(
-          `Polling failed: ${error instanceof Error ? error.message : String(error)}`
-        );
+        if (error instanceof ZodError) {
+          fail(
+            `Invalid input: ${error.issues.map((issue) => issue.message).join(", ")}`
+          );
+        }
+        fail(error instanceof Error ? error.message : String(error));
       }
 
-      switch (status.status) {
-        case "accepted": {
-          console.error("Status: accepted — waiting for processing...");
-          break;
-        }
-        case "building": {
-          console.error("Status: building — generating rules...");
-          break;
-        }
-        case "failed": {
-          fail(`Rule generation failed: ${status.error}`);
-          break;
-        }
-        case "generated": {
-          // 6. Write files
-          const timestamp = getTimestamp();
-          const writtenFiles: string[] = [];
-          const rules = status.rules ?? [];
+      // 2. Resolve identity (orgId from JWT, repositoryUrl from git remote)
+      let identity;
+      try {
+        identity = await resolveIdentity(cwd);
+      } catch (error) {
+        fail(error instanceof Error ? error.message : String(error));
+      }
 
-          for (const rule of rules) {
-            const ruleFile = await writeRuleFile(cwd, rule);
-            writtenFiles.push(ruleFile);
+      // 3. Submit rule to API
+      let ruleId: string;
+      try {
+        const response = await submitRule(identity.token, {
+          orgId: identity.orgId,
+          repositoryUrl: identity.repositoryUrl,
+          prompt: request.prompt,
+          successCases: request.successCases,
+          failureCases: request.failureCases,
+        });
+        ruleId = response.ruleId;
+      } catch (error) {
+        fail(error instanceof Error ? error.message : String(error));
+      }
 
-            if (rule.tests) {
-              const testFile = await writeRuleTestFile(cwd, rule, timestamp);
-              writtenFiles.push(testFile);
+      // 4. Poll for results
+      console.error(`Rule submitted (${ruleId}). Waiting for generation...`);
+
+      while (true) {
+        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+
+        let status;
+        try {
+          status = await pollRuleStatus(identity.token, ruleId);
+        } catch (error) {
+          fail(
+            `Polling failed: ${error instanceof Error ? error.message : String(error)}`
+          );
+        }
+
+        switch (status.status) {
+          case "accepted": {
+            console.error("Status: accepted — waiting for processing...");
+            break;
+          }
+          case "building": {
+            console.error("Status: building — generating rules...");
+            break;
+          }
+          case "failed": {
+            fail(`Rule generation failed: ${status.error}`);
+            break;
+          }
+          case "generated": {
+            // 6. Write files
+            const timestamp = getTimestamp();
+            const writtenFiles: string[] = [];
+            const rules = status.rules ?? [];
+
+            for (const rule of rules) {
+              const ruleFile = await writeRuleFile(cwd, rule);
+              writtenFiles.push(ruleFile);
+
+              if (rule.tests) {
+                const testFile = await writeRuleTestFile(cwd, rule, timestamp);
+                writtenFiles.push(testFile);
+              }
             }
-          }
 
-          if (status.meta) {
-            const metaFiles = await writeRuleMetaFiles(cwd, status.meta);
-            writtenFiles.push(...metaFiles);
-          }
-
-          // 7. Output results
-          if (args.json) {
-            const output = createOutputSchema.parse({
-              success: true,
-              ruleId,
-              rules: rules.map((r) => r.id),
-              files: writtenFiles,
-            });
-            console.log(JSON.stringify(output));
-          } else {
-            console.log(`Generated ${String(rules.length)} rule(s):\n`);
-            for (const filePath of writtenFiles) {
-              console.log(`  ${filePath}`);
+            if (status.meta) {
+              const metaFiles = await writeRuleMetaFiles(cwd, status.meta);
+              writtenFiles.push(...metaFiles);
             }
+
+            // 7. Output results
+            if (args.json) {
+              const output = createOutputSchema.parse({
+                success: true,
+                ruleId,
+                rules: rules.map((r) => r.id),
+                files: writtenFiles,
+              });
+              console.log(JSON.stringify(output));
+            } else {
+              console.log(`Generated ${String(rules.length)} rule(s):\n`);
+              for (const filePath of writtenFiles) {
+                console.log(`  ${filePath}`);
+              }
+            }
+            success = true;
+            return;
           }
-          return;
-        }
-        case "pr":
-        case "merged":
-        case "closed": {
-          // Terminal states beyond generation — treat as done without files
-          if (args.json) {
-            const output = createOutputSchema.parse({
-              success: true,
-              ruleId,
-              rules: [],
-              files: [],
-            });
-            console.log(JSON.stringify(output));
-          } else {
-            console.log(`Rule ${ruleId} is in state "${status.status}".`);
+          case "pr":
+          case "merged":
+          case "closed": {
+            // Terminal states beyond generation — treat as done without files
+            if (args.json) {
+              const output = createOutputSchema.parse({
+                success: true,
+                ruleId,
+                rules: [],
+                files: [],
+              });
+              console.log(JSON.stringify(output));
+            } else {
+              console.log(`Rule ${ruleId} is in state "${status.status}".`);
+            }
+            success = true;
+            return;
           }
-          return;
         }
       }
+    } finally {
+      telemetry.capture("cli_rule_create_completed", {
+        success,
+        durationMs: Date.now() - startedAt,
+      });
     }
   },
 });
@@ -255,6 +266,7 @@ const improveCommand = defineCommand({
   async run({ args }) {
     const cwd = resolve(args.dir ?? process.cwd());
     const telemetry = await getTelemetry(cwd);
+    const startedAt = Date.now();
     telemetry.capture("cli_rule_improve");
 
     /** Emit an error and exit, respecting --json mode */
@@ -270,146 +282,158 @@ const improveCommand = defineCommand({
       throw new CliError(message);
     }
 
-    // 1. Read and validate --from file
-    if (!args.from) {
-      fail(
-        "--from is required. Provide a path to a JSON file.\n  Example: taskless rules improve --from request.json"
-      );
-    }
-
-    const filePath = resolve(cwd, args.from);
-    let fileContent: string;
+    let success = false;
     try {
-      fileContent = await readFile(filePath, "utf8");
-    } catch {
-      fail(`Could not read file "${args.from}".`);
-    }
-
-    let rawJson: unknown;
-    try {
-      rawJson = JSON.parse(fileContent) as unknown;
-    } catch {
-      fail(`"${args.from}" is not valid JSON.`);
-    }
-
-    let request: ReturnType<typeof improveInputSchema.parse>;
-    try {
-      request = improveInputSchema.parse(rawJson);
-    } catch (error) {
-      if (error instanceof ZodError) {
+      // 1. Read and validate --from file
+      if (!args.from) {
         fail(
-          `Invalid input: ${error.issues.map((issue) => issue.message).join(", ")}`
+          "--from is required. Provide a path to a JSON file.\n  Example: taskless rules improve --from request.json"
         );
       }
-      fail(error instanceof Error ? error.message : String(error));
-    }
 
-    // 2. Resolve identity (orgId from JWT, repositoryUrl from git remote)
-    let identity;
-    try {
-      identity = await resolveIdentity(cwd);
-    } catch (error) {
-      fail(error instanceof Error ? error.message : String(error));
-    }
-
-    // 3. Submit iterate request to API
-    let requestId: string;
-    try {
-      const response = await iterateRule(identity.token, request.ruleId, {
-        orgId: identity.orgId,
-        guidance: request.guidance,
-        references: request.references,
-      });
-      requestId = response.requestId;
-    } catch (error) {
-      fail(error instanceof Error ? error.message : String(error));
-    }
-
-    // 4. Poll for results using the requestId
-    console.error(
-      `Iterate request submitted (${requestId}). Waiting for generation...`
-    );
-
-    while (true) {
-      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-
-      let status;
+      const filePath = resolve(cwd, args.from);
+      let fileContent: string;
       try {
-        status = await pollRuleStatus(identity.token, requestId);
+        fileContent = await readFile(filePath, "utf8");
+      } catch {
+        fail(`Could not read file "${args.from}".`);
+      }
+
+      let rawJson: unknown;
+      try {
+        rawJson = JSON.parse(fileContent) as unknown;
+      } catch {
+        fail(`"${args.from}" is not valid JSON.`);
+      }
+
+      let request: ReturnType<typeof improveInputSchema.parse>;
+      try {
+        request = improveInputSchema.parse(rawJson);
       } catch (error) {
-        fail(
-          `Polling failed: ${error instanceof Error ? error.message : String(error)}`
-        );
+        if (error instanceof ZodError) {
+          fail(
+            `Invalid input: ${error.issues.map((issue) => issue.message).join(", ")}`
+          );
+        }
+        fail(error instanceof Error ? error.message : String(error));
       }
 
-      switch (status.status) {
-        case "accepted": {
-          console.error("Status: accepted — waiting for processing...");
-          break;
-        }
-        case "building": {
-          console.error("Status: building — generating rules...");
-          break;
-        }
-        case "failed": {
-          fail(`Rule iteration failed: ${status.error}`);
-          break;
-        }
-        case "generated": {
-          // 6. Write files (overwrites existing rule files)
-          const timestamp = getTimestamp();
-          const writtenFiles: string[] = [];
-          const rules = status.rules ?? [];
+      // 2. Resolve identity (orgId from JWT, repositoryUrl from git remote)
+      let identity;
+      try {
+        identity = await resolveIdentity(cwd);
+      } catch (error) {
+        fail(error instanceof Error ? error.message : String(error));
+      }
 
-          for (const rule of rules) {
-            const ruleFile = await writeRuleFile(cwd, rule);
-            writtenFiles.push(ruleFile);
+      // 3. Submit iterate request to API
+      let requestId: string;
+      try {
+        const response = await iterateRule(identity.token, request.ruleId, {
+          orgId: identity.orgId,
+          guidance: request.guidance,
+          references: request.references,
+        });
+        requestId = response.requestId;
+      } catch (error) {
+        fail(error instanceof Error ? error.message : String(error));
+      }
 
-            if (rule.tests) {
-              const testFile = await writeRuleTestFile(cwd, rule, timestamp);
-              writtenFiles.push(testFile);
+      // 4. Poll for results using the requestId
+      console.error(
+        `Iterate request submitted (${requestId}). Waiting for generation...`
+      );
+
+      while (true) {
+        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+
+        let status;
+        try {
+          status = await pollRuleStatus(identity.token, requestId);
+        } catch (error) {
+          fail(
+            `Polling failed: ${error instanceof Error ? error.message : String(error)}`
+          );
+        }
+
+        switch (status.status) {
+          case "accepted": {
+            console.error("Status: accepted — waiting for processing...");
+            break;
+          }
+          case "building": {
+            console.error("Status: building — generating rules...");
+            break;
+          }
+          case "failed": {
+            fail(`Rule iteration failed: ${status.error}`);
+            break;
+          }
+          case "generated": {
+            // 6. Write files (overwrites existing rule files)
+            const timestamp = getTimestamp();
+            const writtenFiles: string[] = [];
+            const rules = status.rules ?? [];
+
+            for (const rule of rules) {
+              const ruleFile = await writeRuleFile(cwd, rule);
+              writtenFiles.push(ruleFile);
+
+              if (rule.tests) {
+                const testFile = await writeRuleTestFile(cwd, rule, timestamp);
+                writtenFiles.push(testFile);
+              }
             }
-          }
 
-          if (status.meta) {
-            const metaFiles = await writeRuleMetaFiles(cwd, status.meta);
-            writtenFiles.push(...metaFiles);
-          }
-
-          // 7. Output results
-          if (args.json) {
-            const output = improveOutputSchema.parse({
-              success: true,
-              requestId,
-              rules: rules.map((r) => r.id),
-              files: writtenFiles,
-            });
-            console.log(JSON.stringify(output));
-          } else {
-            console.log(`Updated ${String(rules.length)} rule(s):\n`);
-            for (const filePath of writtenFiles) {
-              console.log(`  ${filePath}`);
+            if (status.meta) {
+              const metaFiles = await writeRuleMetaFiles(cwd, status.meta);
+              writtenFiles.push(...metaFiles);
             }
+
+            // 7. Output results
+            if (args.json) {
+              const output = improveOutputSchema.parse({
+                success: true,
+                requestId,
+                rules: rules.map((r) => r.id),
+                files: writtenFiles,
+              });
+              console.log(JSON.stringify(output));
+            } else {
+              console.log(`Updated ${String(rules.length)} rule(s):\n`);
+              for (const filePath of writtenFiles) {
+                console.log(`  ${filePath}`);
+              }
+            }
+            success = true;
+            return;
           }
-          return;
-        }
-        case "pr":
-        case "merged":
-        case "closed": {
-          if (args.json) {
-            const output = improveOutputSchema.parse({
-              success: true,
-              requestId,
-              rules: [],
-              files: [],
-            });
-            console.log(JSON.stringify(output));
-          } else {
-            console.log(`Request ${requestId} is in state "${status.status}".`);
+          case "pr":
+          case "merged":
+          case "closed": {
+            if (args.json) {
+              const output = improveOutputSchema.parse({
+                success: true,
+                requestId,
+                rules: [],
+                files: [],
+              });
+              console.log(JSON.stringify(output));
+            } else {
+              console.log(
+                `Request ${requestId} is in state "${status.status}".`
+              );
+            }
+            success = true;
+            return;
           }
-          return;
         }
       }
+    } finally {
+      telemetry.capture("cli_rule_improve_completed", {
+        success,
+        durationMs: Date.now() - startedAt,
+      });
     }
   },
 });
@@ -439,6 +463,7 @@ const metaCommand = defineCommand({
   async run({ args }) {
     const cwd = resolve(args.dir ?? process.cwd());
     const telemetry = await getTelemetry(cwd);
+    const startedAt = Date.now();
     telemetry.capture("cli_rule_meta");
 
     function fail(message: string): never {
@@ -451,31 +476,40 @@ const metaCommand = defineCommand({
       throw new CliError(message);
     }
 
-    const meta = await readRuleMetaFile(cwd, args.id);
-    if (!meta) {
-      fail(
-        `No metadata found for rule "${args.id}". Expected .taskless/rule-metadata/${args.id}.yml`
-      );
-    }
+    let success = false;
+    try {
+      const meta = await readRuleMetaFile(cwd, args.id);
+      if (!meta) {
+        fail(
+          `No metadata found for rule "${args.id}". Expected .taskless/rule-metadata/${args.id}.yml`
+        );
+      }
 
-    if (args.json) {
-      let output;
-      try {
-        output = metaOutputSchema.parse({ id: args.id, ...meta });
-      } catch (error) {
-        if (error instanceof ZodError) {
-          fail(
-            `Invalid metadata for rule "${args.id}": ${error.issues.map((issue) => issue.message).join(", ")}`
-          );
+      if (args.json) {
+        let output;
+        try {
+          output = metaOutputSchema.parse({ id: args.id, ...meta });
+        } catch (error) {
+          if (error instanceof ZodError) {
+            fail(
+              `Invalid metadata for rule "${args.id}": ${error.issues.map((issue) => issue.message).join(", ")}`
+            );
+          }
+          fail(error instanceof Error ? error.message : String(error));
         }
-        fail(error instanceof Error ? error.message : String(error));
+        console.log(JSON.stringify(output));
+      } else {
+        console.log(`Metadata for rule "${args.id}":\n`);
+        for (const [key, value] of Object.entries(meta)) {
+          console.log(`  ${key}: ${String(value)}`);
+        }
       }
-      console.log(JSON.stringify(output));
-    } else {
-      console.log(`Metadata for rule "${args.id}":\n`);
-      for (const [key, value] of Object.entries(meta)) {
-        console.log(`  ${key}: ${String(value)}`);
-      }
+      success = true;
+    } finally {
+      telemetry.capture("cli_rule_meta_completed", {
+        success,
+        durationMs: Date.now() - startedAt,
+      });
     }
   },
 });
@@ -500,17 +534,27 @@ const deleteCommand = defineCommand({
   async run({ args }) {
     const cwd = resolve(args.dir ?? process.cwd());
     const telemetry = await getTelemetry(cwd);
+    const startedAt = Date.now();
     telemetry.capture("cli_rule_delete");
     const id = args.id;
 
-    const deleted = await deleteRuleFiles(cwd, id);
-    if (deleted) {
-      console.log(`Deleted rule "${id}" and associated test files.`);
-    } else {
-      console.error(
-        `Error: Rule "${id}" not found in .taskless/rules/${id}.yml`
-      );
-      process.exitCode = 1;
+    let success = false;
+    try {
+      const deleted = await deleteRuleFiles(cwd, id);
+      if (deleted) {
+        console.log(`Deleted rule "${id}" and associated test files.`);
+        success = true;
+      } else {
+        console.error(
+          `Error: Rule "${id}" not found in .taskless/rules/${id}.yml`
+        );
+        process.exitCode = 1;
+      }
+    } finally {
+      telemetry.capture("cli_rule_delete_completed", {
+        success,
+        durationMs: Date.now() - startedAt,
+      });
     }
   },
 });
@@ -540,65 +584,75 @@ const verifyCommand = defineCommand({
   async run({ args }) {
     const cwd = resolve(args.dir ?? process.cwd());
     const telemetry = await getTelemetry(cwd);
+    const startedAt = Date.now();
     telemetry.capture("cli_rule_verify");
 
-    if (!args.id) {
+    let success = false;
+    try {
+      if (!args.id) {
+        if (args.json) {
+          console.log(
+            JSON.stringify(
+              verifyErrorSchema.parse({
+                success: false,
+                error: "Rule ID is required.",
+              })
+            )
+          );
+        } else {
+          console.error(
+            "Error: Rule ID is required.\n  Usage: taskless rules verify <id>"
+          );
+        }
+        process.exitCode = 1;
+        return;
+      }
+
+      const result = await verifyRule(cwd, args.id);
+
       if (args.json) {
-        console.log(
-          JSON.stringify(
-            verifyErrorSchema.parse({
-              success: false,
-              error: "Rule ID is required.",
-            })
-          )
-        );
+        console.log(JSON.stringify(verifyOutputSchema.parse(result)));
       } else {
-        console.error(
-          "Error: Rule ID is required.\n  Usage: taskless rules verify <id>"
+        console.log(`Verifying rule: ${result.ruleId}\n`);
+
+        // Layer 1
+        console.log(
+          `Schema:       ${result.schema.valid ? "✓ valid" : "✗ invalid"}`
+        );
+        for (const error of result.schema.errors) {
+          console.log(`  - ${error}`);
+        }
+
+        // Layer 2
+        console.log(
+          `Requirements: ${result.requirements.valid ? "✓ valid" : "✗ invalid"}`
+        );
+        for (const error of result.requirements.errors) {
+          console.log(`  - ${error}`);
+        }
+
+        // Layer 3
+        console.log(
+          `Tests:        ${result.tests.valid ? "✓ passed" : "✗ failed"} (${String(result.tests.passed)} passed, ${String(result.tests.failed)} failed)`
+        );
+        for (const error of result.tests.errors) {
+          console.log(`  - ${error}`);
+        }
+
+        console.log(
+          `\nResult: ${result.success ? "✓ All checks passed" : "✗ Verification failed"}`
         );
       }
-      process.exitCode = 1;
-      return;
-    }
 
-    const result = await verifyRule(cwd, args.id);
-
-    if (args.json) {
-      console.log(JSON.stringify(verifyOutputSchema.parse(result)));
-    } else {
-      console.log(`Verifying rule: ${result.ruleId}\n`);
-
-      // Layer 1
-      console.log(
-        `Schema:       ${result.schema.valid ? "✓ valid" : "✗ invalid"}`
-      );
-      for (const error of result.schema.errors) {
-        console.log(`  - ${error}`);
+      if (!result.success) {
+        process.exitCode = 1;
       }
-
-      // Layer 2
-      console.log(
-        `Requirements: ${result.requirements.valid ? "✓ valid" : "✗ invalid"}`
-      );
-      for (const error of result.requirements.errors) {
-        console.log(`  - ${error}`);
-      }
-
-      // Layer 3
-      console.log(
-        `Tests:        ${result.tests.valid ? "✓ passed" : "✗ failed"} (${String(result.tests.passed)} passed, ${String(result.tests.failed)} failed)`
-      );
-      for (const error of result.tests.errors) {
-        console.log(`  - ${error}`);
-      }
-
-      console.log(
-        `\nResult: ${result.success ? "✓ All checks passed" : "✗ Verification failed"}`
-      );
-    }
-
-    if (!result.success) {
-      process.exitCode = 1;
+      success = result.success;
+    } finally {
+      telemetry.capture("cli_rule_verify_completed", {
+        success,
+        durationMs: Date.now() - startedAt,
+      });
     }
   },
 });
