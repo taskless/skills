@@ -6,6 +6,7 @@ import { getToken } from "../auth/token";
 import { fetchWhoami } from "../auth/whoami";
 import { outputSchema as infoOutputSchema } from "../schemas/info";
 import { getTelemetry } from "../telemetry";
+import { makeErrorEnvelope } from "../types/errors";
 
 export const infoCommand = defineCommand({
   meta: {
@@ -61,10 +62,12 @@ export const infoCommand = defineCommand({
         const parsed = infoOutputSchema.safeParse(result);
         if (!parsed.success) {
           console.error(
-            JSON.stringify({
-              success: false,
-              error: "Internal schema validation failed",
-            })
+            JSON.stringify(
+              makeErrorEnvelope(
+                "INTERNAL_ERROR",
+                "Internal schema validation failed"
+              )
+            )
           );
           process.exitCode = 1;
           return;

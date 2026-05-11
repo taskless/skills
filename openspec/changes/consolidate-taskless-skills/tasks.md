@@ -42,9 +42,9 @@
 
 ## 6. Standardize CLI error output for recipe references
 
-- [ ] 6.1 Define a stable error-code enum in `packages/cli/src/types/errors.ts` (or extend the existing `GeneratorErrorCode`) covering at minimum: `AUTH_REQUIRED`, `NO_GITHUB_REMOTE`, `RULE_GENERATION_FAILED`, `RULE_NOT_FOUND`, `INVALID_INPUT`, `NETWORK_ERROR`
-- [ ] 6.2 When any action command exits with an error AND `--json` was set, output `{ "ok": false, "code": "<CODE>", "message": "<human message>" }` to stdout and a non-zero exit code
-- [ ] 6.3 Update existing error-throwing sites to use the standardized codes
+- [x] 6.1 Define a stable error-code enum in `packages/cli/src/types/errors.ts` (or extend the existing `GeneratorErrorCode`) covering at minimum: `AUTH_REQUIRED`, `NO_GITHUB_REMOTE`, `RULE_GENERATION_FAILED`, `RULE_NOT_FOUND`, `INVALID_INPUT`, `NETWORK_ERROR`
+- [x] 6.2 When any action command exits with an error AND `--json` was set, output `{ "ok": false, "code": "<CODE>", "message": "<human message>" }` to stdout and a non-zero exit code
+- [x] 6.3 Update existing error-throwing sites to use the standardized codes
 - [ ] 6.4 Add unit tests proving each error path emits the correct code in `--json` mode
 
 ## 7. `tskl help` extensions: template, schemas, variants, no-args index

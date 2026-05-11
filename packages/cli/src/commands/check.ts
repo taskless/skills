@@ -6,10 +6,8 @@ import { runAstGrepScan } from "../rules/scan";
 import { formatText } from "../util/format";
 import { generateSgConfig } from "../filesystem/sgconfig";
 import { getTelemetry } from "../telemetry";
-import {
-  outputSchema as checkOutputSchema,
-  errorSchema as checkErrorSchema,
-} from "../schemas/check";
+import { outputSchema as checkOutputSchema } from "../schemas/check";
+import { makeErrorEnvelope } from "../types/errors";
 
 async function pathExists(absolutePath: string): Promise<boolean> {
   try {
@@ -181,12 +179,9 @@ export const checkCommand = defineCommand({
       } catch (error) {
         const message = `Error: ${error instanceof Error ? error.message : String(error)}`;
         if (args.json) {
-          const output = checkErrorSchema.parse({
-            success: false,
-            error: message,
-            results: [],
-          });
-          console.log(JSON.stringify(output));
+          console.log(
+            JSON.stringify(makeErrorEnvelope("SCAN_FAILED", message))
+          );
         } else {
           console.error(message);
         }

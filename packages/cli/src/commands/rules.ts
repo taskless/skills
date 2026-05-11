@@ -17,20 +17,16 @@ import {
 import {
   inputSchema as createInputSchema,
   outputSchema as createOutputSchema,
-  errorSchema as createErrorSchema,
 } from "../schemas/rules-create";
 import {
   inputSchema as improveInputSchema,
   outputSchema as improveOutputSchema,
-  errorSchema as improveErrorSchema,
 } from "../schemas/rules-improve";
-import {
-  outputSchema as metaOutputSchema,
-  errorSchema as metaErrorSchema,
-} from "../schemas/rules-meta";
-import { verifyOutputSchema, verifyErrorSchema } from "../schemas/rules-verify";
+import { outputSchema as metaOutputSchema } from "../schemas/rules-meta";
+import { verifyOutputSchema } from "../schemas/rules-verify";
 import { getTelemetry } from "../telemetry";
 import { CliError } from "../util/cli-error";
+import { type CliErrorCode, makeErrorEnvelope } from "../types/errors";
 
 /** Format today's date as YYYYMMDD */
 function getTimestamp(): string {
@@ -73,11 +69,12 @@ const createCommand = defineCommand({
     telemetry.capture("cli_rule_create");
 
     /** Emit an error and exit, respecting --json mode */
-    function fail(message: string): never {
+    function fail(
+      message: string,
+      code: CliErrorCode = "INTERNAL_ERROR"
+    ): never {
       if (args.json) {
-        console.log(
-          JSON.stringify(createErrorSchema.parse({ error: message }))
-        );
+        console.log(JSON.stringify(makeErrorEnvelope(code, message)));
       } else {
         console.error(`Error: ${message}`);
       }
@@ -90,7 +87,8 @@ const createCommand = defineCommand({
       // 1. Read and validate --from file
       if (!args.from) {
         fail(
-          "--from is required. Provide a path to a JSON file.\n  Example: taskless rule create --from request.json"
+          "--from is required. Provide a path to a JSON file.\n  Example: taskless rule create --from request.json",
+          "INVALID_INPUT"
         );
       }
 
@@ -99,14 +97,14 @@ const createCommand = defineCommand({
       try {
         fileContent = await readFile(filePath, "utf8");
       } catch {
-        fail(`Could not read file "${args.from}".`);
+        fail(`Could not read file "${args.from}".`, "INVALID_INPUT");
       }
 
       let rawJson: unknown;
       try {
         rawJson = JSON.parse(fileContent) as unknown;
       } catch {
-        fail(`"${args.from}" is not valid JSON.`);
+        fail(`"${args.from}" is not valid JSON.`, "INVALID_INPUT");
       }
 
       let request: ReturnType<typeof createInputSchema.parse>;
@@ -115,10 +113,14 @@ const createCommand = defineCommand({
       } catch (error) {
         if (error instanceof ZodError) {
           fail(
-            `Invalid input: ${error.issues.map((issue) => issue.message).join(", ")}`
+            `Invalid input: ${error.issues.map((issue) => issue.message).join(", ")}`,
+            "INVALID_INPUT"
           );
         }
-        fail(error instanceof Error ? error.message : String(error));
+        fail(
+          error instanceof Error ? error.message : String(error),
+          "INVALID_INPUT"
+        );
       }
 
       // 2. Resolve identity (orgId from JWT, repositoryUrl from git remote)
@@ -126,7 +128,13 @@ const createCommand = defineCommand({
       try {
         identity = await resolveIdentity(cwd);
       } catch (error) {
-        fail(error instanceof Error ? error.message : String(error));
+        // resolveIdentity throws on missing auth or missing git remote;
+        // surface the original message but pick a best-guess code.
+        const message = error instanceof Error ? error.message : String(error);
+        const code: CliErrorCode = /git remote|origin/i.test(message)
+          ? "NO_GITHUB_REMOTE"
+          : "AUTH_REQUIRED";
+        fail(message, code);
       }
 
       // 3. Submit rule to API
@@ -141,7 +149,10 @@ const createCommand = defineCommand({
         });
         ruleId = response.ruleId;
       } catch (error) {
-        fail(error instanceof Error ? error.message : String(error));
+        fail(
+          error instanceof Error ? error.message : String(error),
+          "NETWORK_ERROR"
+        );
       }
 
       // 4. Poll for results
@@ -155,7 +166,8 @@ const createCommand = defineCommand({
           status = await pollRuleStatus(identity.token, ruleId);
         } catch (error) {
           fail(
-            `Polling failed: ${error instanceof Error ? error.message : String(error)}`
+            `Polling failed: ${error instanceof Error ? error.message : String(error)}`,
+            "NETWORK_ERROR"
           );
         }
 
@@ -169,7 +181,10 @@ const createCommand = defineCommand({
             break;
           }
           case "failed": {
-            fail(`Rule generation failed: ${status.error}`);
+            fail(
+              `Rule generation failed: ${status.error}`,
+              "RULE_GENERATION_FAILED"
+            );
             break;
           }
           case "generated": {
@@ -270,11 +285,12 @@ const improveCommand = defineCommand({
     telemetry.capture("cli_rule_improve");
 
     /** Emit an error and exit, respecting --json mode */
-    function fail(message: string): never {
+    function fail(
+      message: string,
+      code: CliErrorCode = "INTERNAL_ERROR"
+    ): never {
       if (args.json) {
-        console.log(
-          JSON.stringify(improveErrorSchema.parse({ error: message }))
-        );
+        console.log(JSON.stringify(makeErrorEnvelope(code, message)));
       } else {
         console.error(`Error: ${message}`);
       }
@@ -287,7 +303,8 @@ const improveCommand = defineCommand({
       // 1. Read and validate --from file
       if (!args.from) {
         fail(
-          "--from is required. Provide a path to a JSON file.\n  Example: taskless rule improve --from request.json"
+          "--from is required. Provide a path to a JSON file.\n  Example: taskless rule improve --from request.json",
+          "INVALID_INPUT"
         );
       }
 
@@ -296,14 +313,14 @@ const improveCommand = defineCommand({
       try {
         fileContent = await readFile(filePath, "utf8");
       } catch {
-        fail(`Could not read file "${args.from}".`);
+        fail(`Could not read file "${args.from}".`, "INVALID_INPUT");
       }
 
       let rawJson: unknown;
       try {
         rawJson = JSON.parse(fileContent) as unknown;
       } catch {
-        fail(`"${args.from}" is not valid JSON.`);
+        fail(`"${args.from}" is not valid JSON.`, "INVALID_INPUT");
       }
 
       let request: ReturnType<typeof improveInputSchema.parse>;
@@ -312,10 +329,14 @@ const improveCommand = defineCommand({
       } catch (error) {
         if (error instanceof ZodError) {
           fail(
-            `Invalid input: ${error.issues.map((issue) => issue.message).join(", ")}`
+            `Invalid input: ${error.issues.map((issue) => issue.message).join(", ")}`,
+            "INVALID_INPUT"
           );
         }
-        fail(error instanceof Error ? error.message : String(error));
+        fail(
+          error instanceof Error ? error.message : String(error),
+          "INVALID_INPUT"
+        );
       }
 
       // 2. Resolve identity (orgId from JWT, repositoryUrl from git remote)
@@ -323,7 +344,11 @@ const improveCommand = defineCommand({
       try {
         identity = await resolveIdentity(cwd);
       } catch (error) {
-        fail(error instanceof Error ? error.message : String(error));
+        const message = error instanceof Error ? error.message : String(error);
+        const code: CliErrorCode = /git remote|origin/i.test(message)
+          ? "NO_GITHUB_REMOTE"
+          : "AUTH_REQUIRED";
+        fail(message, code);
       }
 
       // 3. Submit iterate request to API
@@ -336,7 +361,10 @@ const improveCommand = defineCommand({
         });
         requestId = response.requestId;
       } catch (error) {
-        fail(error instanceof Error ? error.message : String(error));
+        fail(
+          error instanceof Error ? error.message : String(error),
+          "NETWORK_ERROR"
+        );
       }
 
       // 4. Poll for results using the requestId
@@ -352,7 +380,8 @@ const improveCommand = defineCommand({
           status = await pollRuleStatus(identity.token, requestId);
         } catch (error) {
           fail(
-            `Polling failed: ${error instanceof Error ? error.message : String(error)}`
+            `Polling failed: ${error instanceof Error ? error.message : String(error)}`,
+            "NETWORK_ERROR"
           );
         }
 
@@ -366,7 +395,10 @@ const improveCommand = defineCommand({
             break;
           }
           case "failed": {
-            fail(`Rule iteration failed: ${status.error}`);
+            fail(
+              `Rule iteration failed: ${status.error}`,
+              "RULE_GENERATION_FAILED"
+            );
             break;
           }
           case "generated": {
@@ -466,9 +498,12 @@ const metaCommand = defineCommand({
     const startedAt = Date.now();
     telemetry.capture("cli_rule_meta");
 
-    function fail(message: string): never {
+    function fail(
+      message: string,
+      code: CliErrorCode = "INTERNAL_ERROR"
+    ): never {
       if (args.json) {
-        console.log(JSON.stringify(metaErrorSchema.parse({ error: message })));
+        console.log(JSON.stringify(makeErrorEnvelope(code, message)));
       } else {
         console.error(`Error: ${message}`);
       }
@@ -481,7 +516,8 @@ const metaCommand = defineCommand({
       const meta = await readRuleMetaFile(cwd, args.id);
       if (!meta) {
         fail(
-          `No metadata found for rule "${args.id}". Expected .taskless/rule-metadata/${args.id}.yml`
+          `No metadata found for rule "${args.id}". Expected .taskless/rule-metadata/${args.id}.yml`,
+          "RULE_NOT_FOUND"
         );
       }
 
@@ -492,7 +528,8 @@ const metaCommand = defineCommand({
         } catch (error) {
           if (error instanceof ZodError) {
             fail(
-              `Invalid metadata for rule "${args.id}": ${error.issues.map((issue) => issue.message).join(", ")}`
+              `Invalid metadata for rule "${args.id}": ${error.issues.map((issue) => issue.message).join(", ")}`,
+              "INVALID_INPUT"
             );
           }
           fail(error instanceof Error ? error.message : String(error));
@@ -593,10 +630,7 @@ const verifyCommand = defineCommand({
         if (args.json) {
           console.log(
             JSON.stringify(
-              verifyErrorSchema.parse({
-                success: false,
-                error: "Rule ID is required.",
-              })
+              makeErrorEnvelope("INVALID_INPUT", "Rule ID is required.")
             )
           );
         } else {
