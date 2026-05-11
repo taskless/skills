@@ -39,26 +39,16 @@ A `scripts/sync-skill-versions.ts` script SHALL read the version from `packages/
 - **WHEN** 5 SKILL.md files exist under `skills/`
 - **THEN** the script SHALL update all 5 files' `metadata.version` fields
 
-### Requirement: Command generation script derives commands from skills
+### Requirement: Slash command files are hand-authored
 
-A `scripts/generate-commands.ts` script SHALL read all `skills/taskless-*/SKILL.md` files, transform them into command format, and write to `commands/taskless/`. The output filename SHALL strip the `taskless-` prefix from the skill directory name.
+Since the v0.7 consolidation, the single `commands/tskl/tskl.md` slash command is hand-authored rather than generated from a `SKILL.md` body. The command body intentionally differs from the skill body (it is a `$ARGUMENTS`-aware router), so the prior "copy SKILL.md body to command" generation script no longer applies.
 
-#### Scenario: Command is generated from skill
+#### Scenario: Single hand-authored command file exists
 
-- **WHEN** `skills/taskless-auth-login/SKILL.md` exists with name `taskless-auth-login` and description `"Explains how to log in"`
-- **THEN** running the script SHALL write `commands/taskless/auth-login.md`
-- **AND** the command frontmatter SHALL have `name: "Taskless: Auth Login"`, `description: "Explains how to log in"`, `category: "Taskless"`, and `tags: ["taskless"]`
-- **AND** the command body SHALL match the skill body
-
-#### Scenario: All skills produce commands
-
-- **WHEN** 5 skill directories exist under `skills/`
-- **THEN** running the script SHALL produce 5 command files under `commands/taskless/`
-
-#### Scenario: Metadata is preserved in commands
-
-- **WHEN** a skill has `metadata: { author: "taskless", version: "0.1.0" }`
-- **THEN** the generated command SHALL include the same `metadata` field in frontmatter
+- **WHEN** inspecting the repository
+- **THEN** `commands/tskl/tskl.md` SHALL exist as a hand-authored file
+- **AND** there SHALL be no `scripts/generate-commands.ts` script
+- **AND** the root `package.json` SHALL NOT reference `build:generate-commands`
 
 ### Requirement: Version sync runs as part of changeset version
 

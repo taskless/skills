@@ -13,13 +13,11 @@ using `rule verify` in a feedback loop.
 
 ## Steps
 
-1. **Learn the ast-grep rule format.** Read the embedded schema below
-   to understand what fields are valid. The schema bundles:
-   - The official ast-grep rule JSON Schema.
-   - Taskless-specific required fields (`id`, `language`, `severity`,
-     `message`, `rule`).
-   - Annotated examples for common patterns (simple match, regex with
-     kind, composite rules using `any`/`all`/`has`/`inside`).
+1. **Learn the ast-grep rule format.** Before writing a rule, consult
+   the ast-grep rule reference at https://ast-grep.github.io/guide/rule-config.html
+   for valid fields, operators (`pattern`, `kind`, `regex`,
+   `any`/`all`/`has`/`inside`/`not`), and meta-variable syntax. The
+   Taskless-required fields you'll add on top are listed in step 5.
 
 2. **Gather the rule description.** Even if the user already provided
    one, ask clarifying questions:
@@ -83,28 +81,19 @@ using `rule verify` in a feedback loop.
 
 ## ast-grep schema
 
-(The full ast-grep schema, Taskless requirements, and curated examples
-are embedded here. They are large; read carefully.)
-
-```json
-{{INPUT_SCHEMA}}
-```
-
-> Note: in this anonymous flow, the {{INPUT_SCHEMA}} placeholder
-> renders the rule-create input shape (a `prompt` description plus
-> example arrays). To see the full ast-grep YAML schema with examples,
-> consult the ast-grep documentation at https://ast-grep.github.io/.
-> A future CLI version will embed the full ast-grep schema directly
-> in this recipe.
+This recipe does not embed the full ast-grep schema. Read it from the
+upstream docs at https://ast-grep.github.io/guide/rule-config.html
+before authoring a rule. The Taskless-specific required fields layered
+on top of the ast-grep rule are listed in step 5.
 
 ## Errors
 
-When `--json` is set on `rule verify`, failures emit a structured
-result. The relevant fields:
+`rule verify --json` always emits a layered result (not the
+`{ ok:false, code, message }` envelope). The relevant fields:
 
 | code            | meaning                                  | fix                                        |
 |-----------------|------------------------------------------|--------------------------------------------|
-| `INVALID_INPUT` | Rule ID missing or malformed             | Pass a valid rule ID                       |
+| `INVALID_INPUT` | Rule ID missing or malformed (envelope)  | Pass a valid rule ID                       |
 | (schema layer)  | YAML didn't match ast-grep schema        | Fix the rule structure                     |
 | (req layer)    | Missing Taskless-required field          | Add `id`/`language`/`severity`/etc.        |
 | (tests layer)  | A test case didn't behave as expected    | Fix the rule pattern OR the test case      |

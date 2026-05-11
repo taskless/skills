@@ -51,8 +51,13 @@ or after rule create/improve to validate.
    ```
 
 4. **Report findings to the user.** Group by file. Show severity,
-   message, and rule ID for each finding. If `success` is false,
-   exit code was non-zero — surface the error from the envelope.
+   message, and rule ID for each finding. The `success` field reflects
+   whether any rule matches were found: `success: true` means the
+   codebase is clean, `success: false` means findings exist (an
+   expected outcome, not an error). The `{ ok: false, code, message }`
+   envelope is only emitted when the scan itself fails (e.g.
+   `SCAN_FAILED`); only consult that envelope when the command exits
+   abnormally without a normal results payload.
 
 ## Exit codes
 

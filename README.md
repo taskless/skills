@@ -14,7 +14,6 @@ commands/
 packages/
   cli/                             # @taskless/cli — recipes live in cli/src/help/
 scripts/
-  generate-commands.ts             # Generates commands from skills
   link-skills.ts                   # Symlinks skills into .claude/skills/
   sync-skill-versions.ts           # Syncs metadata.version to CLI version
 .claude-plugin/                    # Claude Code Plugin Marketplace manifest

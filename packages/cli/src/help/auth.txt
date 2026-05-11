@@ -57,12 +57,15 @@ The `--anonymous` flag is rejected on `auth login` — it errors with
 
 ## Errors
 
-When `--json` is set, failures emit `{ ok: false, code, message }`:
+`auth` commands are plain-text and do not accept `--json`; the
+standardized error envelope is not emitted. Surface the printed
+message and the non-zero exit code to the user.
 
-| code             | meaning                                    | fix                          |
-|------------------|--------------------------------------------|------------------------------|
-| `NETWORK_ERROR`  | Device flow / token endpoint unreachable   | Check connectivity; retry    |
-| `AUTH_REQUIRED`  | Token expired or invalid (status branch)   | Re-run `taskless auth login` |
+| condition                                  | behavior                                                                          |
+|--------------------------------------------|-----------------------------------------------------------------------------------|
+| Device flow / token endpoint unreachable   | `auth login` prints the network error and exits non-zero; suggest retry.          |
+| `--anonymous` passed to `auth login`       | Prints `Error: auth commands cannot be anonymous.` and exits 1.                   |
+| Token expired or invalid (status branch)   | Prints "Logged in, but unable to verify identity." Suggest re-running auth login. |
 
 ## See Also
 
