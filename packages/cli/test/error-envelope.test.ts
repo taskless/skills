@@ -159,6 +159,67 @@ describe("standardized error envelope (--json)", () => {
     });
   });
 
+  describe("rule delete", () => {
+    it("emits RULE_NOT_FOUND when the rule file does not exist", async () => {
+      const result = await runCli([
+        "rule",
+        "delete",
+        "nonexistent-rule",
+        "--json",
+        "-d",
+        cwd,
+      ]);
+      expect(result.exitCode).not.toBe(0);
+      const env = parseEnvelope(result.stdout);
+      expect(env.code).toBe("RULE_NOT_FOUND");
+      expect(env.message).toContain("nonexistent-rule");
+    });
+
+    it("is silent on stdout when a real rule is deleted in --json mode", async () => {
+      const rulesDirectory = join(cwd, ".taskless", "rules");
+      await mkdir(rulesDirectory, { recursive: true });
+      await writeFile(
+        join(rulesDirectory, "doomed.yml"),
+        "id: doomed\nlanguage: typescript\nseverity: error\nmessage: ''\nrule: { pattern: 'eval($X)' }\n"
+      );
+      const result = await runCli([
+        "rule",
+        "delete",
+        "doomed",
+        "--json",
+        "-d",
+        cwd,
+      ]);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout.trim()).toBe("");
+    });
+  });
+
+  describe("auth login", () => {
+    it("emits INVALID_INPUT when --anonymous is set", async () => {
+      const result = await runCli([
+        "auth",
+        "login",
+        "--anonymous",
+        "--json",
+        "-d",
+        cwd,
+      ]);
+      expect(result.exitCode).not.toBe(0);
+      const env = parseEnvelope(result.stdout);
+      expect(env.code).toBe("INVALID_INPUT");
+      expect(env.message).toContain("anonymous");
+    });
+  });
+
+  describe("auth logout", () => {
+    it("is silent on stdout in --json mode and exits 0", async () => {
+      const result = await runCli(["auth", "logout", "--json", "-d", cwd]);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout.trim()).toBe("");
+    });
+  });
+
   describe("envelope shape", () => {
     it("envelope has exactly the documented fields", async () => {
       const result = await runCli(["rule", "create", "--json", "-d", cwd]);
