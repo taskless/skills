@@ -105,86 +105,98 @@ export const checkCommand = defineCommand({
   async run({ args, rawArgs }) {
     const cwd = resolve(args.dir ?? process.cwd());
     const telemetry = await getTelemetry(cwd);
+    const startedAt = Date.now();
     telemetry.capture("cli_check");
 
-    const positionalPaths = extractPositionalPaths(rawArgs);
-    const hadExplicitPaths = positionalPaths.length > 0;
-    const existingPaths = hadExplicitPaths
-      ? await filterExistingPaths(cwd, positionalPaths)
-      : [];
-
-    // If the user passed paths but none exist (e.g. all-deleted diff),
-    // exit cleanly with empty results rather than falling back to a full scan.
-    if (hadExplicitPaths && existingPaths.length === 0) {
-      if (args.json) {
-        console.log(
-          JSON.stringify(
-            checkOutputSchema.parse({ success: true, results: [] })
-          )
-        );
-      }
-      return;
-    }
-
-    // Check for rule files
-    const rulesDirectory = join(cwd, ".taskless", "rules");
-    let ruleFiles: string[] = [];
+    let success = false;
     try {
-      const entries = await readdir(rulesDirectory);
-      ruleFiles = entries.filter((f) => f.endsWith(".yml"));
-    } catch {
-      // .taskless/ or rules/ directory doesn't exist
-    }
+      const positionalPaths = extractPositionalPaths(rawArgs);
+      const hadExplicitPaths = positionalPaths.length > 0;
+      const existingPaths = hadExplicitPaths
+        ? await filterExistingPaths(cwd, positionalPaths)
+        : [];
 
-    if (ruleFiles.length === 0) {
-      if (args.json) {
-        console.log(
-          JSON.stringify(
-            checkOutputSchema.parse({ success: true, results: [] })
-          )
-        );
-      } else {
-        console.log(
-          "No rules configured. Create one with `taskless rules create`."
-        );
-      }
-      return;
-    }
-
-    // Generate ephemeral sgconfig.yml and run scanner
-    try {
-      await generateSgConfig(cwd);
-      const { results } = await runAstGrepScan(cwd, existingPaths);
-      const hasErrors = results.some((r) => r.severity === "error");
-
-      // Format output
-      if (args.json) {
-        const output = checkOutputSchema.parse({
-          success: !hasErrors,
-          results,
-        });
-        console.log(JSON.stringify(output));
-      } else {
-        console.log(formatText(results));
+      // If the user passed paths but none exist (e.g. all-deleted diff),
+      // exit cleanly with empty results rather than falling back to a full scan.
+      if (hadExplicitPaths && existingPaths.length === 0) {
+        if (args.json) {
+          console.log(
+            JSON.stringify(
+              checkOutputSchema.parse({ success: true, results: [] })
+            )
+          );
+        }
+        success = true;
+        return;
       }
 
-      // Exit code: 1 if any errors, 0 otherwise
-      if (hasErrors) {
+      // Check for rule files
+      const rulesDirectory = join(cwd, ".taskless", "rules");
+      let ruleFiles: string[] = [];
+      try {
+        const entries = await readdir(rulesDirectory);
+        ruleFiles = entries.filter((f) => f.endsWith(".yml"));
+      } catch {
+        // .taskless/ or rules/ directory doesn't exist
+      }
+
+      if (ruleFiles.length === 0) {
+        if (args.json) {
+          console.log(
+            JSON.stringify(
+              checkOutputSchema.parse({ success: true, results: [] })
+            )
+          );
+        } else {
+          console.log(
+            "No rules configured. Create one with `taskless rules create`."
+          );
+        }
+        success = true;
+        return;
+      }
+
+      // Generate ephemeral sgconfig.yml and run scanner
+      try {
+        await generateSgConfig(cwd);
+        const { results } = await runAstGrepScan(cwd, existingPaths);
+        const hasErrors = results.some((r) => r.severity === "error");
+
+        // Format output
+        if (args.json) {
+          const output = checkOutputSchema.parse({
+            success: !hasErrors,
+            results,
+          });
+          console.log(JSON.stringify(output));
+        } else {
+          console.log(formatText(results));
+        }
+
+        // Exit code: 1 if any errors, 0 otherwise
+        if (hasErrors) {
+          process.exitCode = 1;
+        }
+        success = !hasErrors;
+      } catch (error) {
+        const message = `Error: ${error instanceof Error ? error.message : String(error)}`;
+        if (args.json) {
+          const output = checkErrorSchema.parse({
+            success: false,
+            error: message,
+            results: [],
+          });
+          console.log(JSON.stringify(output));
+        } else {
+          console.error(message);
+        }
         process.exitCode = 1;
       }
-    } catch (error) {
-      const message = `Error: ${error instanceof Error ? error.message : String(error)}`;
-      if (args.json) {
-        const output = checkErrorSchema.parse({
-          success: false,
-          error: message,
-          results: [],
-        });
-        console.log(JSON.stringify(output));
-      } else {
-        console.error(message);
-      }
-      process.exitCode = 1;
+    } finally {
+      telemetry.capture("cli_check_completed", {
+        success,
+        durationMs: Date.now() - startedAt,
+      });
     }
   },
 });
