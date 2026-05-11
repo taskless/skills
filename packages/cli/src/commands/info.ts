@@ -66,7 +66,7 @@ export const infoCommand = defineCommand({
       if (args.json) {
         const parsed = infoOutputSchema.safeParse(result);
         if (!parsed.success) {
-          console.error(
+          console.log(
             JSON.stringify(
               makeErrorEnvelope(
                 "INTERNAL_ERROR",

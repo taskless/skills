@@ -31,12 +31,15 @@ not contact the Taskless API; purely a local filesystem operation.
 
 ## Errors
 
-When `--json` is set, failures emit `{ ok: false, code, message }`:
+`rule delete` is plain-text; it does not accept `--json` and does not
+emit the standardized error envelope. The rule ID is required as a
+positional argument and missing/invalid usage is rejected by citty
+before the command runs.
 
-| code             | meaning                  | fix                                  |
-|------------------|--------------------------|--------------------------------------|
-| `RULE_NOT_FOUND` | Rule file does not exist | Confirm the ID; list rules first     |
-| `INVALID_INPUT`  | No rule ID provided      | Pass the rule ID as positional arg   |
+| condition                         | behavior                                                                              |
+|-----------------------------------|---------------------------------------------------------------------------------------|
+| Rule file does not exist          | Prints `Error: Rule "<id>" not found in .taskless/rules/<id>.yml` and exits non-zero. |
+| No rule ID provided               | citty prints usage and exits non-zero before the command body runs.                   |
 
 ## See Also
 

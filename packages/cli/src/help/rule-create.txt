@@ -64,9 +64,11 @@ If the user wants the local-only flow (no API call), fetch
    of success or failure.
 
 9. **Report results.** The CLI writes the generated rule to
-   `.taskless/rules/<id>.yml`, tests to `.taskless/rule-tests/<id>.yml`,
-   and metadata to `.taskless/rule-metadata/<id>.yml`. Show the user
-   the file paths. Suggest fetching `taskless help check` to validate.
+   `.taskless/rules/<id>.yml`, tests to
+   `.taskless/rule-tests/<id>-YYYYMMDD-test.yml` (timestamped per
+   generation), and metadata to `.taskless/rule-metadata/<id>.yml`.
+   Show the user the file paths. Suggest fetching `taskless help check`
+   to validate.
 
 ## Input schema
 
