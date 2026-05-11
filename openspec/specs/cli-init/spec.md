@@ -8,31 +8,31 @@ TBD — Defines the `taskless init` subcommand that installs Taskless skills int
 
 ### Requirement: Init subcommand installs skills into a repository
 
-The CLI SHALL support a `taskless init` subcommand that installs Taskless skills into the current working directory. The subcommand SHALL also be available as `taskless update` (alias with identical behavior). By default, `init` SHALL launch the interactive wizard. When invoked with `--no-interactive`, `init` SHALL preserve the prior batch-install behavior: install every mandatory skill to every detected tool location, with no prompts and no auth step. When no tool directories are detected AND the CLI runs with `--no-interactive` (or the wizard user explicitly selects none of the detected locations and falls back), the CLI SHALL install skills to `.agents/skills/<name>/SKILL.md` as a fallback.
+The CLI SHALL support a `taskless init` subcommand that installs the consolidated `taskless` skill into the current working directory's detected tool locations. The subcommand SHALL also be available as `taskless update` (alias). By default, `init` SHALL launch the interactive wizard. When invoked with `--no-interactive`, `init` SHALL preserve the prior batch-install behavior: install the consolidated skill to every detected tool location (or `.agents/` fallback when none detected) without prompting and without an auth step.
 
-#### Scenario: Running taskless init launches the wizard by default
+There is exactly one mandatory skill in v0.7.0 (`taskless`) and zero optional skills. The wizard's optional-skill selection step SHALL be removed.
 
-- **WHEN** a user runs `taskless init` without `--no-interactive` in an interactive terminal
-- **THEN** the CLI SHALL launch the interactive wizard instead of silently installing
+The `--anonymous` flag is accepted on `init` as a no-op (init does not call the Taskless API directly).
 
-#### Scenario: Running taskless init --no-interactive installs mandatory skills to all detected locations
+#### Scenario: Running taskless init installs the consolidated skill
 
-- **WHEN** a user runs `taskless init --no-interactive` in a repository with at least one detected AI tool
-- **THEN** the CLI SHALL write every mandatory skill into each detected tool's directory without prompting
-- **AND** SHALL NOT write any optional skills
-- **AND** SHALL NOT prompt for authentication
-- **AND** SHALL report which tools were updated and how many skills were installed
+- **WHEN** a user runs `taskless init` in an interactive terminal
+- **THEN** the wizard SHALL prompt for tool locations and auth, then install the single `taskless` skill
+- **AND** SHALL NOT prompt for optional skills (none exist)
 
-#### Scenario: Running taskless update behaves identically to init
+#### Scenario: Init removes obsolete v0.6 skill files
 
-- **WHEN** a user runs `taskless update`
-- **THEN** the behavior SHALL be identical to `taskless init`
+- **WHEN** a user with v0.6 installed (10 per-task skills written) runs the v0.7.0 `taskless init`
+- **THEN** the install plumbing SHALL read the previous install state from `.taskless/taskless.json`
+- **AND** SHALL delete the 10 obsolete skill files and 6 obsolete command files
+- **AND** SHALL write the new `taskless` skill and `tskl` command
+- **AND** SHALL update `.taskless/taskless.json` install state to reflect the new layout
 
-#### Scenario: Running init --no-interactive with no detected tools uses fallback
+#### Scenario: Init reports cleanup transparently
 
-- **WHEN** a user runs `taskless init --no-interactive` in a repository with no detected AI tool signals
-- **THEN** the CLI SHALL install mandatory skills to `.agents/skills/`
-- **AND** report that the fallback location was used
+- **WHEN** init removes obsolete files
+- **THEN** the install summary output SHALL include "removed N obsolete skills" and "removed M obsolete commands"
+- **AND** SHALL list the obsolete skill names so the user understands what changed
 
 ### Requirement: Tool detection via filesystem inspection
 
@@ -267,44 +267,22 @@ The `init` subcommand SHALL use the resolved working directory from the global `
 - **WHEN** a user runs `taskless init` without `-d`
 - **THEN** tool detection and skill installation SHALL operate on `process.cwd()`
 
-### Requirement: Init installs anonymous skill variants
-
-The `taskless init` subcommand SHALL install the `taskless-create-rule-anonymous` and `taskless-improve-rule-anonymous` skills alongside existing skills. These skills SHALL be bundled into the CLI at build time using the same `import.meta.glob` pattern as existing skills.
-
-#### Scenario: Anonymous skills are installed for Claude Code
-
-- **WHEN** a user runs `taskless init` in a repository with a `.claude/` directory
-- **THEN** the CLI SHALL write `taskless-create-rule-anonymous/SKILL.md` and `taskless-improve-rule-anonymous/SKILL.md` to `.claude/skills/`
-
-#### Scenario: Anonymous skills have no command files
-
-- **WHEN** the CLI installs skills and commands
-- **THEN** no command `.md` files SHALL be created for the anonymous skill variants
-
-#### Scenario: Build includes anonymous skills
-
-- **WHEN** `pnpm build` is run in `packages/cli/`
-- **THEN** the `taskless-create-rule-anonymous` and `taskless-improve-rule-anonymous` SKILL.md files SHALL be embedded in the output bundle
-
 ### Requirement: Bare taskless invocation launches the init wizard
 
-The CLI entry point SHALL delegate to `init` when invoked with no positional subcommand and a TTY is attached. When stdout is not a TTY (e.g., piped, non-interactive shell), bare `taskless` SHALL instead print the top-level help as it does today. Users SHALL continue to be able to view top-level help explicitly via `taskless help`.
+The CLI entry point SHALL delegate to `init` when invoked with no positional subcommand AND a TTY is attached. When stdout is NOT a TTY, bare `taskless` SHALL print a non-interactive preamble explaining the context, followed by the help index (instead of attempting the wizard or printing only top-level help).
 
 #### Scenario: Bare taskless in a TTY launches the wizard
 
 - **WHEN** a user runs `taskless` with no subcommand and stdout is a TTY
 - **THEN** the CLI SHALL behave as if `taskless init` were invoked
 
-#### Scenario: Bare taskless without a TTY prints help
+#### Scenario: Bare taskless without a TTY prints preamble + help index
 
 - **WHEN** `taskless` is invoked with no subcommand and stdout is not a TTY
-- **THEN** the CLI SHALL print the top-level help text
+- **THEN** the CLI SHALL print a short preamble noting the non-interactive context (e.g. "For interactive install, run from a terminal. For agent recipes, use: taskless help")
+- **AND** SHALL then print the help index (same content as `taskless help`)
 - **AND** SHALL NOT launch the wizard
-
-#### Scenario: Explicit help command still works
-
-- **WHEN** a user runs `taskless help`
-- **THEN** the CLI SHALL print the top-level help text regardless of TTY state
+- **AND** SHALL NOT silently install
 
 ### Requirement: Wizard renders an intro banner
 
@@ -322,44 +300,7 @@ The wizard SHALL begin by rendering an ASCII rendition of the Taskless wordmark 
 
 ### Requirement: Wizard prompts the user to choose install locations
 
-The wizard SHALL present a multi-select prompt listing all four known install locations (`.claude/`, `.opencode/`, `.cursor/`, `.agents/`) regardless of which are detected. Detected locations SHALL be pre-checked. Undetected locations SHALL be shown unchecked with a visual indicator that they are not currently present. The wizard SHALL NOT allow the user to confirm zero selections; if the user unchecks all locations, the wizard SHALL re-prompt with an inline validation error until at least one location is selected.
-
-#### Scenario: Detected locations are pre-checked
-
-- **WHEN** the wizard reaches the locations step in a repository with `.claude/` and `.cursor/`
-- **THEN** the multi-select SHALL show `.claude/` and `.cursor/` as pre-checked
-- **AND** SHALL show `.opencode/` and `.agents/` as unchecked
-
-#### Scenario: All four locations are always offered
-
-- **WHEN** the wizard reaches the locations step
-- **THEN** the multi-select SHALL include `.claude/`, `.opencode/`, `.cursor/`, and `.agents/` as choices
-
-#### Scenario: Zero selections is rejected
-
-- **WHEN** the user confirms the locations step with zero selections
-- **THEN** the wizard SHALL display a validation error
-- **AND** SHALL re-prompt without advancing
-
-### Requirement: Wizard prompts the user to choose optional skills
-
-The wizard SHALL present a multi-select prompt listing every skill marked `optional` in the skill catalog. All optional skills SHALL be unchecked by default. The user MAY confirm the step with zero selections, in which case only mandatory skills SHALL be installed. Mandatory skills SHALL NOT appear in this prompt and SHALL always be installed.
-
-#### Scenario: Optional skills appear unchecked
-
-- **WHEN** the wizard reaches the optional-skills step and the catalog contains `taskless-ci`
-- **THEN** the multi-select SHALL include `taskless-ci` as an unchecked option
-
-#### Scenario: Zero optional selections is permitted
-
-- **WHEN** the user confirms the optional-skills step with zero selections
-- **THEN** the wizard SHALL advance without error
-- **AND** only mandatory skills SHALL be installed in the subsequent write step
-
-#### Scenario: Mandatory skills are not shown
-
-- **WHEN** the wizard renders the optional-skills step
-- **THEN** skills classified as `mandatory` SHALL NOT appear in the prompt
+The wizard's location step is unchanged in shape but the resulting install plan only ever contains the single `taskless` skill (and its corresponding `tskl` command).
 
 ### Requirement: Wizard explains the auth tradeoff and offers to log in
 
@@ -452,44 +393,20 @@ If the user cancels the wizard at any step (Ctrl-C, Esc, or equivalent clack can
 
 ### Requirement: Install manifest records what was installed per target
 
-On every successful install (wizard or `--no-interactive`), the CLI SHALL update `.taskless/taskless.json` with an `install` object keyed by target location. For each target, the CLI SHALL record the list of skill names written and the list of command filenames written. The CLI SHALL also record `installedAt` (ISO-8601 timestamp) and `cliVersion` (the `@taskless/cli` package version) at the top level of the `install` object.
+The install manifest in `.taskless/taskless.json` continues to record what was written per target. With one skill in the bundle, each target's `skills` array contains at most `["taskless"]` and each target's `commands` array contains at most `["tskl"]`. The manifest schema is unchanged — only the contents differ.
 
-#### Scenario: Manifest records skills per target
+#### Scenario: Manifest records the consolidated skill
 
-- **WHEN** `taskless init` completes writing to `.claude/` with skills `taskless-check` and `taskless-ci`
-- **THEN** `taskless.json` SHALL contain `install.targets[".claude"].skills` equal to `["taskless-check", "taskless-ci"]` (order not significant)
-
-#### Scenario: Manifest records commands for Claude Code
-
-- **WHEN** `taskless init` completes writing command files to `.claude/commands/tskl/`
-- **THEN** `taskless.json` SHALL contain `install.targets[".claude"].commands` listing each command filename written
-
-#### Scenario: Manifest records install metadata
-
-- **WHEN** `taskless init` completes successfully
-- **THEN** `taskless.json` SHALL contain `install.installedAt` (ISO-8601 string)
-- **AND** `install.cliVersion` SHALL equal the running CLI's package version
+- **WHEN** init writes the consolidated skill to `.claude/`
+- **THEN** the manifest's `install.targets[".claude"].skills` SHALL be `["taskless"]`
+- **AND** `install.targets[".claude"].commands` SHALL be `["tskl"]`
 
 ### Requirement: Re-install computes a diff against the previous manifest
 
-On every interactive run, the wizard SHALL read the existing `install` object from `.taskless/taskless.json` (if present) and use it to compute the diff summary described in the "Wizard shows a diff-style summary" requirement. When a previously-recorded target or skill is not selected in the current session, it SHALL be classified as a removal in the summary. On confirmed writes, the CLI SHALL delete the previously-written files for each removed target or skill, then write the new manifest reflecting the current selection only.
+Re-install diff computation is unchanged. With v0.7.0 the diff for a v0.6 user shows 10 skill removals + 6 command removals + 1 skill addition + 1 command addition per detected target. Removals require user confirmation per the existing requirement.
 
-#### Scenario: Previously installed skill not selected is removed
+#### Scenario: Upgrade from v0.6 shows removals in summary
 
-- **WHEN** the previous manifest recorded `.claude/skills/taskless-ci`
-- **AND** the user deselects `taskless-ci` in the current wizard
-- **THEN** the summary SHALL list `taskless-ci` as a removal under `.claude/`
-- **AND** on confirm, `.claude/skills/taskless-ci/SKILL.md` SHALL be deleted
-
-#### Scenario: Previously installed target not selected is removed
-
-- **WHEN** the previous manifest recorded `.cursor/` as a target
-- **AND** the user deselects `.cursor/` in the current wizard
-- **THEN** the summary SHALL list every `.cursor/` skill as a removal
-- **AND** on confirm, the Taskless skill files under `.cursor/skills/` SHALL be deleted
-
-#### Scenario: Manifest only reflects current selection after write
-
-- **WHEN** a wizard run completes writing
-- **THEN** `install.targets` SHALL contain exactly the targets selected in that run
-- **AND** for each target, `skills` SHALL contain exactly the skills written in that run
+- **WHEN** a user with v0.6 installed runs `taskless init` after upgrading to v0.7.0
+- **THEN** the wizard summary SHALL list the 10 obsolete skills and 6 obsolete commands as removals
+- **AND** SHALL require user confirmation before deleting

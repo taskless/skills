@@ -17,58 +17,32 @@ The CLI SHALL register an `auth` subcommand group with `login` and `logout` as n
 
 ### Requirement: Auth login initiates Device Flow
 
-The `taskless auth login` command SHALL initiate an OAuth Device Flow (RFC 8628). It SHALL display a verification URI and user code to stdout, then poll for authorization until the user completes the flow, the code expires, or the user cancels with Ctrl+C.
+`taskless auth login` initiates the device-code flow per the existing requirement. The new `--anonymous` flag (per the `cli` capability) SHALL NOT be accepted on this command — invocation with `--anonymous` SHALL exit with code 1 and an error message stating "auth commands cannot be anonymous".
 
-#### Scenario: Successful login
+#### Scenario: Standard login still works
 
 - **WHEN** a user runs `taskless auth login`
-- **THEN** the CLI SHALL display a verification URI and user code
-- **AND** the CLI SHALL poll for authorization at the server-specified interval
-- **AND** when authorization succeeds, the CLI SHALL save the access token and print a success message
+- **THEN** the CLI SHALL initiate the device-code flow per the existing behavior
 
-#### Scenario: Login when already authenticated
+#### Scenario: Login rejects --anonymous
 
-- **WHEN** a user runs `taskless auth login` and a valid token already exists
-- **THEN** the CLI SHALL inform the user they are already logged in
-- **AND** the CLI SHALL suggest running `taskless auth logout` first to re-authenticate
-
-#### Scenario: User cancels login
-
-- **WHEN** a user presses Ctrl+C during the polling loop
-- **THEN** the CLI SHALL exit cleanly without saving any token
-
-#### Scenario: Device code expires
-
-- **WHEN** the device code expires before the user completes authorization
-- **THEN** the CLI SHALL print an error message indicating the code has expired
-- **AND** the CLI SHALL exit with a non-zero exit code
+- **WHEN** a user runs `taskless auth login --anonymous`
+- **THEN** the CLI SHALL exit with code 1
+- **AND** SHALL print "auth commands cannot be anonymous" (or similar)
 
 ### Requirement: Auth logout removes saved token
 
-The `taskless auth logout` command SHALL remove the saved authentication token from all locations: the per-repo `.taskless/.env.local.json` (if present) and the global XDG config auth file. If no token exists in any location, it SHALL inform the user they are not logged in.
+`taskless auth logout` removes the saved token per the existing requirement. The `--anonymous` flag SHALL be accepted as a no-op on this command (logout is already a local operation requiring no API state).
 
-#### Scenario: Successful logout removes per-repo and global tokens
+#### Scenario: Standard logout still works
 
-- **WHEN** a user runs `taskless auth logout` and both `.taskless/.env.local.json` and global auth file exist
-- **THEN** the CLI SHALL delete both files
-- **AND** the CLI SHALL print a confirmation message
+- **WHEN** a user runs `taskless auth logout`
+- **THEN** the CLI SHALL remove the saved token per the existing behavior
 
-#### Scenario: Logout removes only per-repo token
+#### Scenario: Logout accepts --anonymous as no-op
 
-- **WHEN** a user runs `taskless auth logout` and only `.taskless/.env.local.json` exists
-- **THEN** the CLI SHALL delete `.taskless/.env.local.json`
-- **AND** the CLI SHALL print a confirmation message
-
-#### Scenario: Logout removes only global token
-
-- **WHEN** a user runs `taskless auth logout` and only the global auth file exists
-- **THEN** the CLI SHALL delete the global auth file
-- **AND** the CLI SHALL print a confirmation message
-
-#### Scenario: Logout when not logged in
-
-- **WHEN** a user runs `taskless auth logout` and no token files exist
-- **THEN** the CLI SHALL print a message indicating the user is not logged in
+- **WHEN** a user runs `taskless auth logout --anonymous`
+- **THEN** the CLI SHALL behave identically to `taskless auth logout`
 
 ### Requirement: Token is stored in XDG config directory
 
@@ -227,3 +201,13 @@ On any command that reads from `.taskless/.env.local.json`, the CLI SHALL check 
 
 - **WHEN** the CLI reads `.taskless/.env.local.json` and the file is not tracked by git
 - **THEN** the CLI SHALL NOT print any warning
+
+### Requirement: Auth error output uses standardized error envelope
+
+When any `taskless auth` subcommand exits with an error AND `--json` was passed, the output SHALL conform to the standardized error envelope `{ "ok": false, "code": "<CODE>", "message": "<...>" }` per the `cli` capability requirements.
+
+#### Scenario: Auth login network failure in JSON mode
+
+- **WHEN** `taskless auth login --json` fails due to a network error
+- **THEN** stdout SHALL contain `{ "ok": false, "code": "NETWORK_ERROR", "message": "..." }`
+- **AND** the exit code SHALL be non-zero
