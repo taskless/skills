@@ -3,28 +3,11 @@
   "install": {
     "targets": {
       ".claude": {
-        "skills": [
-          "taskless-check",
-          "taskless-create-rule",
-          "taskless-create-rule-anonymous",
-          "taskless-delete-rule",
-          "taskless-improve-rule",
-          "taskless-improve-rule-anonymous",
-          "taskless-info",
-          "taskless-login",
-          "taskless-logout"
-        ],
-        "commands": [
-          "check.md",
-          "improve.md",
-          "info.md",
-          "login.md",
-          "logout.md",
-          "rule.md"
-        ]
+        "skills": ["taskless"],
+        "commands": ["tskl.md"]
       }
     },
-    "installedAt": "2026-04-17T21:24:28.613Z",
-    "cliVersion": "0.5.4"
+    "installedAt": "2026-05-11T16:38:34.273Z",
+    "cliVersion": "0.6.0"
   }
 }
