@@ -77,19 +77,13 @@ describe("cli", () => {
       expect(stdout).toContain("Claude Code");
 
       const skillContent = await readFile(
-        join(
-          temporaryDirectory,
-          ".claude",
-          "skills",
-          "taskless-info",
-          "SKILL.md"
-        ),
+        join(temporaryDirectory, ".claude", "skills", "taskless", "SKILL.md"),
         "utf8"
       );
-      expect(skillContent).toContain("name: taskless-info");
+      expect(skillContent).toContain("name: taskless");
 
       const commandContent = await readFile(
-        join(temporaryDirectory, ".claude", "commands", "tskl", "info.md"),
+        join(temporaryDirectory, ".claude", "commands", "tskl", "tskl.md"),
         "utf8"
       );
       expect(commandContent).toContain("Taskless");

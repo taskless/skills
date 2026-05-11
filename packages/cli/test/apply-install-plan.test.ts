@@ -58,76 +58,68 @@ afterEach(async () => {
 describe("applyInstallPlan", () => {
   it("writes selected skills to the target and records state", async () => {
     const skills = getEmbeddedSkills();
-    const mandatoryCheck = skills.find((s) => s.name === "taskless-check")!;
-    const ci = skills.find((s) => s.name === "taskless-ci")!;
+    const taskless = skills.find((s) => s.name === "taskless")!;
 
     const result = await applyInstallPlan(
       cwd,
       {
-        targets: [
-          { tool: TEST_TOOL, skills: [mandatoryCheck, ci], commands: [] },
-        ],
+        targets: [{ tool: TEST_TOOL, skills: [taskless], commands: [] }],
       },
       { cliVersion: "0.5.4" }
     );
 
-    expect(result.writtenSkills).toHaveLength(2);
+    expect(result.writtenSkills).toHaveLength(1);
     expect(result.removedSkills).toHaveLength(0);
 
-    const checkContent = await readFile(
-      join(cwd, ".claude", "skills", "taskless-check", "SKILL.md"),
+    const skillContent = await readFile(
+      join(cwd, ".claude", "skills", "taskless", "SKILL.md"),
       "utf8"
     );
-    expect(checkContent).toContain("taskless-check");
+    expect(skillContent).toContain("taskless");
 
     const state = await readInstallState(cwd);
     expect(state.cliVersion).toBe("0.5.4");
-    expect(state.targets[".claude"]?.skills).toEqual([
-      "taskless-check",
-      "taskless-ci",
-    ]);
+    expect(state.targets[".claude"]?.skills).toEqual(["taskless"]);
   });
 
-  it("surgically removes skills on re-run that dropped one", async () => {
+  it("surgically removes obsolete skills recorded in the previous state", async () => {
     const skills = getEmbeddedSkills();
-    const mandatoryCheck = skills.find((s) => s.name === "taskless-check")!;
-    const ci = skills.find((s) => s.name === "taskless-ci")!;
+    const taskless = skills.find((s) => s.name === "taskless")!;
 
-    await applyInstallPlan(
-      cwd,
-      {
-        targets: [
-          { tool: TEST_TOOL, skills: [mandatoryCheck, ci], commands: [] },
-        ],
+    // Seed manifest with a stale skill name (e.g. left over from a prior
+    // CLI version) AND a real one. We don't need the file on disk — the
+    // diff drives removals from the manifest, not the filesystem.
+    const { writeInstallState } = await import("../src/install/state");
+    await writeInstallState(cwd, {
+      installedAt: "2026-04-01T00:00:00.000Z",
+      cliVersion: "0.5.4",
+      targets: {
+        ".claude": {
+          skills: ["taskless", "taskless-removed-fixture"],
+          commands: [],
+        },
       },
-      { cliVersion: "0.5.4" }
-    );
-    expect(
-      await exists(join(cwd, ".claude", "skills", "taskless-ci", "SKILL.md"))
-    ).toBe(true);
+    });
 
     const second = await applyInstallPlan(
       cwd,
       {
-        targets: [{ tool: TEST_TOOL, skills: [mandatoryCheck], commands: [] }],
+        targets: [{ tool: TEST_TOOL, skills: [taskless], commands: [] }],
       },
       { cliVersion: "0.5.4" }
     );
 
     expect(second.removedSkills).toEqual([
-      { target: ".claude", skill: "taskless-ci" },
+      { target: ".claude", skill: "taskless-removed-fixture" },
     ]);
-    expect(await exists(join(cwd, ".claude", "skills", "taskless-ci"))).toBe(
-      false
-    );
     expect(
-      await exists(join(cwd, ".claude", "skills", "taskless-check", "SKILL.md"))
+      await exists(join(cwd, ".claude", "skills", "taskless", "SKILL.md"))
     ).toBe(true);
   });
 
   it("does not touch unknown files in the skills directory", async () => {
     const skills = getEmbeddedSkills();
-    const mandatoryCheck = skills.find((s) => s.name === "taskless-check")!;
+    const taskless = skills.find((s) => s.name === "taskless")!;
 
     // User-owned file that the CLI must never delete
     const userOwned = join(cwd, ".claude", "skills", "user-tool", "SKILL.md");
@@ -139,7 +131,7 @@ describe("applyInstallPlan", () => {
     await applyInstallPlan(
       cwd,
       {
-        targets: [{ tool: TEST_TOOL, skills: [mandatoryCheck], commands: [] }],
+        targets: [{ tool: TEST_TOOL, skills: [taskless], commands: [] }],
       },
       { cliVersion: "0.5.4" }
     );
@@ -149,10 +141,10 @@ describe("applyInstallPlan", () => {
 
   it("zero-diff re-run produces no removals", async () => {
     const skills = getEmbeddedSkills();
-    const mandatoryCheck = skills.find((s) => s.name === "taskless-check")!;
+    const taskless = skills.find((s) => s.name === "taskless")!;
 
     const plan = {
-      targets: [{ tool: TEST_TOOL, skills: [mandatoryCheck], commands: [] }],
+      targets: [{ tool: TEST_TOOL, skills: [taskless], commands: [] }],
     };
     await applyInstallPlan(cwd, plan, { cliVersion: "0.5.4" });
     const second = await applyInstallPlan(cwd, plan, { cliVersion: "0.5.4" });
