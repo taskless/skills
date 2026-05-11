@@ -1,0 +1,38 @@
+/**
+ * Stable error codes emitted by CLI commands when --json is set.
+ * Recipes reference these codes by name in their `## Errors` section,
+ * so renaming a code is a breaking change for the agent contract.
+ *
+ * Add new codes by extending the union; do not rename existing codes
+ * without a major version bump.
+ */
+export type CliErrorCode =
+  | "AUTH_REQUIRED"
+  | "NO_GITHUB_REMOTE"
+  | "RULE_GENERATION_FAILED"
+  | "RULE_NOT_FOUND"
+  | "INVALID_INPUT"
+  | "NETWORK_ERROR"
+  | "SCAN_FAILED"
+  | "INTERNAL_ERROR";
+
+/**
+ * Standardized JSON error envelope written to stdout when an action
+ * command exits with an error AND `--json` was set.
+ */
+export interface CliErrorEnvelope {
+  ok: false;
+  code: CliErrorCode;
+  message: string;
+}
+
+export function makeErrorEnvelope(
+  code: CliErrorCode,
+  message: string
+): CliErrorEnvelope {
+  return { ok: false, code, message };
+}
+
+export function writeJsonError(code: CliErrorCode, message: string): void {
+  console.log(JSON.stringify(makeErrorEnvelope(code, message)));
+}
