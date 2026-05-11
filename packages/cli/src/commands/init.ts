@@ -134,10 +134,24 @@ async function runNonInteractive(cwd: string): Promise<void> {
       value: entry.command,
     }))
   );
+  const removedSkillsByTarget = groupValuesByTarget(
+    result.removedSkills.map((entry) => ({
+      target: entry.target,
+      value: entry.skill,
+    }))
+  );
+  const removedCommandsByTarget = groupValuesByTarget(
+    result.removedCommands.map((entry) => ({
+      target: entry.target,
+      value: entry.command,
+    }))
+  );
 
   for (const { tool } of planTargets) {
     const targetSkills = skillsByTarget.get(tool.installDir) ?? [];
     const targetCommands = commandsByTarget.get(tool.installDir) ?? [];
+    const removedSkills = removedSkillsByTarget.get(tool.installDir) ?? [];
+    const removedCommands = removedCommandsByTarget.get(tool.installDir) ?? [];
     console.log(
       `${tool.name}: installed ${String(targetSkills.length)} skill(s)`
     );
@@ -148,6 +162,22 @@ async function runNonInteractive(cwd: string): Promise<void> {
       console.log(
         `  + ${String(targetCommands.length)} command(s) in ${tool.installDir}/${tool.commands.path}/`
       );
+    }
+    if (removedSkills.length > 0) {
+      console.log(
+        `  removed ${String(removedSkills.length)} obsolete skill(s):`
+      );
+      for (const name of removedSkills) {
+        console.log(`    - ${name}`);
+      }
+    }
+    if (removedCommands.length > 0) {
+      console.log(
+        `  removed ${String(removedCommands.length)} obsolete command(s):`
+      );
+      for (const name of removedCommands) {
+        console.log(`    - ${name}`);
+      }
     }
   }
 }

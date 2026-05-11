@@ -15,7 +15,6 @@ const fakeCancelSymbol = Symbol("cancel");
 // Clack mock responses are set per-test via these mutable refs.
 const clackResponses: {
   locations?: string[] | symbol;
-  optionalSkills?: string[] | symbol;
   auth?: boolean | symbol;
   summary?: boolean | symbol;
 } = {};
@@ -32,12 +31,7 @@ vi.mock("@clack/prompts", () => ({
   },
   note: () => {},
   isCancel: (value: unknown) => value === fakeCancelSymbol,
-  multiselect: vi.fn(({ message }: { message: string }) => {
-    if (message.toLowerCase().includes("install")) {
-      return Promise.resolve(clackResponses.locations);
-    }
-    return Promise.resolve(clackResponses.optionalSkills);
-  }),
+  multiselect: vi.fn(() => Promise.resolve(clackResponses.locations)),
   confirm: vi.fn(({ message }: { message: string }) => {
     if (message.toLowerCase().includes("log in")) {
       return Promise.resolve(clackResponses.auth);
@@ -62,7 +56,6 @@ beforeEach(async () => {
   await mkdir(join(cwd, ".claude"), { recursive: true });
   captureSpy.mockClear();
   clackResponses.locations = undefined;
-  clackResponses.optionalSkills = undefined;
   clackResponses.auth = undefined;
   clackResponses.summary = undefined;
   vi.stubEnv("TASKLESS_TOKEN", "stub-token");
@@ -75,9 +68,8 @@ afterEach(async () => {
 });
 
 describe("runWizard end-to-end", () => {
-  it("installs selected location + optional skill and records manifest", async () => {
+  it("installs all bundled skills to selected location and records manifest", async () => {
     clackResponses.locations = [".claude"];
-    clackResponses.optionalSkills = ["taskless-ci"];
     clackResponses.summary = true;
 
     const { runWizard } = await import("../src/wizard");
@@ -85,13 +77,10 @@ describe("runWizard end-to-end", () => {
 
     expect(result.status).toBe("completed");
     expect(result.locations).toEqual([".claude"]);
-    expect(result.optionalSkills).toEqual(["taskless-ci"]);
+    expect(result.optionalSkills).toEqual([]);
 
     expect(
       await exists(join(cwd, ".claude", "skills", "taskless-check", "SKILL.md"))
-    ).toBe(true);
-    expect(
-      await exists(join(cwd, ".claude", "skills", "taskless-ci", "SKILL.md"))
     ).toBe(true);
 
     const manifest = JSON.parse(
@@ -103,42 +92,32 @@ describe("runWizard end-to-end", () => {
     expect(manifest.install.targets[".claude"]?.skills).toContain(
       "taskless-check"
     );
-    expect(manifest.install.targets[".claude"]?.skills).toContain(
-      "taskless-ci"
-    );
 
     expect(captureSpy).toHaveBeenCalledWith(
       "cli_init_completed",
       expect.objectContaining({
         locations: [".claude"],
-        optionalSkills: ["taskless-ci"],
+        optionalSkills: [],
         nonInteractive: false,
       })
     );
   });
 
-  it("surgically removes a previously-installed optional skill on re-run", async () => {
+  it("re-running with the same location is idempotent", async () => {
     clackResponses.locations = [".claude"];
-    clackResponses.optionalSkills = ["taskless-ci"];
     clackResponses.summary = true;
 
     const { runWizard } = await import("../src/wizard");
     await runWizard({ cwd });
     expect(
-      await exists(join(cwd, ".claude", "skills", "taskless-ci", "SKILL.md"))
+      await exists(join(cwd, ".claude", "skills", "taskless-check", "SKILL.md"))
     ).toBe(true);
 
-    // Re-run: drop taskless-ci
-    clackResponses.optionalSkills = [];
-    clackResponses.summary = true;
+    // Re-run with the same selection — no diff, should complete cleanly.
     await runWizard({ cwd });
-
-    expect(await exists(join(cwd, ".claude", "skills", "taskless-ci"))).toBe(
-      false
-    );
-    expect(await exists(join(cwd, ".claude", "skills", "taskless-check"))).toBe(
-      true
-    );
+    expect(
+      await exists(join(cwd, ".claude", "skills", "taskless-check", "SKILL.md"))
+    ).toBe(true);
   });
 
   it("cancelling at locations step writes nothing and emits cli_init_cancelled", async () => {
@@ -163,57 +142,30 @@ describe("runWizard end-to-end", () => {
 
   it("cancelling the summary confirm writes nothing", async () => {
     clackResponses.locations = [".claude"];
-    clackResponses.optionalSkills = ["taskless-ci"];
-    // Simulate previous install of taskless-ci so the re-run has removals
-    // that trigger the summary confirm.
     clackResponses.summary = false;
 
-    const { runWizard, applyInstallPlan } = await import("../src/wizard").then(
-      async () => {
-        const wizard = await import("../src/wizard");
-        const install = await import("../src/install/install");
-        return {
-          runWizard: wizard.runWizard,
-          applyInstallPlan: install.applyInstallPlan,
-        };
-      }
-    );
-
-    // Seed an earlier install so the diff has removals on the next wizard run
+    // Seed install state with a stale skill name that is no longer in the
+    // bundle so the next wizard run computes a removal and shows the
+    // summary confirm. We don't actually need the file on disk — the diff
+    // computation reads the manifest, not the filesystem.
     const { ensureTasklessDirectory } =
       await import("../src/filesystem/directory");
     await ensureTasklessDirectory(cwd);
-    const { getEmbeddedSkills } = await import("../src/install/install");
-    const skills = getEmbeddedSkills();
-    await applyInstallPlan(
-      cwd,
-      {
-        targets: [
-          {
-            tool: {
-              name: "Claude Code",
-              detect: [{ type: "directory", path: ".claude" }],
-              installDir: ".claude",
-              skills: { path: "skills" },
-              commands: { path: "commands/tskl" },
-            },
-            skills: skills.filter((s) => s.name === "taskless-ci"),
-            commands: [],
-          },
-        ],
+    const { writeInstallState } = await import("../src/install/state");
+    await writeInstallState(cwd, {
+      installedAt: "2026-05-10T00:00:00.000Z",
+      cliVersion: "0.5.4",
+      targets: {
+        ".claude": {
+          skills: ["taskless-removed-fixture-skill"],
+          commands: [],
+        },
       },
-      { cliVersion: "0.5.4" }
-    );
+    });
 
-    // Now run wizard dropping taskless-ci → removal → summary confirms=false
-    clackResponses.optionalSkills = [];
+    const { runWizard } = await import("../src/wizard");
     const result = await runWizard({ cwd });
     expect(result.status).toBe("cancelled");
     expect(result.cancelledStep).toBe("summary");
-
-    // taskless-ci should still be present (no write happened)
-    expect(
-      await exists(join(cwd, ".claude", "skills", "taskless-ci", "SKILL.md"))
-    ).toBe(true);
   });
 });

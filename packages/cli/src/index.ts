@@ -17,6 +17,8 @@ const subCommands = {
   rule: ruleCommand,
 };
 
+const helpCommand = createHelpCommand(subCommands);
+
 const main = defineCommand({
   meta: {
     name: "taskless",
@@ -37,7 +39,7 @@ const main = defineCommand({
   },
   subCommands: {
     ...subCommands,
-    help: createHelpCommand(subCommands),
+    help: helpCommand,
   },
   async run({ rawArgs, cmd }) {
     // citty always calls the parent's run handler, even after a subcommand.
@@ -71,15 +73,21 @@ const main = defineCommand({
       return;
     }
 
-    // TTY → run the interactive wizard. Non-TTY → show help as before so
-    // scripted invocations that pipe `taskless` keep working. Forward the
-    // full rawArgs so `-d <value>` is preserved end-to-end.
+    // TTY → run the interactive wizard. Non-TTY → print a short preamble
+    // explaining the context and then delegate to `help` so agents and
+    // pipes see the topic index.
     if (process.stdout.isTTY === true && process.stdin.isTTY === true) {
       await runCommand(initCommand, { rawArgs });
       return;
     }
 
-    await showUsage(cmd);
+    console.error(
+      "Taskless CLI — non-interactive context detected.\n" +
+        "  For interactive install, run from a terminal.\n" +
+        "  For scripted install, run `taskless init --no-interactive`.\n" +
+        "  For agent recipes, run `taskless help` (no args) for the topic index.\n"
+    );
+    await runCommand(helpCommand, { rawArgs: ["help"] });
   },
 });
 

@@ -83,11 +83,11 @@
 
 ## 10. Wizard simplification and non-TTY routing
 
-- [ ] 10.1 Delete the optional-skills wizard step file (`packages/cli/src/wizard/steps/optional-skills.ts` or equivalent) and its tests
-- [ ] 10.2 Update `packages/cli/src/wizard/index.ts` to remove the optional-skills step from the `runWizard()` composition
-- [ ] 10.3 Update `packages/cli/src/commands/init.ts` so that when invoked with no args AND no TTY, it prints the non-TTY preamble + `help` index (see proposal "Non-TTY routing"). Explicit `npx @taskless/cli init` (with no TTY) preserves the existing `--no-interactive` fallback behavior
+- [x] 10.1 Delete the optional-skills wizard step file (`packages/cli/src/wizard/steps/optional-skills.ts` or equivalent) and its tests
+- [x] 10.2 Update `packages/cli/src/wizard/index.ts` to remove the optional-skills step from the `runWizard()` composition
+- [x] 10.3 Update bare `taskless` (in `packages/cli/src/index.ts`) so that when invoked with no args AND no TTY, it prints the non-TTY preamble + `help` index. Explicit `npx @taskless/cli init` preserves the existing `--no-interactive` fallback behavior
 - [ ] 10.4 Add unit tests for the new non-TTY routing path
-- [ ] 10.5 Update `packages/cli/src/install/install.ts` install reporting to print "removed N obsolete skills" and "removed M obsolete commands" alongside "installed 1 skill" so users see the cleanup
+- [x] 10.5 Update `packages/cli/src/commands/init.ts` install reporting to print "removed N obsolete skills" and "removed M obsolete commands" alongside "installed 1 skill" so users see the cleanup
 
 ## 11. Telemetry rename
 
