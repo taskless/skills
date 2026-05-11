@@ -5,7 +5,7 @@ import { defineCommand } from "citty";
 import { ZodError } from "zod";
 
 import { resolveIdentity } from "../auth/identity";
-import { verifyRule, getSchemaPayload } from "../rules/verify";
+import { verifyRule } from "../rules/verify";
 import { submitRule, pollRuleStatus, iterateRule } from "../api/rules";
 import {
   writeRuleFile,
@@ -14,7 +14,6 @@ import {
   readRuleMetaFile,
   deleteRuleFiles,
 } from "../rules/files";
-import { printSchema } from "../util/schema-output";
 import {
   inputSchema as createInputSchema,
   outputSchema as createOutputSchema,
@@ -29,11 +28,7 @@ import {
   outputSchema as metaOutputSchema,
   errorSchema as metaErrorSchema,
 } from "../schemas/rules-meta";
-import {
-  schemaOutputSchema as verifySchemaOutputSchema,
-  verifyOutputSchema,
-  verifyErrorSchema,
-} from "../schemas/rules-verify";
+import { verifyOutputSchema, verifyErrorSchema } from "../schemas/rules-verify";
 import { getTelemetry } from "../telemetry";
 import { CliError } from "../util/cli-error";
 
@@ -65,11 +60,6 @@ const createCommand = defineCommand({
       description: "Output as JSON",
       default: false,
     },
-    schema: {
-      type: "boolean",
-      description: "Print input/output/error JSON Schemas and exit",
-      default: false,
-    },
     from: {
       type: "string",
       description:
@@ -77,16 +67,6 @@ const createCommand = defineCommand({
     },
   },
   async run({ args }) {
-    // --schema short-circuits: print schemas and exit
-    if (args.schema) {
-      printSchema({
-        input: createInputSchema,
-        output: createOutputSchema,
-        error: createErrorSchema,
-      });
-      return;
-    }
-
     const cwd = resolve(args.dir ?? process.cwd());
     const telemetry = await getTelemetry(cwd);
     telemetry.capture("cli_rule_create");
@@ -266,11 +246,6 @@ const improveCommand = defineCommand({
       description: "Output as JSON",
       default: false,
     },
-    schema: {
-      type: "boolean",
-      description: "Print input/output/error JSON Schemas and exit",
-      default: false,
-    },
     from: {
       type: "string",
       description:
@@ -278,16 +253,6 @@ const improveCommand = defineCommand({
     },
   },
   async run({ args }) {
-    // --schema short-circuits: print schemas and exit
-    if (args.schema) {
-      printSchema({
-        input: improveInputSchema,
-        output: improveOutputSchema,
-        error: improveErrorSchema,
-      });
-      return;
-    }
-
     const cwd = resolve(args.dir ?? process.cwd());
     const telemetry = await getTelemetry(cwd);
     telemetry.capture("cli_rule_improve");
@@ -465,11 +430,6 @@ const metaCommand = defineCommand({
       description: "Output as JSON",
       default: false,
     },
-    schema: {
-      type: "boolean",
-      description: "Print output/error JSON Schemas and exit",
-      default: false,
-    },
     id: {
       type: "positional",
       description: "Rule ID to look up",
@@ -477,14 +437,6 @@ const metaCommand = defineCommand({
     },
   },
   async run({ args }) {
-    if (args.schema) {
-      printSchema({
-        output: metaOutputSchema,
-        error: metaErrorSchema,
-      });
-      return;
-    }
-
     const cwd = resolve(args.dir ?? process.cwd());
     const telemetry = await getTelemetry(cwd);
     telemetry.capture("cli_rule_meta");
@@ -579,12 +531,6 @@ const verifyCommand = defineCommand({
       description: "Output as JSON",
       default: false,
     },
-    schema: {
-      type: "boolean",
-      description:
-        "Dump combined ast-grep schema, Taskless requirements, and examples",
-      default: false,
-    },
     id: {
       type: "positional",
       description: "Rule ID to verify",
@@ -592,17 +538,6 @@ const verifyCommand = defineCommand({
     },
   },
   async run({ args }) {
-    // --schema mode: dump schema payload and exit
-    if (args.schema) {
-      const payload = verifySchemaOutputSchema.parse(getSchemaPayload());
-      if (args.json) {
-        console.log(JSON.stringify(payload));
-      } else {
-        console.log(JSON.stringify(payload, null, 2));
-      }
-      return;
-    }
-
     const cwd = resolve(args.dir ?? process.cwd());
     const telemetry = await getTelemetry(cwd);
     telemetry.capture("cli_rule_verify");

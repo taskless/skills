@@ -4,11 +4,7 @@ import { defineCommand } from "citty";
 import { checkStaleness } from "../install/install";
 import { getToken } from "../auth/token";
 import { fetchWhoami } from "../auth/whoami";
-import { printSchema } from "../util/schema-output";
-import {
-  outputSchema as infoOutputSchema,
-  errorSchema as infoErrorSchema,
-} from "../schemas/info";
+import { outputSchema as infoOutputSchema } from "../schemas/info";
 import { getTelemetry } from "../telemetry";
 
 export const infoCommand = defineCommand({
@@ -27,21 +23,8 @@ export const infoCommand = defineCommand({
       description: "Output as JSON",
       default: false,
     },
-    schema: {
-      type: "boolean",
-      description: "Print output/error JSON Schemas and exit",
-      default: false,
-    },
   },
   async run({ args }) {
-    if (args.schema) {
-      printSchema({
-        output: infoOutputSchema,
-        error: infoErrorSchema,
-      });
-      return;
-    }
-
     const cwd = resolve(args.dir ?? process.cwd());
     const telemetry = await getTelemetry(cwd);
     telemetry.capture("cli_info");

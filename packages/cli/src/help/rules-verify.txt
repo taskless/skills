@@ -7,7 +7,6 @@ Performs three layers of validation:
 
 Usage:
   taskless rules verify <id> [options]
-  taskless rules verify --schema [options]
 
 Arguments:
   <id>   Rule ID to verify (matches .taskless/rules/<id>.yml)
@@ -15,16 +14,7 @@ Arguments:
 Options:
   -d, --dir <path>   Set working directory (default: current directory)
   --json             Output as JSON
-  --schema           Dump combined ast-grep schema, Taskless requirements,
-                     and annotated examples for agent consumption
-
-Schema Mode:
-  When --schema is used, no rule ID is required. Outputs a JSON payload
-  containing the official ast-grep rule JSON schema, Taskless-specific
-  requirements, and curated examples. Useful for agents learning to
-  write ast-grep rules.
 
 Examples:
   taskless rules verify no-eval
   taskless rules verify no-eval --json
-  taskless rules verify --schema --json

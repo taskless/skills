@@ -34,11 +34,6 @@ const main = defineCommand({
       description: "Output as JSON",
       default: false,
     },
-    schema: {
-      type: "boolean",
-      description: "Print input/output/error JSON Schemas and exit",
-      default: false,
-    },
   },
   subCommands: {
     ...subCommands,
@@ -60,7 +55,7 @@ const main = defineCommand({
     }
 
     // Only delegate to `init` when the only flags present are ones init
-    // also understands (`-d` / `--dir`). Help/version/schema/json flags and
+    // also understands (`-d` / `--dir`). Help/version/json flags and
     // any unknown flags should fall through to citty's default help instead
     // of silently launching the wizard.
     const onlyInitFlags = rawArgs.every((argument, index) => {
