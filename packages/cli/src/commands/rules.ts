@@ -622,6 +622,12 @@ const deleteCommand = defineCommand({
       description: "Accepted for compatibility; delete is purely local",
       default: false,
     },
+    json: {
+      type: "boolean",
+      description:
+        "On error, write the standardized { ok:false, code, message } envelope to stdout instead of human text on stderr",
+      default: false,
+    },
     id: {
       type: "positional",
       description: "Rule ID to delete",
@@ -639,12 +645,19 @@ const deleteCommand = defineCommand({
     try {
       const deleted = await deleteRuleFiles(cwd, id);
       if (deleted) {
-        console.log(`Deleted rule "${id}" and associated test files.`);
+        if (!args.json) {
+          console.log(`Deleted rule "${id}" and associated test files.`);
+        }
         success = true;
       } else {
-        console.error(
-          `Error: Rule "${id}" not found in .taskless/rules/${id}.yml`
-        );
+        const message = `Rule "${id}" not found in .taskless/rules/${id}.yml`;
+        if (args.json) {
+          console.log(
+            JSON.stringify(makeErrorEnvelope("RULE_NOT_FOUND", message))
+          );
+        } else {
+          console.error(`Error: ${message}`);
+        }
         process.exitCode = 1;
       }
     } finally {

@@ -5,6 +5,7 @@ import { loginInteractive } from "../auth/login-interactive";
 import { getToken, removeToken } from "../auth/token";
 import { fetchWhoami } from "../auth/whoami";
 import { getTelemetry } from "../telemetry";
+import { type CliErrorCode, writeJsonError } from "../types/errors";
 
 const loginCommand = defineCommand({
   meta: {
@@ -22,6 +23,12 @@ const loginCommand = defineCommand({
       description: "Rejected: auth commands cannot be anonymous",
       default: false,
     },
+    json: {
+      type: "boolean",
+      description:
+        "On error, write the standardized { ok:false, code, message } envelope to stdout instead of human text on stderr",
+      default: false,
+    },
   },
   async run({ args }) {
     const cwd = resolve(args.dir ?? process.cwd());
@@ -29,9 +36,18 @@ const loginCommand = defineCommand({
     const startedAt = Date.now();
     telemetry.capture("cli_auth_login");
 
-    if (args.anonymous) {
-      console.error("Error: auth commands cannot be anonymous.");
+    /** Emit an error in the right channel and set exit code. */
+    const fail = (code: CliErrorCode, message: string): void => {
+      if (args.json) {
+        writeJsonError(code, message);
+      } else {
+        console.error(`Error: ${message}`);
+      }
       process.exitCode = 1;
+    };
+
+    if (args.anonymous) {
+      fail("INVALID_INPUT", "auth commands cannot be anonymous.");
       telemetry.capture("cli_auth_login_completed", {
         success: false,
         durationMs: Date.now() - startedAt,
@@ -41,7 +57,12 @@ const loginCommand = defineCommand({
 
     let success = false;
     try {
-      const result = await loginInteractive({ cwd });
+      // In --json mode the user is an agent / pipe; suppress the device-flow
+      // chatter and only emit a single structured line on error.
+      const noop = (): void => {};
+      const result = await loginInteractive(
+        args.json ? { cwd, out: noop, err: noop } : { cwd }
+      );
 
       switch (result.status) {
         case "ok": {
@@ -49,13 +70,24 @@ const loginCommand = defineCommand({
           return;
         }
         case "already_logged_in": {
-          console.log("You are already logged in.");
-          console.log("Run `taskless auth logout` first to re-authenticate.");
+          if (!args.json) {
+            console.log("You are already logged in.");
+            console.log("Run `taskless auth logout` first to re-authenticate.");
+          }
           success = true;
           return;
         }
         case "cancelled": {
-          process.exitCode = 1;
+          const code: CliErrorCode =
+            result.reason === "denied" ? "AUTH_REQUIRED" : "NETWORK_ERROR";
+          const message =
+            result.message ??
+            (result.reason === "denied"
+              ? "Authorization denied."
+              : result.reason === "expired"
+                ? "Device code expired. Please try again."
+                : "Authentication failed.");
+          fail(code, message);
           return;
         }
       }
@@ -84,6 +116,12 @@ const logoutCommand = defineCommand({
       description: "Accepted for compatibility; logout is already local",
       default: false,
     },
+    json: {
+      type: "boolean",
+      description:
+        "On error, write the standardized { ok:false, code, message } envelope to stdout. Success is silent on stdout in --json mode.",
+      default: false,
+    },
   },
   async run({ args }) {
     const cwd = resolve(args.dir ?? process.cwd());
@@ -94,10 +132,8 @@ const logoutCommand = defineCommand({
     let success = false;
     try {
       const removed = await removeToken(cwd);
-      if (removed) {
-        console.log("Logged out.");
-      } else {
-        console.log("Not logged in.");
+      if (!args.json) {
+        console.log(removed ? "Logged out." : "Not logged in.");
       }
       success = true;
     } finally {
@@ -119,6 +155,12 @@ export const authCommand = defineCommand({
       type: "string",
       alias: "d",
       description: "Working directory",
+    },
+    json: {
+      type: "boolean",
+      description:
+        "Accepted on the status path for forward-compat; today the status output is plain text and emits no error envelope (no error paths)",
+      default: false,
     },
   },
   subCommands: {

@@ -57,15 +57,19 @@ The `--anonymous` flag is rejected on `auth login` — it errors with
 
 ## Errors
 
-`auth` commands are plain-text and do not accept `--json`; the
-standardized error envelope is not emitted. Surface the printed
-message and the non-zero exit code to the user.
+`auth login` and `auth logout` accept `--json`. On error, the
+standardized `{ ok: false, code, message }` envelope is written to
+stdout (and human text on stderr is suppressed). On success in
+`--json` mode, the commands exit 0 silently — no success envelope is
+emitted. The status path (`taskless auth` with no subcommand) accepts
+`--json` for forward-compat but currently has no error paths to
+report.
 
-| condition                                  | behavior                                                                          |
-|--------------------------------------------|-----------------------------------------------------------------------------------|
-| Device flow / token endpoint unreachable   | `auth login` prints the network error and exits non-zero; suggest retry.          |
-| `--anonymous` passed to `auth login`       | Prints `Error: auth commands cannot be anonymous.` and exits 1.                   |
-| Token expired or invalid (status branch)   | Prints "Logged in, but unable to verify identity." Suggest re-running auth login. |
+| code             | meaning                                                                                   | fix                          |
+|------------------|-------------------------------------------------------------------------------------------|------------------------------|
+| `INVALID_INPUT`  | `--anonymous` passed to `auth login` (rejected: auth commands cannot be anonymous)        | Don't pass `--anonymous`     |
+| `NETWORK_ERROR`  | Device flow / token endpoint unreachable, or the device code expired before approval      | Check connectivity; retry    |
+| `AUTH_REQUIRED`  | The user denied the authorization request in their browser                                | Re-run `taskless auth login` |
 
 ## See Also
 
