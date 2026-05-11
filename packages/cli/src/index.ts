@@ -87,7 +87,9 @@ const main = defineCommand({
         "  For scripted install, run `taskless init --no-interactive`.\n" +
         "  For agent recipes, run `taskless help` (no args) for the topic index.\n"
     );
-    await runCommand(helpCommand, { rawArgs: ["help"] });
+    // Forward the parent's rawArgs (e.g. `-d <path>`) so the help command
+    // doesn't mis-parse them as positional topic names.
+    await runCommand(helpCommand, { rawArgs: ["help", ...rawArgs] });
   },
 });
 
