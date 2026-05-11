@@ -152,4 +152,98 @@ describe("applyInstallPlan", () => {
     expect(second.removedSkills).toHaveLength(0);
     expect(second.writtenSkills).toHaveLength(1);
   });
+
+  it("v0.6 → v0.7 migration removes 10 old skills + 6 old commands and writes the consolidated skill", async () => {
+    const skills = getEmbeddedSkills();
+    const taskless = skills.find((s) => s.name === "taskless")!;
+
+    // Seed manifest exactly as v0.6 would have left it.
+    const v6Skills = [
+      "taskless-check",
+      "taskless-ci",
+      "taskless-create-rule",
+      "taskless-create-rule-anonymous",
+      "taskless-delete-rule",
+      "taskless-improve-rule",
+      "taskless-improve-rule-anonymous",
+      "taskless-info",
+      "taskless-login",
+      "taskless-logout",
+    ];
+    const v6Commands = [
+      "check.md",
+      "improve.md",
+      "info.md",
+      "login.md",
+      "logout.md",
+      "rule.md",
+    ];
+
+    // Create the actual files on disk so we can assert they're deleted.
+    const claudeSkills = join(cwd, ".claude", "skills");
+    for (const name of v6Skills) {
+      await mkdir(join(claudeSkills, name), { recursive: true });
+      await writeFile(
+        join(claudeSkills, name, "SKILL.md"),
+        "# stale v0.6 skill",
+        "utf8"
+      );
+    }
+    const claudeCommands = join(cwd, ".claude", "commands", "tskl");
+    await mkdir(claudeCommands, { recursive: true });
+    for (const name of v6Commands) {
+      await writeFile(join(claudeCommands, name), "stale v0.6 command", "utf8");
+    }
+
+    // Record those installs in the manifest so the diff sees them as
+    // existing.
+    const { writeInstallState } = await import("../src/install/state");
+    await writeInstallState(cwd, {
+      installedAt: "2026-04-17T00:00:00.000Z",
+      cliVersion: "0.6.0",
+      targets: {
+        ".claude": { skills: v6Skills, commands: v6Commands },
+      },
+    });
+
+    // Now run the v0.7 install plan: one skill (taskless), one command
+    // (tskl.md). The install should delete the 10 + 6 obsolete files and
+    // write the new ones.
+    const result = await applyInstallPlan(
+      cwd,
+      {
+        targets: [
+          {
+            tool: TEST_TOOL,
+            skills: [taskless],
+            commands: [{ filename: "tskl.md", content: "# new command" }],
+          },
+        ],
+      },
+      { cliVersion: "0.7.0" }
+    );
+
+    expect(result.removedSkills).toHaveLength(10);
+    expect(result.removedCommands).toHaveLength(6);
+    expect(result.writtenSkills).toHaveLength(1);
+    expect(result.writtenCommands).toHaveLength(1);
+
+    // Old files gone
+    for (const name of v6Skills) {
+      expect(await exists(join(claudeSkills, name))).toBe(false);
+    }
+    for (const name of v6Commands) {
+      expect(await exists(join(claudeCommands, name))).toBe(false);
+    }
+
+    // New files present
+    expect(await exists(join(claudeSkills, "taskless", "SKILL.md"))).toBe(true);
+    expect(await exists(join(claudeCommands, "tskl.md"))).toBe(true);
+
+    // Manifest reflects the new layout
+    const state = await readInstallState(cwd);
+    expect(state.cliVersion).toBe("0.7.0");
+    expect(state.targets[".claude"]?.skills).toEqual(["taskless"]);
+    expect(state.targets[".claude"]?.commands).toEqual(["tskl.md"]);
+  });
 });
