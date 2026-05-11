@@ -7,13 +7,13 @@
 
 ## 2. CLI verb rename: `rules` → `rule`
 
-- [ ] 2.1 Rename the citty subcommand definition in `packages/cli/src/commands/rules.ts` so it registers under `rule` (singular). The source file MAY stay named `rules.ts`
-- [ ] 2.2 Update `packages/cli/src/index.ts` (or wherever subcommands are wired) to register `rule` instead of `rules`
-- [ ] 2.3 Rename help files: `packages/cli/src/help/rules-create.txt` → `rule-create.txt`, `rules-improve.txt` → `rule-improve.txt`, `rules-delete.txt` → `rule-delete.txt`, `rules-verify.txt` → `rule-verify.txt`, `rules-meta.txt` → `rule-meta.txt`, `rules.txt` → `rule.txt`
-- [ ] 2.4 Update help-file content to reference `taskless rule create` etc. throughout (no `rules` in body text)
-- [ ] 2.5 Search the repo for stale `rules create`/`rules improve`/etc. references and update them: docs, comments, error messages
-- [ ] 2.6 Update tests in `packages/cli/test/` to invoke the renamed subcommand
-- [ ] 2.7 Confirm `pnpm typecheck` and `pnpm lint` are clean after rename
+- [x] 2.1 Rename the citty subcommand definition in `packages/cli/src/commands/rules.ts` so it registers under `rule` (singular). The source file MAY stay named `rules.ts`
+- [x] 2.2 Update `packages/cli/src/index.ts` (or wherever subcommands are wired) to register `rule` instead of `rules`
+- [x] 2.3 Rename help files: `packages/cli/src/help/rules-create.txt` → `rule-create.txt`, `rules-improve.txt` → `rule-improve.txt`, `rules-delete.txt` → `rule-delete.txt`, `rules-verify.txt` → `rule-verify.txt`, `rules-meta.txt` → `rule-meta.txt`, `rules.txt` → `rule.txt`
+- [x] 2.4 Update help-file content to reference `taskless rule create` etc. throughout (no `rules` in body text)
+- [x] 2.5 Search the repo for stale `rules create`/`rules improve`/etc. references and update them: docs, comments, error messages
+- [x] 2.6 Update tests in `packages/cli/test/` to invoke the renamed subcommand
+- [x] 2.7 Confirm `pnpm typecheck` and `pnpm lint` are clean after rename
 
 ## 3. Global `--anonymous` flag
 

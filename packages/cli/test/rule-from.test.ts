@@ -33,7 +33,7 @@ describe("rules create --from", () => {
     try {
       await execFileAsync("node", [
         binPath,
-        "rules",
+        "rule",
         "create",
         "-d",
         temporaryDirectory,
@@ -49,7 +49,7 @@ describe("rules create --from", () => {
     try {
       await execFileAsync("node", [
         binPath,
-        "rules",
+        "rule",
         "create",
         "--from",
         "nonexistent.json",
@@ -70,7 +70,7 @@ describe("rules create --from", () => {
     try {
       await execFileAsync("node", [
         binPath,
-        "rules",
+        "rule",
         "create",
         "--from",
         badFile,
@@ -91,7 +91,7 @@ describe("rules create --from", () => {
     try {
       await execFileAsync("node", [
         binPath,
-        "rules",
+        "rule",
         "create",
         "--from",
         noPromptFile,

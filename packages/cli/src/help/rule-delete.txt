@@ -3,7 +3,7 @@ Delete a rule and its test files
 Removes a rule YAML file and any associated test files from the project.
 
 Usage:
-  taskless rules delete <rule-id> [options]
+  taskless rule delete <rule-id> [options]
 
 Options:
   -d, --dir <path>   Set working directory (default: current directory)
@@ -16,5 +16,5 @@ Exit Codes:
   1   Rule not found
 
 Examples:
-  taskless rules delete no-console-log
-  taskless rules delete detect-innerhtml -d ./my-project
+  taskless rule delete no-console-log
+  taskless rule delete detect-innerhtml -d ./my-project

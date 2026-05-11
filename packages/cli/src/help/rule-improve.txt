@@ -9,7 +9,7 @@ Prerequisites:
   Your repository must have a GitHub origin remote.
 
 Usage:
-  taskless rules improve --from <file> [options]
+  taskless rule improve --from <file> [options]
 
 Options:
   --from <file>      Path to a JSON file containing the improve request (required)
@@ -25,5 +25,5 @@ Output:
   Lists updated rule and test file paths.
 
 Examples:
-  taskless rules improve --from request.json
-  taskless rules improve --from .taskless/.tmp-improve-request.json --json
+  taskless rule improve --from request.json
+  taskless rule improve --from .taskless/.tmp-improve-request.json --json

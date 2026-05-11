@@ -6,7 +6,7 @@ directories as positional arguments to scan only those paths — useful for
 CI workflows that check only changed files.
 
 Prerequisites:
-  Rules must exist in .taskless/rules/. Create one with `taskless rules create`.
+  Rules must exist in .taskless/rules/. Create one with `taskless rule create`.
 
 Usage:
   taskless check [options] [paths...]
