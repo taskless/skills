@@ -41,6 +41,11 @@ export const initCommand = defineCommand({
         "Install every mandatory skill to every detected tool without prompting",
       default: false,
     },
+    anonymous: {
+      type: "boolean",
+      description: "Accepted for compatibility; init has no auth dependency",
+      default: false,
+    },
   },
   async run({ args }) {
     const cwd = resolve(args.dir ?? process.cwd());

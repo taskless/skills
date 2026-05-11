@@ -17,12 +17,12 @@
 
 ## 3. Global `--anonymous` flag
 
-- [ ] 3.1 Add `anonymous: { type: "boolean", default: false }` to every action command's `args` block in `packages/cli/src/commands/{auth,check,info,rules}.ts`
-- [ ] 3.2 In `auth login`: when `args.anonymous` is true, exit 1 with a clear "auth commands cannot be anonymous" message
-- [ ] 3.3 In `auth logout`: accept and no-op
-- [ ] 3.4 In `info`: when `args.anonymous` is true, skip the API/auth probe and report local state only
-- [ ] 3.5 In `check`, `rule delete`, `rule verify`, `rule meta`, `init`: accept and no-op
-- [ ] 3.6 In `rule create` and `rule improve`: when `args.anonymous` is true, dispatch to the local-only flow that today's `taskless-create-rule-anonymous` and `taskless-improve-rule-anonymous` skills described — moved into the CLI itself (see task 5)
+- [x] 3.1 Add `anonymous: { type: "boolean", default: false }` to every action command's `args` block in `packages/cli/src/commands/{auth,check,info,rules}.ts`
+- [x] 3.2 In `auth login`: when `args.anonymous` is true, exit 1 with a clear "auth commands cannot be anonymous" message
+- [x] 3.3 In `auth logout`: accept and no-op
+- [x] 3.4 In `info`: when `args.anonymous` is true, skip the API/auth probe and report local state only
+- [x] 3.5 In `check`, `rule delete`, `rule verify`, `rule meta`, `init`: accept and no-op
+- [x] 3.6 In `rule create` and `rule improve`: when `args.anonymous` is true, exit with a pointer to `taskless help <topic> --anonymous`. Per Option A, generation runs in the agent (not the CLI); the recipe variant guides the agent
 - [ ] 3.7 Add unit tests covering the per-command behavior matrix
 - [ ] 3.8 Document the flag in the consolidated SKILL.md and in each topic recipe's `## Anonymous mode` note (or in the `<topic>.anonymous.txt` variant where applicable)
 

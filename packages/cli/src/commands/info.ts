@@ -24,6 +24,11 @@ export const infoCommand = defineCommand({
       description: "Output as JSON",
       default: false,
     },
+    anonymous: {
+      type: "boolean",
+      description: "Skip the API/auth probe and report local state only",
+      default: false,
+    },
   },
   async run({ args }) {
     const cwd = resolve(args.dir ?? process.cwd());
@@ -35,11 +40,11 @@ export const infoCommand = defineCommand({
     try {
       const [tools, token] = await Promise.all([
         checkStaleness(cwd),
-        getToken(cwd),
+        args.anonymous ? Promise.resolve() : getToken(cwd),
       ]);
 
       let auth: { user: string; email: string; orgs: string[] } | undefined;
-      if (token) {
+      if (!args.anonymous && token) {
         const whoami = await fetchWhoami(token);
         if (whoami) {
           auth = {

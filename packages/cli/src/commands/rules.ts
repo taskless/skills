@@ -61,6 +61,12 @@ const createCommand = defineCommand({
       description:
         "Path to a JSON file containing the rule request (required). Example: --from .taskless/.tmp-rule-request.json",
     },
+    anonymous: {
+      type: "boolean",
+      description:
+        "Direct the agent to use the local-only recipe (no API call)",
+      default: false,
+    },
   },
   async run({ args }) {
     const cwd = resolve(args.dir ?? process.cwd());
@@ -80,6 +86,26 @@ const createCommand = defineCommand({
       }
       process.exitCode = 1;
       throw new CliError(message);
+    }
+
+    if (args.anonymous) {
+      // Anonymous rule creation runs in the agent, not the CLI. Point the
+      // agent at the local-only recipe and exit cleanly.
+      const message =
+        "Anonymous rule generation runs in the agent. Run `taskless help rule create --anonymous` to fetch the local-only recipe.";
+      if (args.json) {
+        console.log(
+          JSON.stringify(makeErrorEnvelope("INVALID_INPUT", message))
+        );
+      } else {
+        console.error(message);
+      }
+      process.exitCode = 1;
+      telemetry.capture("cli_rule_create_completed", {
+        success: false,
+        durationMs: Date.now() - startedAt,
+      });
+      return;
     }
 
     let success = false;
@@ -277,6 +303,12 @@ const improveCommand = defineCommand({
       description:
         "Path to a JSON file containing { ruleId, guidance, references? }. Example: --from .taskless/.tmp-iterate-request.json",
     },
+    anonymous: {
+      type: "boolean",
+      description:
+        "Direct the agent to use the local-only recipe (no API call)",
+      default: false,
+    },
   },
   async run({ args }) {
     const cwd = resolve(args.dir ?? process.cwd());
@@ -296,6 +328,24 @@ const improveCommand = defineCommand({
       }
       process.exitCode = 1;
       throw new CliError(message);
+    }
+
+    if (args.anonymous) {
+      const message =
+        "Anonymous rule improvement runs in the agent. Run `taskless help rule improve --anonymous` to fetch the local-only recipe.";
+      if (args.json) {
+        console.log(
+          JSON.stringify(makeErrorEnvelope("INVALID_INPUT", message))
+        );
+      } else {
+        console.error(message);
+      }
+      process.exitCode = 1;
+      telemetry.capture("cli_rule_improve_completed", {
+        success: false,
+        durationMs: Date.now() - startedAt,
+      });
+      return;
     }
 
     let success = false;
@@ -486,6 +536,11 @@ const metaCommand = defineCommand({
       description: "Output as JSON",
       default: false,
     },
+    anonymous: {
+      type: "boolean",
+      description: "Accepted for compatibility; meta is purely local",
+      default: false,
+    },
     id: {
       type: "positional",
       description: "Rule ID to look up",
@@ -562,6 +617,11 @@ const deleteCommand = defineCommand({
       alias: "d",
       description: "Working directory",
     },
+    anonymous: {
+      type: "boolean",
+      description: "Accepted for compatibility; delete is purely local",
+      default: false,
+    },
     id: {
       type: "positional",
       description: "Rule ID to delete",
@@ -610,6 +670,11 @@ const verifyCommand = defineCommand({
     json: {
       type: "boolean",
       description: "Output as JSON",
+      default: false,
+    },
+    anonymous: {
+      type: "boolean",
+      description: "Accepted for compatibility; verify is purely local",
       default: false,
     },
     id: {
