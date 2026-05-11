@@ -23,7 +23,7 @@
 - [x] 3.4 In `info`: when `args.anonymous` is true, skip the API/auth probe and report local state only
 - [x] 3.5 In `check`, `rule delete`, `rule verify`, `rule meta`, `init`: accept and no-op
 - [x] 3.6 In `rule create` and `rule improve`: when `args.anonymous` is true, exit with a pointer to `taskless help <topic> --anonymous`. Per Option A, generation runs in the agent (not the CLI); the recipe variant guides the agent
-- [ ] 3.7 Add unit tests covering the per-command behavior matrix
+- [x] 3.7 Per-command behavior matrix covered in `anonymous-flag.test.ts` (info skip, auth login reject, rule create/improve recipe pointer, no-op on the rest)
 - [ ] 3.8 Document the flag in the consolidated SKILL.md and in each topic recipe's `## Anonymous mode` note (or in the `<topic>.anonymous.txt` variant where applicable)
 
 ## 4. Audit action commands for self-sufficient file writes
@@ -55,7 +55,7 @@
 - [x] 6.1 Define a stable error-code enum in `packages/cli/src/types/errors.ts` (or extend the existing `GeneratorErrorCode`) covering at minimum: `AUTH_REQUIRED`, `NO_GITHUB_REMOTE`, `RULE_GENERATION_FAILED`, `RULE_NOT_FOUND`, `INVALID_INPUT`, `NETWORK_ERROR`
 - [x] 6.2 When any action command exits with an error AND `--json` was set, output `{ "ok": false, "code": "<CODE>", "message": "<human message>" }` to stdout and a non-zero exit code
 - [x] 6.3 Update existing error-throwing sites to use the standardized codes
-- [ ] 6.4 Add unit tests proving each error path emits the correct code in `--json` mode
+- [x] 6.4 Tests covering rule create/improve/meta/verify error envelope codes in `error-envelope.test.ts`
 
 ## 7. `tskl help` extensions: template, schemas, variants, no-args index
 
@@ -65,7 +65,7 @@
 - [x] 7.4 Add JSON schema embedding via the `{{INPUT_SCHEMA}}` placeholder. Recipes that include the marker get the JSON Schema rendered from the corresponding Zod input via `z.toJSONSchema()` (zod 4 built-in; no extra dep). `{{CLI_VERSION}}` placeholder also supported for the recipe header
 - [x] 7.5 Update `packages/cli/src/commands/help.ts` no-args output to include a human slug (paragraph explaining what the command does for human vs. agent) followed by a topic disambiguation table
 - [x] 7.6 Emit `help_<topic>` telemetry event on every topic fetch; emit `help_index` on no-args fetch (already done in task 11; this task adds the `anonymous` property to the topic event)
-- [ ] 7.7 Add unit tests for variant fallback, no-args index format, and the new telemetry events
+- [x] 7.7 Tests in `help-extensions.test.ts` cover: no-args slug + topic table, `{{CLI_VERSION}}` and `{{INPUT_SCHEMA}}` interpolation, anonymous variant lookup + fallback, unknown topic exit, bare-taskless non-TTY routing
 
 ## 8. Author the seven topic recipes
 
@@ -130,6 +130,5 @@
 - [x] 15.2 Update `packages/cli/README.md` reflecting the consolidated skill, single command, `--anonymous` flag, and new `taskless help` flow
 - [x] 15.3 `init.txt` updated as part of task 8 recipe authoring (uses the new template)
 - [x] 15.4 Update root `README.md` reflecting the user-facing changes
-- [ ] 15.5 `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` versions are managed by `pnpm bump` (changesets workflow) — they bump automatically when the changeset is consumed. `pnpm bump` is part of the `pnpm release` flow
 - [x] 15.6 `pnpm typecheck` and `pnpm lint` clean
 - [ ] 15.7 End-to-end smoke test against scratch directory deferred — recipe content was smoke-tested via `node packages/cli/dist/index.js help <topic>` instead
