@@ -23,13 +23,19 @@ const ALL_LOCATIONS: LocationChoice[] = [
 export async function promptLocations(cwd: string): Promise<string[]> {
   const detected = await detectTools(cwd);
   const detectedDirectories = new Set(detected.map((t) => t.installDir));
+  const detectedNamesByDirectory = new Map<string, string[]>();
+  for (const tool of detected) {
+    const existing = detectedNamesByDirectory.get(tool.installDir) ?? [];
+    existing.push(tool.name);
+    detectedNamesByDirectory.set(tool.installDir, existing);
+  }
 
   while (true) {
     const options = ALL_LOCATIONS.map((loc) => ({
       value: loc.installDir,
       label: loc.label,
       hint: detectedDirectories.has(loc.installDir)
-        ? "detected"
+        ? `detected (${(detectedNamesByDirectory.get(loc.installDir) ?? []).join(", ")})`
         : (loc.hint ?? "not detected"),
     }));
 
