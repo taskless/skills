@@ -74,7 +74,7 @@ export interface ToolStatus {
 
 // --- Tool Registry ---
 
-const TOOLS: ToolDescriptor[] = [
+export const TOOLS: ToolDescriptor[] = [
   {
     name: "Claude Code",
     detect: [
@@ -108,6 +108,20 @@ const TOOLS: ToolDescriptor[] = [
       { type: "file", path: ".cursorrules" },
     ],
     installDir: ".cursor",
+    skills: {
+      path: "skills",
+    },
+    commands: {
+      path: "commands/tskl",
+    },
+  },
+  {
+    name: "Codex",
+    detect: [
+      { type: "directory", path: ".codex" },
+      { type: "file", path: ".codex/config.toml" },
+    ],
+    installDir: ".agents",
     skills: {
       path: "skills",
     },
@@ -324,6 +338,12 @@ export interface ApplyInstallResult {
  * Tool registry keyed by installDir so state-based cleanup can find the
  * original paths for a target recorded in a previous manifest. The agents
  * fallback is included since prior installs may have written to it.
+ *
+ * Order matters: TOOLS entries come first so registered tools win over the
+ * fallback when they share an installDir. Codex is registered with
+ * installDir `.agents` (Codex's documented read path), and Array.find
+ * returns the first match — so the lookup resolves to Codex rather than
+ * AGENTS_FALLBACK whenever both are valid for the same directory.
  */
 const ALL_KNOWN_TOOLS: readonly ToolDescriptor[] = [...TOOLS, AGENTS_FALLBACK];
 

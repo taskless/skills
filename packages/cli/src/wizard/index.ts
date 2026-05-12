@@ -6,6 +6,7 @@ import {
   AGENTS_FALLBACK,
   getEmbeddedCommands,
   getEmbeddedSkills,
+  TOOLS,
   type EmbeddedCommand,
   type InstallPlanTarget,
   type ToolDescriptor,
@@ -33,38 +34,19 @@ export interface WizardResult {
   cancelledStep?: string;
 }
 
-const TOOL_BY_INSTALL_DIR: Record<string, ToolDescriptor> = {
-  ".claude": {
-    name: "Claude Code",
-    detect: [
-      { type: "directory", path: ".claude" },
-      { type: "file", path: "CLAUDE.md" },
-    ],
-    installDir: ".claude",
-    skills: { path: "skills" },
-    commands: { path: "commands/tskl" },
-  },
-  ".opencode": {
-    name: "OpenCode",
-    detect: [
-      { type: "directory", path: ".opencode" },
-      { type: "file", path: "opencode.jsonc" },
-      { type: "file", path: "opencode.json" },
-    ],
-    installDir: ".opencode",
-    skills: { path: "skills" },
-  },
-  ".cursor": {
-    name: "Cursor",
-    detect: [
-      { type: "directory", path: ".cursor" },
-      { type: "file", path: ".cursorrules" },
-    ],
-    installDir: ".cursor",
-    skills: { path: "skills" },
-  },
-  ".agents": AGENTS_FALLBACK,
-};
+/**
+ * Lookup map keyed by installDir, derived from the canonical registry.
+ *
+ * AGENTS_FALLBACK is seeded first so that any registered tool sharing its
+ * installDir overwrites it (Object.fromEntries keeps the last value for a
+ * duplicate key). Codex's installDir is `.agents` — the same as the
+ * fallback — so this ordering ensures `.agents` resolves to Codex when
+ * Codex is in TOOLS, while still leaving the fallback descriptor available
+ * for users who never had Codex registered.
+ */
+const TOOL_BY_INSTALL_DIR: Record<string, ToolDescriptor> = Object.fromEntries(
+  [AGENTS_FALLBACK, ...TOOLS].map((tool) => [tool.installDir, tool])
+);
 
 export async function runWizard(
   options: RunWizardOptions

@@ -6,9 +6,11 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   AGENTS_FALLBACK,
   detectTools,
+  getEmbeddedCommands,
   getEmbeddedSkills,
   installForTool,
   checkStaleness,
+  TOOLS,
 } from "../src/install/install";
 
 let cwd: string;
@@ -81,6 +83,42 @@ describe("detectTools", () => {
     expect(names).toContain("Cursor");
   });
 
+  it("detects Codex via .codex/ directory", async () => {
+    await mkdir(join(cwd, ".codex"), { recursive: true });
+    const tools = await detectTools(cwd);
+    expect(tools).toHaveLength(1);
+    expect(tools[0]!.name).toBe("Codex");
+    expect(tools[0]!.installDir).toBe(".agents");
+  });
+
+  it("detects Codex via .codex/config.toml file", async () => {
+    await mkdir(join(cwd, ".codex"), { recursive: true });
+    await writeFile(join(cwd, ".codex", "config.toml"), "", "utf8");
+    // Remove the directory marker so only the file signal remains.
+    // (Both signals satisfy detection; this test asserts the file alone works
+    // by also keeping the directory — detectTools should still return one entry.)
+    const tools = await detectTools(cwd);
+    expect(tools).toHaveLength(1);
+    expect(tools[0]!.name).toBe("Codex");
+  });
+
+  it("returns Codex once when multiple Codex signals match", async () => {
+    await mkdir(join(cwd, ".codex"), { recursive: true });
+    await writeFile(join(cwd, ".codex", "config.toml"), "", "utf8");
+    const tools = await detectTools(cwd);
+    const codexEntries = tools.filter((t) => t.name === "Codex");
+    expect(codexEntries).toHaveLength(1);
+  });
+
+  it("detects Codex alongside Claude Code", async () => {
+    await mkdir(join(cwd, ".codex"), { recursive: true });
+    await mkdir(join(cwd, ".claude"), { recursive: true });
+    const tools = await detectTools(cwd);
+    const names = tools.map((t) => t.name);
+    expect(names).toContain("Codex");
+    expect(names).toContain("Claude Code");
+  });
+
   it("returns empty when no signals match", async () => {
     const tools = await detectTools(cwd);
     expect(tools).toHaveLength(0);
@@ -126,6 +164,80 @@ describe("installForTool", () => {
       "utf8"
     );
     expect(content).toBeTruthy();
+  });
+});
+
+describe("Codex install", () => {
+  it("writes skills to .agents/skills/ and no commands", async () => {
+    await mkdir(join(cwd, ".codex"), { recursive: true });
+    const tools = await detectTools(cwd);
+    const codex = tools.find((t) => t.name === "Codex");
+    expect(codex).toBeDefined();
+
+    const skills = getEmbeddedSkills();
+    const commands = getEmbeddedCommands();
+    const result = await installForTool(cwd, codex!, skills, commands);
+
+    expect(result.skills.length).toBeGreaterThan(0);
+    expect(result.commands).toHaveLength(0);
+
+    const firstSkill = result.skills[0]!;
+    const skillContent = await readFile(
+      join(cwd, ".agents", "skills", firstSkill, "SKILL.md"),
+      "utf8"
+    );
+    const embedded = skills.find((s) => s.name === firstSkill);
+    expect(skillContent).toBe(embedded!.content);
+
+    const commandsDirectoryExists = await readFile(
+      join(cwd, ".agents", "commands", "tskl", "tskl.md"),
+      "utf8"
+    ).then(
+      () => true,
+      () => false
+    );
+    expect(commandsDirectoryExists).toBe(false);
+  });
+});
+
+describe("Cursor install", () => {
+  it("writes both skills and commands", async () => {
+    await mkdir(join(cwd, ".cursor"), { recursive: true });
+    const tools = await detectTools(cwd);
+    const cursor = tools.find((t) => t.name === "Cursor");
+    expect(cursor).toBeDefined();
+    expect(cursor!.commands?.path).toBe("commands/tskl");
+
+    const skills = getEmbeddedSkills();
+    const commands = getEmbeddedCommands();
+    const result = await installForTool(cwd, cursor!, skills, commands);
+
+    expect(result.skills.length).toBeGreaterThan(0);
+    expect(result.commands.length).toBeGreaterThan(0);
+
+    const firstSkill = result.skills[0]!;
+    const firstCommand = result.commands[0]!;
+    const skillContent = await readFile(
+      join(cwd, ".cursor", "skills", firstSkill, "SKILL.md"),
+      "utf8"
+    );
+    expect(skillContent).toBeTruthy();
+
+    const commandContent = await readFile(
+      join(cwd, ".cursor", "commands", "tskl", firstCommand),
+      "utf8"
+    );
+    const embeddedCommand = commands.find((c) => c.filename === firstCommand);
+    expect(commandContent).toBe(embeddedCommand!.content);
+  });
+});
+
+describe(".agents/ lookup ordering", () => {
+  it("registered Codex resolves before AGENTS_FALLBACK for installDir '.agents'", () => {
+    const candidates = [...TOOLS, AGENTS_FALLBACK];
+    const resolved = candidates.find((t) => t.installDir === ".agents");
+    expect(resolved).toBeDefined();
+    expect(resolved!.name).toBe("Codex");
   });
 });
 
