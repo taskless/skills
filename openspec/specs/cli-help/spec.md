@@ -62,8 +62,8 @@ Help text files SHALL be located at `packages/cli/src/help/` as plain `.txt` fil
 
 #### Scenario: Help file naming convention
 
-- **WHEN** a help file is created for the `rules create` subcommand
-- **THEN** the file SHALL be named `rules-create.txt` in `packages/cli/src/help/`
+- **WHEN** a help file is created for the `rule create` subcommand
+- **THEN** the file SHALL be named `rule-create.txt` in `packages/cli/src/help/`
 
 ### Requirement: Help text files follow a consistent format
 

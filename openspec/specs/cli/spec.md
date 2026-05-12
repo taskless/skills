@@ -144,10 +144,10 @@ The CLI entry point SHALL use citty to define a main command with subcommand sup
 - **WHEN** a user runs `taskless auth`
 - **THEN** the CLI SHALL route to the auth subcommand group
 
-#### Scenario: Rules subcommand group is registered
+#### Scenario: Rule subcommand group is registered
 
-- **WHEN** a user runs `taskless rules`
-- **THEN** the CLI SHALL route to the rules subcommand group
+- **WHEN** a user runs `taskless rule`
+- **THEN** the CLI SHALL route to the rule subcommand group
 
 #### Scenario: Help subcommand is registered
 
@@ -160,7 +160,7 @@ The CLI SHALL proactively create and maintain a `.taskless/.gitignore` file that
 
 #### Scenario: .gitignore is created when .taskless/ is first written to
 
-- **WHEN** the CLI creates any file in `.taskless/` (e.g., during `auth login`, `rules create`, or `check`)
+- **WHEN** the CLI creates any file in `.taskless/` (e.g., during `auth login`, `rule create`, or `check`)
 - **AND** `.taskless/.gitignore` does not exist
 - **THEN** the CLI SHALL create `.taskless/.gitignore` containing `.env.local.json` and `sgconfig.yml`
 

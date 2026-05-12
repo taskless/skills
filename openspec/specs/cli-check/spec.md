@@ -18,7 +18,7 @@ The `check` command SHALL NOT require `.taskless/taskless.json` to exist. The co
 #### Scenario: Check exits cleanly with no .taskless/ directory
 
 - **WHEN** a user runs `taskless check` in a directory without a `.taskless/` directory
-- **THEN** the CLI SHALL print a message: "No rules configured. Create one with `taskless rules create`."
+- **THEN** the CLI SHALL print a message: "No rules configured. Create one with `taskless rule create`."
 - **AND** the CLI SHALL exit with code 0
 
 #### Scenario: Check exits cleanly with empty rules directory

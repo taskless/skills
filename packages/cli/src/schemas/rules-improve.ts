@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-/** Input schema for `taskless rules improve --from` JSON file */
+/** Input schema for `taskless rule improve --from` JSON file */
 export const inputSchema = z.object({
   ruleId: z
     .string()
@@ -23,7 +23,7 @@ export const inputSchema = z.object({
     .describe("Reference files to include as context"),
 });
 
-/** Output schema for `taskless rules improve --json` on success */
+/** Output schema for `taskless rule improve --json` on success */
 export const outputSchema = z.object({
   success: z.literal(true),
   requestId: z.string().describe("The request ID for polling status"),
@@ -31,7 +31,7 @@ export const outputSchema = z.object({
   files: z.array(z.string()).describe("File paths that were written"),
 });
 
-/** Error schema for `taskless rules improve --json` on failure */
+/** Error schema for `taskless rule improve --json` on failure */
 export const errorSchema = z.object({
   error: z.string().describe("Error message"),
 });

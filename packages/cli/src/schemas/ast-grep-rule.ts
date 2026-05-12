@@ -8,7 +8,7 @@ import astGrepSchema from "../generated/ast-grep-rule-schema.json";
  * validation coverage matching the upstream spec.
  *
  * The raw JSON Schema is also embedded for agent consumption via
- * `rules verify --schema`.
+ * `rule verify --schema`.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
 export const astGrepRuleSchema = z.fromJSONSchema(astGrepSchema as any);
