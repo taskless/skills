@@ -17,7 +17,7 @@ description: |
   reference Taskless or .taskless/ files.
 metadata:
   author: taskless
-  version: 0.6.0
+  version: 0.7.0
   commandName: tskl
 compatibility: Designed for Agents implementing the Agent Skills specification.
 ---
