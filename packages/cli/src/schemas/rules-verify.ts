@@ -29,7 +29,7 @@ export const schemaOutputSchema = z.object({
     .describe("Curated annotated rule examples"),
 });
 
-// --- Verify mode output (rules verify <id> --json) ---
+// --- Verify mode output (rule verify <id> --json) ---
 
 const layerResultSchema = z.object({
   valid: z.boolean(),

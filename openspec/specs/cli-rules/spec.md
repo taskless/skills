@@ -60,7 +60,7 @@ The API calls for rule generation (`POST /cli/api/request` and `GET /cli/api/req
 
 #### Scenario: Stub implementation returns an error
 
-- **WHEN** `rules create` is run against the stub network layer
+- **WHEN** `rule create` is run against the stub network layer
 - **THEN** the stub SHALL return an error indicating rule generation is not yet available
 
 #### Scenario: Interface is swappable
@@ -166,7 +166,7 @@ The generated JSON Schema file SHALL be importable by the CLI bundle via Vite. T
 
 #### Scenario: Schema imported in verify command
 
-- **WHEN** the `rules verify` command needs the ast-grep schema
+- **WHEN** the `rule verify` command needs the ast-grep schema
 - **THEN** it SHALL import the schema from `../generated/ast-grep-rule-schema.json`
 - **AND** the schema object SHALL be available synchronously at runtime
 

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-/** Input schema for `taskless rules create --from` JSON file */
+/** Input schema for `taskless rule create --from` JSON file */
 export const inputSchema = z.object({
   prompt: z
     .string()
@@ -17,7 +17,7 @@ export const inputSchema = z.object({
     .describe("Examples of incorrect code that should fail the rule"),
 });
 
-/** Output schema for `taskless rules create --json` on success */
+/** Output schema for `taskless rule create --json` on success */
 export const outputSchema = z.object({
   success: z.literal(true),
   ruleId: z.string().describe("UUID of the generated rule job"),
@@ -25,7 +25,7 @@ export const outputSchema = z.object({
   files: z.array(z.string()).describe("File paths that were written"),
 });
 
-/** Error schema for `taskless rules create --json` on failure */
+/** Error schema for `taskless rule create --json` on failure */
 export const errorSchema = z.object({
   error: z.string().describe("Error message"),
 });

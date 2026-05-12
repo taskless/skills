@@ -82,7 +82,7 @@ These utilities SHALL NOT hardcode Taskless-specific entries — the migrations 
 
 ### Requirement: Bootstrap is called from all write paths
 
-The `ensureTasklessDirectory()` function SHALL be called from: `writeRuleFile()`, `writeRuleTestFile()`, `generateSgConfig()`, and the `rules verify` command. This ensures `.taskless/` is always properly initialized and up-to-date before any file writes.
+The `ensureTasklessDirectory()` function SHALL be called from: `writeRuleFile()`, `writeRuleTestFile()`, `generateSgConfig()`, and the `rule verify` command. This ensures `.taskless/` is always properly initialized and up-to-date before any file writes.
 
 #### Scenario: Rule file write triggers bootstrap
 
@@ -91,7 +91,7 @@ The `ensureTasklessDirectory()` function SHALL be called from: `writeRuleFile()`
 
 #### Scenario: Verify command triggers bootstrap
 
-- **WHEN** `taskless rules verify` runs and needs to generate `sgconfig.yml`
+- **WHEN** `taskless rule verify` runs and needs to generate `sgconfig.yml`
 - **THEN** `ensureTasklessDirectory()` SHALL run as part of the `generateSgConfig()` call
 
 ### Requirement: Migration 2 initializes an empty install object

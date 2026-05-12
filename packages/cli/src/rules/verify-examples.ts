@@ -1,5 +1,5 @@
 /**
- * Curated annotated examples for `rules verify --schema` output.
+ * Curated annotated examples for `rule verify --schema` output.
  * These teach agents how to write valid ast-grep rules.
  */
 export const RULE_EXAMPLES = [
