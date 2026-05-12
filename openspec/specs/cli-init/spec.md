@@ -273,13 +273,13 @@ For each detected tool that supports skills, the CLI SHALL write SKILL.md files 
 
 ### Requirement: Claude Code commands are placed from embedded source
 
-For Claude Code specifically, the CLI SHALL also place command `.md` files from the embedded command source. Commands SHALL be placed in `.claude/commands/taskless/` with filenames matching the embedded source (prefix already stripped).
+For Claude Code specifically, the CLI SHALL also place command `.md` files from the embedded command source. Commands SHALL be placed in `.claude/commands/tskl/` with filenames matching the embedded source (prefix already stripped).
 
 #### Scenario: Command file is placed from embedded source
 
 - **WHEN** the CLI installs for Claude Code
-- **THEN** it SHALL write command files to `.claude/commands/taskless/<name>.md`
-- **AND** the command content SHALL be identical to the embedded source from `commands/taskless/`
+- **THEN** it SHALL write command files to `.claude/commands/tskl/<name>.md`
+- **AND** the command content SHALL be identical to the embedded source from `commands/tskl/`
 
 #### Scenario: Command files are only placed for Claude Code
 
@@ -304,7 +304,7 @@ For Cursor specifically, the CLI SHALL also place command `.md` files from the e
 
 ### Requirement: Skills are bundled into the CLI at build time
 
-The CLI build SHALL embed all skill file content from `skills/` and all command file content from `commands/taskless/` into the compiled bundle using Vite's `import.meta.glob` with raw file imports. No runtime file reads or network fetches SHALL be used to access skill or command content.
+The CLI build SHALL embed all skill file content from `skills/` and all command file content from `commands/tskl/` into the compiled bundle using Vite's `import.meta.glob` with raw file imports. No runtime file reads or network fetches SHALL be used to access skill or command content.
 
 #### Scenario: Embedded skills are available at runtime
 
@@ -324,7 +324,7 @@ The CLI build SHALL embed all skill file content from `skills/` and all command 
 #### Scenario: Build includes all commands from source directory
 
 - **WHEN** `pnpm build` is run in `packages/cli/`
-- **THEN** every `.md` file under `commands/taskless/` SHALL be embedded in the output bundle
+- **THEN** every `.md` file under `commands/tskl/` SHALL be embedded in the output bundle
 
 ### Requirement: Init respects the global working directory flag
 

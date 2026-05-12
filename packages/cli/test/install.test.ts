@@ -1,4 +1,11 @@
-import { mkdir, mkdtemp, rm, readFile, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readdir,
+  rm,
+  readFile,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -94,9 +101,9 @@ describe("detectTools", () => {
   it("detects Codex via .codex/config.toml file", async () => {
     await mkdir(join(cwd, ".codex"), { recursive: true });
     await writeFile(join(cwd, ".codex", "config.toml"), "", "utf8");
-    // Remove the directory marker so only the file signal remains.
-    // (Both signals satisfy detection; this test asserts the file alone works
-    // by also keeping the directory — detectTools should still return one entry.)
+    // Both detection signals are present (directory + file); this asserts
+    // that having config.toml in place still yields a single Codex detection
+    // (no duplicates from multiple matching signals).
     const tools = await detectTools(cwd);
     expect(tools).toHaveLength(1);
     expect(tools[0]!.name).toBe("Codex");
@@ -189,14 +196,10 @@ describe("Codex install", () => {
     const embedded = skills.find((s) => s.name === firstSkill);
     expect(skillContent).toBe(embedded!.content);
 
-    const commandsDirectoryExists = await readFile(
-      join(cwd, ".agents", "commands", "tskl", "tskl.md"),
-      "utf8"
-    ).then(
-      () => true,
-      () => false
-    );
-    expect(commandsDirectoryExists).toBe(false);
+    const commandsDirectoryEntries = await readdir(
+      join(cwd, ".agents", "commands", "tskl")
+    ).catch(() => null);
+    expect(commandsDirectoryEntries).toBeNull();
   });
 });
 
