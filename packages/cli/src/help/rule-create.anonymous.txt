@@ -88,15 +88,22 @@ on top of the ast-grep rule are listed in step 5.
 
 ## Errors
 
-`rule verify --json` always emits a layered result (not the
-`{ ok:false, code, message }` envelope). The relevant fields:
+`rule verify --json` has two output shapes depending on whether the
+`<id>` argument is supplied:
 
-| code            | meaning                                  | fix                                        |
-|-----------------|------------------------------------------|--------------------------------------------|
-| `INVALID_INPUT` | Rule ID missing or malformed (envelope)  | Pass a valid rule ID                       |
-| (schema layer)  | YAML didn't match ast-grep schema        | Fix the rule structure                     |
-| (req layer)    | Missing Taskless-required field          | Add `id`/`language`/`severity`/etc.        |
-| (tests layer)  | A test case didn't behave as expected    | Fix the rule pattern OR the test case      |
+- When `<id>` is missing, the command emits the standardized
+  `{ ok:false, code:"INVALID_INPUT", message }` envelope on stdout
+  and exits non-zero.
+- When `<id>` is supplied, the command emits the layered result
+  `{ success, schema, requirements, tests, ... }` on stdout (success
+  or failure exit code depending on the layers).
+
+| where               | code / shape    | meaning                                  | fix                                        |
+|---------------------|-----------------|------------------------------------------|--------------------------------------------|
+| envelope (no `<id>`)| `INVALID_INPUT` | Rule ID missing                          | Pass a valid rule ID positionally          |
+| layered: schema     | (schema layer)  | YAML didn't match ast-grep schema        | Fix the rule structure                     |
+| layered: req        | (req layer)     | Missing Taskless-required field          | Add `id`/`language`/`severity`/etc.        |
+| layered: tests      | (tests layer)   | A test case didn't behave as expected    | Fix the rule pattern OR the test case      |
 
 ## See Also
 
