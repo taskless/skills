@@ -282,7 +282,7 @@ export async function installForTool(
     installedSkills.push(skill.name);
   }
 
-  // Place commands (Claude Code only)
+  // Place commands for any tool descriptor that defines a commands path
   if (tool.commands) {
     const commandDirectory = join(cwd, tool.installDir, tool.commands.path);
     await mkdir(commandDirectory, { recursive: true });
@@ -513,11 +513,18 @@ export async function checkStaleness(cwd: string): Promise<ToolStatus[]> {
   const embedded = getEmbeddedSkills();
   const tools = await detectTools(cwd);
 
-  // Include .agents/ fallback if the directory exists (from a previous fallback install)
+  // Include .agents/ fallback if the directory exists (from a previous
+  // fallback install) AND no detected tool already uses that installDir.
+  // Codex registers installDir `.agents`, so without this guard a Codex
+  // repo would surface duplicate/contradictory statuses for the same
+  // directory (once under Codex, once under AGENTS_FALLBACK).
+  const fallbackAlreadyCovered = tools.some(
+    (t) => t.installDir === AGENTS_FALLBACK.installDir
+  );
   const fallbackExists = await stat(join(cwd, AGENTS_FALLBACK.installDir))
     .then((s) => s.isDirectory())
     .catch(() => false);
-  if (fallbackExists) {
+  if (fallbackExists && !fallbackAlreadyCovered) {
     tools.push(AGENTS_FALLBACK);
   }
 
