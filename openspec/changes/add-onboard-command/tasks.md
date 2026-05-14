@@ -30,9 +30,9 @@
 
 ## 4. Help index registration
 
-- [ ] 4.1 Confirm `taskless help onboard` resolves and prints `onboard.txt` (no code change expected if the help command uses a glob — verify behavior)
-- [ ] 4.2 Update the `taskless help` (no-args) topic table in `packages/cli/src/commands/help.ts` (or wherever the index table is built) to include the `onboard` row with a one-line summary
-- [ ] 4.3 Confirm `help_onboard` PostHog event is emitted for `taskless help onboard` (no code change expected; verify the existing intent-telemetry generates it)
+- [x] 4.1 Confirm `taskless help onboard` resolves and prints `onboard.txt` (no code change expected if the help command uses a glob — verify behavior)
+- [x] 4.2 Update the `taskless help` (no-args) topic table in `packages/cli/src/commands/help.ts` (or wherever the index table is built) to include the `onboard` row with a one-line summary
+- [x] 4.3 Confirm `help_onboard` PostHog event is emitted for `taskless help onboard` (no code change expected; verify the existing intent-telemetry generates it)
 
 ## 5. Init trailer
 
