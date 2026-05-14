@@ -1,4 +1,4 @@
-# Topic: rule create     (CLI v{{CLI_VERSION}} / topic v1)
+# Topic: rule create     (CLI v%(CLI_VERSION)s / topic v1)
 
 ## Goal
 Generate a new ast-grep rule from a description and write the rule and
@@ -75,7 +75,7 @@ If the user wants the local-only flow (no API call), fetch
 The `--from` JSON file conforms to:
 
 ```json
-{{INPUT_SCHEMA}}
+%(INPUT_SCHEMA)s
 ```
 
 Each example in `successCases` and `failureCases` is a separate

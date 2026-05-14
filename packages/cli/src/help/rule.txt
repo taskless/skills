@@ -1,4 +1,4 @@
-# Topic: rule     (CLI v{{CLI_VERSION}} / topic v1)
+# Topic: rule     (CLI v%(CLI_VERSION)s / topic v1)
 
 ## Goal
 Umbrella for rule operations. Use the specific subcommand for the

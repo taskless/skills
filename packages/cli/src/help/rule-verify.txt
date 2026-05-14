@@ -1,4 +1,4 @@
-# Topic: rule verify     (CLI v{{CLI_VERSION}} / topic v1)
+# Topic: rule verify     (CLI v%(CLI_VERSION)s / topic v1)
 
 ## Goal
 Validate a rule against the ast-grep schema and run its test cases.

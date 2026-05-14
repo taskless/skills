@@ -13,13 +13,20 @@
 
 ## 3. CLI subcommand
 
-- [ ] 3.1 Create `packages/cli/src/commands/onboard.ts` exporting an `onboardCommand` defined with `citty.defineCommand`
-- [ ] 3.2 Define args: `dir` (`-d`, string), `force` (boolean, default false), `mark-complete` (boolean, default false)
-- [ ] 3.3 Reject the combination `--force --mark-complete` with exit code 1 and a clear error message
-- [ ] 3.4 In default mode: bootstrap `.taskless/` via `ensureTasklessDirectory()`, read manifest, gate on `install.onboarded === true && !force`, print recipe from embedded `onboard.txt`
-- [ ] 3.5 In `--mark-complete` mode: bootstrap `.taskless/`, read manifest, set `install.onboarded = true`, write manifest preserving all other fields, print confirmation
-- [ ] 3.6 Wire `onboardCommand` into the root command in `packages/cli/src/index.ts`
-- [ ] 3.7 Emit telemetry events: `cli_onboard_recipe` (with `forced` property), `cli_onboard_already_done`, `cli_onboard_marked_complete`
+- [x] 3.1 Create `packages/cli/src/commands/onboard.ts` exporting an `onboardCommand` defined with `citty.defineCommand`
+- [x] 3.2 Define args: `dir` (`-d`, string), `force` (boolean, default false), `mark-complete` (boolean, default false)
+- [x] 3.3 Reject the combination `--force --mark-complete` with exit code 1 and a clear error message
+- [x] 3.4 In default mode: bootstrap `.taskless/` via `ensureTasklessDirectory()`, read manifest, gate on `install.onboarded === true && !force`, print recipe from embedded `onboard.txt`
+- [x] 3.5 In `--mark-complete` mode: bootstrap `.taskless/`, read manifest, set `install.onboarded = true`, write manifest preserving all other fields, print confirmation
+- [x] 3.6 Wire `onboardCommand` into the root command in `packages/cli/src/index.ts`
+- [x] 3.7 Emit telemetry events: `cli_onboard_recipe` (with `forced` property), `cli_onboard_already_done`, `cli_onboard_marked_complete`
+
+## 3a. Recipe templating refactor (sprintf-js)
+
+- [x] 3a.1 Add `sprintf-js` (and `@types/sprintf-js`) to `packages/cli` dependencies
+- [x] 3a.2 Refactor `renderRecipe` in `packages/cli/src/commands/help.ts` to use `sprintf-js` named arguments. Provide `CLI_VERSION` always, `INPUT_SCHEMA` when the recipe contains the placeholder, and `PACKAGE_MANAGER_DLX` always (rendered as `<package-manager-dlx>` agent-fill marker)
+- [x] 3a.3 Migrate every recipe under `packages/cli/src/help/*.txt` from `{{KEY}}` mustache syntax to `%(KEY)s` sprintf-js named-argument syntax
+- [x] 3a.4 Smoke-test render output of a representative recipe (e.g. `taskless help ci`) to confirm `%(PACKAGE_MANAGER_DLX)s` resolves to `<package-manager-dlx>` and `%(CLI_VERSION)s` resolves to the build-time version
 
 ## 4. Help index registration
 

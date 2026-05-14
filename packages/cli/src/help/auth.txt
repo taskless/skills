@@ -1,4 +1,4 @@
-# Topic: auth     (CLI v{{CLI_VERSION}} / topic v1)
+# Topic: auth     (CLI v%(CLI_VERSION)s / topic v1)
 
 ## Goal
 Manage Taskless authentication. Three branches:

@@ -6,6 +6,7 @@ import {
   type Resolvable,
   type SubCommandsDef,
 } from "citty";
+import { sprintf } from "sprintf-js";
 import { z } from "zod";
 
 import { getTelemetry } from "../telemetry";
@@ -57,17 +58,46 @@ const TOPIC_INPUT_SCHEMAS: Record<string, z.ZodType> = {
   "rule-improve": ruleImproveInputSchema,
 };
 
+/**
+ * Render a recipe by interpolating sprintf-js named arguments. The recipe
+ * source uses `%(KEY)s` placeholders; the variable table built here resolves
+ * each known placeholder to its rendered string. Recipes that contain a
+ * literal `%` character must escape it as `%%` per sprintf-js conventions.
+ *
+ * Two flavors of substitution coexist in the variables table:
+ * - System-resolved values (e.g. `CLI_VERSION`) — rendered to a real value.
+ * - Agent-fill markers (e.g. `PACKAGE_MANAGER_DLX`) — rendered as
+ *   `<lower-kebab-name>` so the consuming agent knows to substitute.
+ */
 function renderRecipe(content: string, topic: string): string {
-  let out = content;
-  out = out.replaceAll("{{CLI_VERSION}}", __VERSION__);
-  if (out.includes("{{INPUT_SCHEMA}}")) {
+  const variables: Record<string, string> = {
+    CLI_VERSION: __VERSION__,
+    PACKAGE_MANAGER_DLX: "<package-manager-dlx>",
+  };
+  if (content.includes("%(INPUT_SCHEMA)s")) {
     const schema = TOPIC_INPUT_SCHEMAS[topic];
-    const rendered = schema
+    variables.INPUT_SCHEMA = schema
       ? JSON.stringify(z.toJSONSchema(schema), null, 2)
       : "(no input schema for this topic)";
-    out = out.replaceAll("{{INPUT_SCHEMA}}", rendered);
   }
-  return out;
+  return sprintf(content, variables);
+}
+
+/**
+ * Look up a help topic from the embedded recipe map and return the rendered
+ * text. Anonymous variants are preferred when `anonymous` is set and a
+ * variant exists; otherwise the canonical recipe is returned. Returns
+ * `undefined` when the topic is unknown.
+ */
+export function getRecipe(
+  topic: string,
+  options: { anonymous?: boolean } = {}
+): string | undefined {
+  const content = options.anonymous
+    ? (anonymousMap.get(topic) ?? helpMap.get(topic))
+    : helpMap.get(topic);
+  if (content === undefined) return undefined;
+  return renderRecipe(content, topic);
 }
 
 async function unwrap<T>(resolvable: Resolvable<T>): Promise<T> {

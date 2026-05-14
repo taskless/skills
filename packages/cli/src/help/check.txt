@@ -1,4 +1,4 @@
-# Topic: check     (CLI v{{CLI_VERSION}} / topic v1)
+# Topic: check     (CLI v%(CLI_VERSION)s / topic v1)
 
 ## Goal
 Run all rules in `.taskless/rules/` against the codebase and report

@@ -1,4 +1,4 @@
-# Topic: ci     (CLI v{{CLI_VERSION}} / topic v1)
+# Topic: ci     (CLI v%(CLI_VERSION)s / topic v1)
 
 ## Goal
 Wire `taskless check` into the user's existing CI so rules run
@@ -95,7 +95,7 @@ Canonical paths:
 The reference template — translate the same shape (checkout with
 full history, set up Node, conditional check) for other CIs.
 
-Substitute `{{PACKAGE_MANAGER_DLX}}` with `npx @taskless/cli`,
+Substitute `%(PACKAGE_MANAGER_DLX)s` with `npx @taskless/cli`,
 `pnpm dlx @taskless/cli`, `yarn dlx @taskless/cli`, or
 `bunx @taskless/cli` based on `pnpm-lock.yaml`/`yarn.lock`/`bun.lockb`.
 
@@ -131,14 +131,14 @@ jobs:
               echo "No changed files."
               exit 0
             fi
-            {{PACKAGE_MANAGER_DLX}} check $FILES
+            %(PACKAGE_MANAGER_DLX)s check $FILES
           else
-            {{PACKAGE_MANAGER_DLX}} check
+            %(PACKAGE_MANAGER_DLX)s check
           fi
 ```
 
 Simplifications:
-- Full-scan only → drop the `if`, just run `{{PACKAGE_MANAGER_DLX}} check`.
+- Full-scan only → drop the `if`, just run `%(PACKAGE_MANAGER_DLX)s check`.
 - Diff-scan only → remove the `push:` trigger.
 
 ### 6. Translate to other CIs
@@ -149,8 +149,8 @@ The six universal steps:
 3. Fetch the target branch.
 4. Compute changed files with `git diff --name-only "origin/<target>...HEAD"`.
 5. Exit early if the diff is empty.
-6. Call `{{PACKAGE_MANAGER_DLX}} check $FILES` for PR builds, or
-   `{{PACKAGE_MANAGER_DLX}} check` for main-branch builds.
+6. Call `%(PACKAGE_MANAGER_DLX)s check $FILES` for PR builds, or
+   `%(PACKAGE_MANAGER_DLX)s check` for main-branch builds.
 
 YAML for GitHub/GitLab/Azure/Bitbucket; Groovy for Jenkins;
 different structure for CircleCI. The six steps stay the same.
