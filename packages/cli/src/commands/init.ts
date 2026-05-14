@@ -15,6 +15,8 @@ import { getTelemetry } from "../telemetry";
 import { runWizard } from "../wizard";
 import { getCliVersion } from "../wizard/intro";
 
+import { getOnboardTrailer } from "./onboard";
+
 function shouldRunInteractively(noInteractiveFlag: boolean): boolean {
   if (noInteractiveFlag) return false;
   if (process.env.CI === "true" || process.env.CI === "1") return false;
@@ -69,7 +71,10 @@ export const initCommand = defineCommand({
     }
 
     const start = Date.now();
-    await runNonInteractive(cwd);
+    const result = await runNonInteractive(cwd);
+    console.log(
+      getOnboardTrailer({ commandsInstalled: result.commandsInstalled })
+    );
     telemetry.capture("cli_init_completed", {
       locations: await detectedLocationDirectories(cwd),
       optionalSkills: [],
@@ -119,7 +124,9 @@ export const updateCommand = defineCommand({
   },
 });
 
-async function runNonInteractive(cwd: string): Promise<void> {
+async function runNonInteractive(
+  cwd: string
+): Promise<{ commandsInstalled: boolean }> {
   await ensureTasklessDirectory(cwd);
 
   const allSkills = getEmbeddedSkills();
@@ -147,6 +154,8 @@ async function runNonInteractive(cwd: string): Promise<void> {
       commands: [],
     });
   }
+
+  const commandsInstalled = planTargets.some((t) => t.commands.length > 0);
 
   const result = await applyInstallPlan(
     cwd,
@@ -218,6 +227,8 @@ async function runNonInteractive(cwd: string): Promise<void> {
       }
     }
   }
+
+  return { commandsInstalled };
 }
 
 function groupValuesByTarget(

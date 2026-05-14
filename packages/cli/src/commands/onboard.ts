@@ -9,6 +9,27 @@ import { CliError } from "../util/cli-error";
 
 import { getRecipe } from "./help";
 
+/**
+ * One-line trailer printed by `taskless init` (and the wizard) after a
+ * successful install. Lives here so the install paths share the same
+ * wording with the onboard subcommand they point at.
+ *
+ * Branches on whether any installed target received the `tskl` slash
+ * command. Tools that get commands (Claude Code, Cursor) also get the
+ * Taskless skill, so the with-commands trailer mentions both AI-tool
+ * paths; tools without commands (OpenCode, Codex, `.agents` fallback)
+ * still get the skill, so the no-commands trailer points at the skill.
+ * Both trailers also mention `taskless onboard` as the bare CLI fallback.
+ */
+export function getOnboardTrailer(args: {
+  commandsInstalled: boolean;
+}): string {
+  if (args.commandsInstalled) {
+    return "Next: in your AI tool, run /tskl onboard or ask it to use the Taskless skill (or run `taskless onboard` from your terminal) to discover rule candidates from your codebase.";
+  }
+  return "Next: in your AI tool, ask it to use the Taskless skill (or run `taskless onboard` from your terminal) to discover rule candidates from your codebase.";
+}
+
 export const onboardCommand = defineCommand({
   meta: {
     name: "onboard",
