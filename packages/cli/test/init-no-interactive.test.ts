@@ -142,4 +142,53 @@ describe("taskless init --no-interactive", () => {
     expect(manifest.version).toBe(2);
     expect(manifest.install).toBeDefined();
   });
+
+  it("prints a trailer mentioning /tskl onboard when commands were installed", async () => {
+    // Claude Code receives commands, so the trailer should mention the
+    // slash command form and the skill (both work) plus the bare CLI.
+    await mkdir(join(cwd, ".claude"), { recursive: true });
+
+    const { stdout } = await execFileAsync("node", [
+      binPath,
+      "init",
+      "--no-interactive",
+      "-d",
+      cwd,
+    ]);
+
+    expect(stdout).toMatch(/Next:.*\/tskl onboard/);
+    expect(stdout).toMatch(/Taskless skill/);
+    expect(stdout).toMatch(/`taskless onboard`/);
+  });
+
+  it("prints a skill-only trailer when no commands were installed", async () => {
+    // .agents/ fallback receives no commands. The trailer should NOT mention
+    // /tskl onboard but SHOULD mention the skill and the bare CLI.
+    const { stdout } = await execFileAsync("node", [
+      binPath,
+      "init",
+      "--no-interactive",
+      "-d",
+      cwd,
+    ]);
+
+    expect(stdout).not.toContain("/tskl onboard");
+    expect(stdout).toMatch(/Taskless skill/);
+    expect(stdout).toMatch(/`taskless onboard`/);
+  });
+
+  it("`taskless update` does NOT print the onboarding trailer", async () => {
+    // Update is the same install plumbing but the trailer is scoped to init.
+    await mkdir(join(cwd, ".claude"), { recursive: true });
+
+    const { stdout } = await execFileAsync("node", [
+      binPath,
+      "update",
+      "-d",
+      cwd,
+    ]);
+
+    expect(stdout).not.toMatch(/Next:.*onboard/);
+    expect(stdout).not.toContain("/tskl onboard");
+  });
 });

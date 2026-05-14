@@ -79,20 +79,35 @@ describe("taskless help <topic>", () => {
     expect(result.stdout).toContain("## Steps");
   });
 
-  it("interpolates {{CLI_VERSION}} in the recipe header", async () => {
+  it("interpolates %(CLI_VERSION)s in the recipe header", async () => {
     const result = await runCli(["help", "rule", "create", "-d", cwd]);
-    // Should contain a version pattern, not the literal placeholder
+    // Should contain a version pattern, not the literal placeholder.
+    // Guard against both the legacy mustache syntax and the current
+    // sprintf-js named-arg syntax leaking through.
     expect(result.stdout).not.toContain("{{CLI_VERSION}}");
+    expect(result.stdout).not.toContain("%(CLI_VERSION)s");
     expect(result.stdout).toMatch(/CLI v\d+\.\d+\.\d+/);
   });
 
-  it("interpolates {{INPUT_SCHEMA}} for topics with a Zod input", async () => {
+  it("interpolates %(INPUT_SCHEMA)s for topics with a Zod input", async () => {
     const result = await runCli(["help", "rule", "create", "-d", cwd]);
     expect(result.stdout).not.toContain("{{INPUT_SCHEMA}}");
+    expect(result.stdout).not.toContain("%(INPUT_SCHEMA)s");
     // Embedded schema includes the JSON Schema $schema URI
     expect(result.stdout).toContain('"$schema"');
     expect(result.stdout).toContain('"prompt"');
     expect(result.stdout).toContain('"successCases"');
+  });
+
+  it("renders %(PACKAGE_MANAGER_DLX)s as the agent-fill marker", async () => {
+    const result = await runCli(["help", "ci", "-d", cwd]);
+    expect(result.exitCode).toBe(0);
+    // Sprintf substitutes the placeholder; the agent-fill marker should
+    // appear in its rendered <package-manager-dlx> form, never as the
+    // raw sprintf placeholder.
+    expect(result.stdout).not.toContain("%(PACKAGE_MANAGER_DLX)s");
+    expect(result.stdout).not.toContain("{{PACKAGE_MANAGER_DLX}}");
+    expect(result.stdout).toContain("<package-manager-dlx>");
   });
 
   it("exits 1 for an unknown topic", async () => {
