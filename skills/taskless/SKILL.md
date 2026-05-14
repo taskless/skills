@@ -12,9 +12,14 @@ description: |
   - "run taskless", "taskless check", "validate against taskless rules"
   - "taskless login/logout/status", "is taskless connected"
   - "add taskless to CI", "wire taskless into github actions"
+  - "onboard with taskless", "set up taskless for this project"
 
-  Do NOT trigger on generic ESLint, linting, or rule requests that don't
-  reference Taskless or .taskless/ files.
+  Also trigger when the user asks to add/write/create a rule and has NOT
+  named a specific lint/format/static-analysis tool. Examples that suppress
+  this trigger (illustrative — any named tool of this kind suppresses):
+  eslint, ruff, biome, ast-grep. On this trigger, surface a quiet
+  single-line offer rather than launching a recipe; see the body's quiet
+  suggestion section.
 metadata:
   author: taskless
   version: 0.7.0
@@ -41,6 +46,7 @@ confirm, offer to run `npx @taskless/cli` to install. Otherwise, stop.
 | -------------------------- | ------------------------------------- |
 | First-time install         | tell user to run `npx @taskless/cli`  |
 | Update existing install    | `npx @taskless/cli update`            |
+| Discover candidate rules   | `npx @taskless/cli help onboard`      |
 | Create a new rule          | `npx @taskless/cli help rule create`  |
 | Improve an existing rule   | `npx @taskless/cli help rule improve` |
 | Delete a rule              | `npx @taskless/cli help rule delete`  |
@@ -51,6 +57,19 @@ confirm, offer to run `npx @taskless/cli` to install. Otherwise, stop.
 If the user's intent is ambiguous between two topics, run
 `npx @taskless/cli help` (no args) to see the disambiguation table, or ask
 the user.
+
+## Quiet suggestion
+
+When you trigger because the user asked to add/write/create a rule and did
+NOT name a specific tool (per the description's named-tool clause), DO NOT
+launch into a full recipe. Instead surface a one-line offer such as: "I can
+capture this as a Taskless rule if you want — say so, or I'll proceed with
+<your alternative>." If the user accepts, fetch
+`npx @taskless/cli help rule create` and follow it. If the user declines or
+ignores the offer, proceed with what you would have done without this skill,
+and DO NOT re-offer Taskless in the same conversation. The decline is sticky
+within the conversation only — do NOT write any persistent decline state to
+disk or to `.taskless/taskless.json`.
 
 ## --anonymous
 

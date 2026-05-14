@@ -44,11 +44,11 @@
 
 ## 6. Skill description and body
 
-- [ ] 6.1 Update `skills/taskless/SKILL.md` `description` frontmatter to include the unspecified-tool clause with the four illustrative examples (eslint, ruff, biome, ast-grep) and remove the prior blanket "do NOT trigger on generic ESLint/linting" carve-out
-- [ ] 6.2 Verify the description fits within 1024 characters
-- [ ] 6.3 Add an `onboard` row to the skill body's topic disambiguation table mapped to `npx @taskless/cli help onboard`
-- [ ] 6.4 Add a `## Quiet suggestion` section to the skill body specifying single-line offer wording, in-conversation sticky decline, and no persistent decline state
-- [ ] 6.5 Verify the skill body is no more than 80 lines of markdown
+- [x] 6.1 Update `skills/taskless/SKILL.md` `description` frontmatter to include the unspecified-tool clause with the four illustrative examples (eslint, ruff, biome, ast-grep) and remove the prior blanket "do NOT trigger on generic ESLint/linting" carve-out
+- [x] 6.2 Verify the description fits within 1024 characters
+- [x] 6.3 Add an `onboard` row to the skill body's topic disambiguation table mapped to `npx @taskless/cli help onboard`
+- [x] 6.4 Add a `## Quiet suggestion` section to the skill body specifying single-line offer wording, in-conversation sticky decline, and no persistent decline state
+- [x] 6.5 Verify the skill body is no more than 80 lines of markdown
 
 ## 7. Tests
 
