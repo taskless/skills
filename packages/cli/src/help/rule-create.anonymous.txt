@@ -1,4 +1,4 @@
-# Topic: rule create (anonymous)     (CLI v{{CLI_VERSION}} / topic v1)
+# Topic: rule create (anonymous)     (CLI v%(CLI_VERSION)s / topic v1)
 
 ## Goal
 Create a new ast-grep rule **locally** without contacting the Taskless

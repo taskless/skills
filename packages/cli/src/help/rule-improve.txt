@@ -1,4 +1,4 @@
-# Topic: rule improve     (CLI v{{CLI_VERSION}} / topic v1)
+# Topic: rule improve     (CLI v%(CLI_VERSION)s / topic v1)
 
 ## Goal
 Iterate on an existing Taskless rule. The CLI submits the user's
@@ -77,7 +77,7 @@ If the user wants the local-only flow (no API call), fetch
 The `--from` JSON file conforms to:
 
 ```json
-{{INPUT_SCHEMA}}
+%(INPUT_SCHEMA)s
 ```
 
 `ruleId` is the original rule's ticket ID (returned by

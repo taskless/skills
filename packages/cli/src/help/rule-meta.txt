@@ -1,4 +1,4 @@
-# Topic: rule meta     (CLI v{{CLI_VERSION}} / topic v1)
+# Topic: rule meta     (CLI v%(CLI_VERSION)s / topic v1)
 
 ## Goal
 Read sidecar metadata for an API-generated rule. Used internally by

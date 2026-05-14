@@ -5,6 +5,7 @@ import { checkCommand } from "./commands/check";
 import { initCommand, updateCommand } from "./commands/init";
 import { infoCommand } from "./commands/info";
 import { createHelpCommand } from "./commands/help";
+import { onboardCommand } from "./commands/onboard";
 import { ruleCommand } from "./commands/rules";
 import { shutdownTelemetry } from "./telemetry";
 import { CliError } from "./util/cli-error";
@@ -15,6 +16,7 @@ const subCommands = {
   info: infoCommand,
   check: checkCommand,
   auth: authCommand,
+  onboard: onboardCommand,
   rule: ruleCommand,
 };
 

@@ -1,4 +1,4 @@
-# Topic: init     (CLI v{{CLI_VERSION}} / topic v1)
+# Topic: init     (CLI v%(CLI_VERSION)s / topic v1)
 
 ## Goal
 Install or update the Taskless skill into the user's coding-agent
