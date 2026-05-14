@@ -14,6 +14,7 @@ export interface TasklessInstallManifest {
   installedAt?: string;
   cliVersion?: string;
   targets?: Record<string, TasklessInstallTarget>;
+  onboarded?: boolean;
 }
 
 export interface TasklessManifest {

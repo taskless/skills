@@ -85,7 +85,11 @@ export async function writeInstallState(
 ): Promise<void> {
   const tasklessDirectory = join(cwd, TASKLESS_DIR);
   const { manifest, raw } = await readManifest(tasklessDirectory);
+  const previousOnboarded = manifest.install?.onboarded;
   manifest.install = toInstallManifest(state);
+  if (previousOnboarded !== undefined) {
+    manifest.install.onboarded = previousOnboarded;
+  }
   await writeManifest(tasklessDirectory, manifest, raw);
 }
 
