@@ -1,0 +1,122 @@
+# Topic: onboard     (CLI v{{CLI_VERSION}} / topic v1)
+
+## Goal
+Help a user who has just installed Taskless go from zero rules to a
+useful starter set by mining their codebase, agent-memory files, PR
+review history, and issue tracker for high-signal rule candidates.
+This is a conversational discovery flow, not a script — the agent
+collaborates with the user on what to scan and surfaces hypothetical
+rules as a bullet list the user can choose to materialize via the
+`rule create` flow.
+
+## Preconditions
+- `.taskless/` directory exists (Taskless is installed). The
+  `taskless onboard` subcommand bootstraps it on first run, so this
+  is automatically satisfied.
+- A working repository the agent can read.
+- No auth required to surface candidates. (Materializing a rule via
+  `rule create` may require auth — fetch `taskless help auth` if
+  needed at that point.)
+
+## Steps
+
+1. **Read the manifest first.** Run
+   `npx @taskless/cli info --json` and check whether
+   `.taskless/taskless.json` reports `install.onboarded: true`. The
+   `taskless onboard` subcommand has already gated on this for you,
+   but if the user is invoking the recipe directly via the skill,
+   confirm with the user before running a long discovery pass.
+
+2. **Open the conversation about sources.** Tell the user you can mine
+   several places for rule candidates and ask which ones they want to
+   include. Default sources you should always offer:
+
+   - **Codebase TODOs / FIXMEs** — search for `TODO`, `FIXME`, `XXX`,
+     and `HACK` comments. Many of these are latent rules ("don't do
+     this", "remove when X").
+   - **Agent-memory files** — read `CLAUDE.md`, `AGENTS.md`,
+     `.cursorrules`, `.opencode/AGENTS.md`, and similar agent-context
+     files for explicit rules and conventions stated in prose.
+   - **Recent PR review comments** — only if the `gh` CLI is
+     available. Probe with `command -v gh`. Suggest scanning the last
+     30 days of merged PRs for repeated reviewer feedback patterns.
+   - **Issue tracker tickets** — only if a relevant MCP is wired in
+     (Linear, Jira, GitHub issues via `gh issue list`, etc.). Use
+     whatever issue-tracker tools you have available.
+
+   Then explicitly ask: "Are there other places I should look — a
+   team wiki, an internal docs site, a specific design doc, a Slack
+   channel export?" The user often knows about sources you don't.
+
+3. **Probe tool availability before promising a scan.** For each
+   source the user picks, verify the tool exists before committing
+   to it. Don't tell the user "I'll scan PR comments" if `gh` isn't
+   installed — say "PR comments need the GitHub CLI, or equivalent; want me to skip
+   this or wait while you install these tools?"
+
+4. **Scan with high-signal filtering.** For each chosen source:
+
+   - **Filter for repeated patterns.** A reviewer comment that
+     appears across multiple PRs is a much stronger rule candidate
+     than a one-off nit.
+   - **Prefer comments that cite a doc or style guide.** "Per our
+     style guide, no direct DB calls in controllers" is a rule.
+     "looks good" is not.
+   - **Prefer merge-blocking feedback.** Comments that gated a PR
+     merge are higher-signal than passing remarks.
+   - **Filter out one-off nits and pure formatting.** Linters and
+     formatters already handle those; Taskless rules earn their
+     keep on semantic patterns.
+
+5. **Synthesize the bullet list.** Present findings as a single
+   bullet list the user can scan quickly. One bullet per
+   hypothetical rule, in this format:
+
+   ```
+   - <kebab-case-name>: <one-line description of what it would enforce>
+   ```
+
+   Example:
+
+   ```
+   - no-direct-db-access: Prevent controllers from importing the DB module directly; route through the service layer.
+   - require-zod-validation: Flag API handlers that read request bodies without parsing them through a Zod schema first.
+   - no-console-log-in-handlers: Disallow console.log inside HTTP handlers; use the structured logger instead.
+   ```
+
+   Order the bullets by your judgment of impact (frequency in the
+   source × severity of the issue × ease of enforcement). Don't
+   inflate the list — three high-quality candidates beat ten
+   speculative ones.
+
+6. **Offer materialization per bullet.** For each bullet, ask
+   whether the user wants to turn it into a real Taskless rule. On
+   yes, fetch `taskless help rule create` and follow that recipe —
+   the user's accepted bullet becomes the rule description input.
+
+7. **Ask before marking onboarding complete.** When the user signals
+   they're done (they've materialized everything they want, or
+   they've said "that's enough for now"), explicitly ask: "Do you
+   want me to mark Taskless as onboarded? You won't be re-asked to
+   onboard until you pass `--force`." On explicit yes — and only
+   on explicit yes — run:
+
+   ```
+   npx @taskless/cli onboard --mark-complete
+   ```
+
+   Do NOT mark onboarding complete on your own initiative. Do NOT
+   run `--mark-complete` if the user is ambiguous, says "maybe
+   later", or simply stops responding. The flag is consent-gated.
+
+## Errors
+
+| code                | meaning                                       | fix                                  |
+|---------------------|-----------------------------------------------|--------------------------------------|
+| `ALREADY_ONBOARDED` | `install.onboarded` is true and no `--force`  | suggest `--force` or skip onboarding |
+
+## See Also
+
+- `taskless help rule create` — materialize an accepted bullet into a real rule
+- `taskless help check` — validate newly created rules against the codebase
+- `taskless help info` — inspect the current `.taskless/taskless.json` state

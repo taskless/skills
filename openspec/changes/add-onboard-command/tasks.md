@@ -6,10 +6,10 @@
 
 ## 2. Onboard recipe content
 
-- [ ] 2.1 Create `packages/cli/src/help/onboard.txt` following the canonical recipe template (`# Topic: onboard (CLI v{{CLI_VERSION}} / topic v1)`, `## Goal`, `## Preconditions`, `## Steps`, `## Errors`, `## See Also`)
-- [ ] 2.2 In `## Steps`, document the conversational flow: read manifest, present source menu (TODOs/FIXMEs, agent-memory files, PR comments via `gh`, issue tracker via MCP), invite user-suggested sources, probe tool availability, scan with high-signal filtering, output bullet list of `<kebab-name>: <description>`, offer `/tskl create rule` per item, ask for confirmation before `--mark-complete`
-- [ ] 2.3 Reference `taskless help rule create` in `## See Also`
-- [ ] 2.4 Confirm `import.meta.glob` picks up `onboard.txt` automatically (no glob pattern change expected; verify by inspecting the embedded map at runtime)
+- [x] 2.1 Create `packages/cli/src/help/onboard.txt` following the canonical recipe template (`# Topic: onboard (CLI v{{CLI_VERSION}} / topic v1)`, `## Goal`, `## Preconditions`, `## Steps`, `## Errors`, `## See Also`)
+- [x] 2.2 In `## Steps`, document the conversational flow: read manifest, present source menu (TODOs/FIXMEs, agent-memory files, PR comments via `gh`, issue tracker via MCP), invite user-suggested sources, probe tool availability, scan with high-signal filtering, output bullet list of `<kebab-name>: <description>`, offer `/tskl create rule` per item, ask for confirmation before `--mark-complete`
+- [x] 2.3 Reference `taskless help rule create` in `## See Also`
+- [x] 2.4 Confirm `import.meta.glob` picks up `onboard.txt` automatically (no glob pattern change expected; verify by inspecting the embedded map at runtime)
 
 ## 3. CLI subcommand
 
