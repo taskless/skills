@@ -1,5 +1,6 @@
 import { intro, outro, cancel, log } from "@clack/prompts";
 
+import { getOnboardTrailer } from "../commands/onboard";
 import { ensureTasklessDirectory } from "../filesystem/directory";
 import {
   applyInstallPlan,
@@ -120,6 +121,8 @@ export async function runWizard(
     );
 
     outro("Taskless is ready to go.");
+    const commandsInstalled = planTargets.some((t) => t.commands.length > 0);
+    console.log(getOnboardTrailer({ commandsInstalled }));
     return finish({ status: "completed" });
   } catch (error) {
     if (error instanceof WizardCancelled) {

@@ -36,10 +36,11 @@
 
 ## 5. Init trailer
 
-- [ ] 5.1 Add a one-line onboarding trailer to the wizard's success path (after the install summary, before exit) in `packages/cli/src/wizard/`
-- [ ] 5.2 Add the same trailer to the `--no-interactive` success path in `packages/cli/src/commands/init.ts`
-- [ ] 5.3 Suppress the trailer when init exits non-zero or the install was a no-op
-- [ ] 5.4 Verify the trailer is printed regardless of the value of `install.onboarded`
+- [x] 5.1 Add a one-line onboarding trailer to the wizard's success path (after the install summary, before exit) in `packages/cli/src/wizard/`
+- [x] 5.2 Add the same trailer to the `--no-interactive` success path in `packages/cli/src/commands/init.ts`
+- [x] 5.3 Suppress the trailer when init exits non-zero or the install was a no-op
+- [x] 5.4 Verify the trailer is printed regardless of the value of `install.onboarded`
+- [x] 5.5 Branch the trailer wording on whether the install plan included commands: `/tskl onboard` form when at least one target received commands (Claude Code or Cursor); skill-via-natural-language form when no target received commands (OpenCode, Codex, `.agents/` fallback). Thread the flag through `runNonInteractive`'s return type and via `planTargets` in the wizard.
 
 ## 6. Skill description and body
 
