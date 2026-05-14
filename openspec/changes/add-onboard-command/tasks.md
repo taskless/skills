@@ -52,14 +52,15 @@
 
 ## 7. Tests
 
-- [ ] 7.1 Unit test: `taskless onboard` with no manifest bootstraps `.taskless/` and prints the recipe
-- [ ] 7.2 Unit test: `taskless onboard` with `install.onboarded: true` prints the gate notice and exits 0 without printing recipe
-- [ ] 7.3 Unit test: `taskless onboard --force` with `install.onboarded: true` prints the recipe and exits 0
-- [ ] 7.4 Unit test: `taskless onboard --mark-complete` writes `install.onboarded: true` and preserves other manifest fields (including unknown top-level fields)
-- [ ] 7.5 Unit test: `taskless onboard --mark-complete` is idempotent (running twice leaves the file in the same state)
-- [ ] 7.6 Unit test: `taskless onboard --force --mark-complete` exits 1 with an error message
-- [ ] 7.7 Unit test: `taskless help onboard` returns the same content as `taskless onboard --force` (recipe path)
-- [ ] 7.8 Integration test or snapshot: init success paths include the onboarding trailer; cancelled and failed paths do not
+- [x] 7.1 Unit test: `taskless onboard` with no manifest bootstraps `.taskless/` and prints the recipe
+- [x] 7.2 Unit test: `taskless onboard` with `install.onboarded: true` prints the gate notice and exits 0 without printing recipe
+- [x] 7.3 Unit test: `taskless onboard --force` with `install.onboarded: true` prints the recipe and exits 0
+- [x] 7.4 Unit test: `taskless onboard --mark-complete` writes `install.onboarded: true` and preserves other manifest fields (including unknown top-level fields)
+- [x] 7.5 Unit test: `taskless onboard --mark-complete` is idempotent (running twice leaves the file in the same state)
+- [x] 7.6 Unit test: `taskless onboard --force --mark-complete` exits 1 with an error message
+- [x] 7.7 Unit test: `taskless help onboard` returns the same content as `taskless onboard --force` (recipe path)
+- [x] 7.8 Integration test or snapshot: init success paths include the onboarding trailer; cancelled and failed paths do not
+- [x] 7.9 Update existing help-extensions tests to assert the new `%(KEY)s` sprintf-js syntax (and add a `%(PACKAGE_MANAGER_DLX)s` → `<package-manager-dlx>` rendering test)
 
 ## 8. Documentation and release prep
 
