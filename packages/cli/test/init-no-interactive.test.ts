@@ -191,4 +191,34 @@ describe("taskless init --no-interactive", () => {
     expect(stdout).not.toMatch(/Next:.*onboard/);
     expect(stdout).not.toContain("/tskl onboard");
   });
+
+  it("prints the trailer (and preserves install.onboarded) when re-running init on top of onboarded:true", async () => {
+    // Re-install on top of an existing onboarded:true manifest. The trailer
+    // is informational, not gated on the manifest state, so it MUST still
+    // print. install.onboarded MUST survive the re-install (writeInstallState
+    // preserves it explicitly so init never silently wipes onboarding).
+    await mkdir(join(cwd, ".claude"), { recursive: true });
+    await mkdir(join(cwd, ".taskless"), { recursive: true });
+    const { writeFile } = await import("node:fs/promises");
+    await writeFile(
+      join(cwd, ".taskless", "taskless.json"),
+      JSON.stringify({ version: 2, install: { onboarded: true } }),
+      "utf8"
+    );
+
+    const { stdout } = await execFileAsync("node", [
+      binPath,
+      "init",
+      "--no-interactive",
+      "-d",
+      cwd,
+    ]);
+
+    expect(stdout).toMatch(/Next:.*onboard/);
+
+    const manifest = JSON.parse(
+      await readFile(join(cwd, ".taskless", "taskless.json"), "utf8")
+    ) as { install?: { onboarded?: boolean } };
+    expect(manifest.install?.onboarded).toBe(true);
+  });
 });
