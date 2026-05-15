@@ -54,6 +54,38 @@ selected. Upgrading from v0.6 automatically removes the obsolete per-task
 skills and commands during this diff. Cancelling the wizard at any step
 (Ctrl-C) aborts cleanly with no filesystem changes.
 
+### `taskless onboard`
+
+Post-install discovery flow that helps a fresh user go from zero rules to a
+useful starter set. Run it after `taskless init`. The CLI prints an
+agent-facing recipe that walks the host AI tool through scanning the
+codebase, agent-memory files (CLAUDE.md / AGENTS.md / .cursorrules),
+recent PR review comments (when `gh` is available), and issue tracker
+tickets (when a relevant MCP is wired in) for high-signal rule
+candidates, then surfaces them as a bullet list the user can choose to
+materialize via `taskless rule create`.
+
+```bash
+taskless onboard                  # print the recipe (refused if already complete)
+taskless onboard --force          # re-run even when previously marked complete
+taskless onboard --mark-complete  # record completion in .taskless/taskless.json
+                                  # (invoked by the agent after explicit user
+                                  # confirmation; never automatically)
+```
+
+Onboarding state lives in `.taskless/taskless.json` as
+`install.onboarded` — a 3-state optional field (absent / `false` / `true`).
+Only the agent writes it, and only with the user's explicit confirmation.
+`taskless init` does not set it. Pass `--force` to re-run regardless of the
+current value.
+
+After a successful `taskless init`, the CLI prints a one-line trailer
+pointing the user at this command. The trailer wording adapts to the
+install plan: when the install included slash commands (Claude Code or
+Cursor), it mentions `/tskl onboard` along with the Taskless skill and the
+bare CLI; when the install only wrote skills (OpenCode, Codex, the
+`.agents/` fallback), it mentions the skill and the bare CLI only.
+
 ### `taskless check`
 
 Run ast-grep rules from `.taskless/rules/` against the codebase. Exits with code 1 if any error-severity matches are found.

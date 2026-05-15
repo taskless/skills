@@ -64,6 +64,6 @@
 
 ## 8. Documentation and release prep
 
-- [ ] 8.1 Add a CHANGELOG entry under the appropriate next-version heading describing the new `onboard` command, the `onboarded` manifest field, the init trailer, and the skill trigger expansion
-- [ ] 8.2 Update `packages/cli/README.md` (if it documents subcommands) to include `taskless onboard`
-- [ ] 8.3 Run `pnpm typecheck` and `pnpm lint` and resolve any issues
+- [x] 8.1 Add a CHANGELOG entry under the appropriate next-version heading describing the new `onboard` command, the `onboarded` manifest field, the init trailer, and the skill trigger expansion (added as a changeset at `.changeset/onboard-command.md`; release tooling rolls it into the next `@taskless/cli` minor)
+- [x] 8.2 Update `packages/cli/README.md` (if it documents subcommands) to include `taskless onboard`
+- [x] 8.3 Run `pnpm typecheck` and `pnpm lint` and resolve any issues
