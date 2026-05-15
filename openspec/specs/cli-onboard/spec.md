@@ -2,7 +2,14 @@
 
 ## Purpose
 
-TBD - created by archiving change add-onboard-command. Update Purpose after archive.
+Defines the `taskless onboard` subcommand: the post-install discovery flow that helps a fresh user go from zero rules to a useful starter set. Unlike `taskless init` (which is fast, deterministic, and gets the user _installed_), `onboard` delivers a conversational agent recipe that mines the codebase, agent-memory files, and (when available) PR review comments and issue tracker tickets for high-signal rule candidates, then surfaces them as a bullet list the user materializes via `taskless rule create`.
+
+This capability covers:
+
+- **Subcommand surface**: three modes via flag combinations — default prints the recipe (refused when already complete), `--force` re-runs regardless of state, `--mark-complete` writes `install.onboarded: true`. `--force` and `--mark-complete` are mutually exclusive.
+- **Manifest gating and writes**: the optional 3-state `install.onboarded` field on `.taskless/taskless.json` (absent / `false` / `true`) is the single source of truth for whether onboarding is complete. Only this subcommand writes the field, and only via `--mark-complete`. The agent invokes `--mark-complete` only after explicit user confirmation per the recipe.
+- **Recipe embedding**: the recipe lives at `packages/cli/src/help/onboard.txt`, embedded into the CLI bundle at build time and rendered via the same sprintf-js path the help command uses (`taskless help onboard` returns the same content as `taskless onboard --force`).
+- **Telemetry**: emits `cli_onboard_recipe` (with a `forced` property), `cli_onboard_already_done`, and `cli_onboard_marked_complete` PostHog events on the appropriate code paths.
 
 ## Requirements
 
