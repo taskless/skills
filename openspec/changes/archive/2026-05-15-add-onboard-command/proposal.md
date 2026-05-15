@@ -31,4 +31,4 @@ First-time users who install Taskless don't know what it can do or what kinds of
 - **Schema**: `.taskless/taskless.json` schema gains an optional `onboarded` field. The bootstrap install does not set it; only the agent writes it.
 - **Skills surface**: The skill description's trigger language widens. This is an intentional reversal of a prior deliberate narrowing. Risk: agents may volunteer Taskless on requests where the user did not want it. Mitigation: quiet single-line suggestion + named-tool suppression + in-conversation sticky decline.
 - **External tooling assumptions**: The recipe assumes (but does not require) `gh` CLI for PR scanning and Linear/Jira/etc. MCP servers for issue scanning. The recipe degrades gracefully when these are absent and asks the user to suggest other sources.
-- **No new runtime dependencies.**
+- **Runtime dependencies**: adds `sprintf-js` to `@taskless/cli` (and `@types/sprintf-js` as a dev dependency) for the recipe-substitution refactor. No other new dependencies.

@@ -85,11 +85,12 @@ export async function writeInstallState(
 ): Promise<void> {
   const tasklessDirectory = join(cwd, TASKLESS_DIR);
   const { manifest, raw } = await readManifest(tasklessDirectory);
-  const previousOnboarded = manifest.install?.onboarded;
-  manifest.install = toInstallManifest(state);
-  if (previousOnboarded !== undefined) {
-    manifest.install.onboarded = previousOnboarded;
-  }
+  // Shallow-merge so any sibling fields under `install` that don't round-trip
+  // through `InstallState` (e.g. `onboarded`, or future opt-in flags) survive
+  // re-installs. Newly-computed fields from `toInstallManifest(state)` win
+  // over previous values for the same key.
+  const previousInstall = manifest.install ?? {};
+  manifest.install = { ...previousInstall, ...toInstallManifest(state) };
   await writeManifest(tasklessDirectory, manifest, raw);
 }
 

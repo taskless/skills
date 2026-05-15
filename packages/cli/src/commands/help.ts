@@ -50,7 +50,7 @@ function buildHelpMaps(): {
 
 const { helpMap, anonymousMap } = buildHelpMaps();
 
-// Topic → Zod input schema. When a recipe contains the {{INPUT_SCHEMA}}
+// Topic → Zod input schema. When a recipe contains the %(INPUT_SCHEMA)s
 // placeholder, the help command substitutes the JSON Schema rendered
 // from this Zod source.
 const TOPIC_INPUT_SCHEMAS: Record<string, z.ZodType> = {
