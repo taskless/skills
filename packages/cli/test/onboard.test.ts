@@ -80,6 +80,23 @@ describe("taskless onboard", () => {
     expect(stdout).not.toContain("# Topic: onboard");
   });
 
+  it("treats install.onboarded:false as not-onboarded and prints the recipe", async () => {
+    // The 3-state semantics treat absent and false equivalently for gating
+    // purposes; only true gates the recipe behind --force.
+    await mkdir(join(cwd, ".taskless"), { recursive: true });
+    await writeFile(
+      join(cwd, ".taskless", "taskless.json"),
+      JSON.stringify({ version: 2, install: { onboarded: false } }),
+      "utf8"
+    );
+
+    const { stdout, exitCode } = await runCli(["onboard", "-d", cwd], cwd);
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("# Topic: onboard");
+    expect(stdout).not.toContain("already marked complete");
+  });
+
   it("--force prints the recipe even when onboarded:true", async () => {
     await mkdir(join(cwd, ".taskless"), { recursive: true });
     await writeFile(
