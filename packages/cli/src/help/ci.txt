@@ -124,9 +124,9 @@ jobs:
 
       - name: Taskless check
         run: |
-          if [ "${{ '{{ github.event_name }}' }}" = "pull_request" ]; then
-            git fetch origin "${{ '{{ github.base_ref }}' }}" --depth=1
-            FILES=$(git diff --name-only "origin/${{ '{{ github.base_ref }}' }}...HEAD")
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch origin "${{ github.base_ref }}" --depth=1
+            FILES=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
             if [ -z "$FILES" ]; then
               echo "No changed files."
               exit 0
