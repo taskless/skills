@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   buildCommandStub,
   buildSkillStub,
+  isShimStub,
   stubFrontmatterDrifted,
   writeCanonicalCommand,
   writeCanonicalSkill,
@@ -71,6 +72,7 @@ describe("buildSkillStub", () => {
     const { data, content } = parseFrontmatter(stub);
     expect(data.name).toBe("taskless");
     expect(data.description).toBe("Use for any Taskless task.");
+    expect((data.metadata as { type?: string }).type).toBe("shim");
 
     expect(content).toContain(".taskless/skills/taskless/SKILL.md");
     expect(content.toLowerCase()).toContain("read");
@@ -127,6 +129,31 @@ describe("buildCommandStub", () => {
     );
     const { data } = parseFrontmatter(stub);
     expect(data["argument-hint"]).toBeUndefined();
+  });
+});
+
+describe("isShimStub", () => {
+  it("returns true for a generated skill stub", () => {
+    expect(
+      isShimStub(buildSkillStub({ name: "taskless", description: "d" }))
+    ).toBe(true);
+  });
+
+  it("returns true for a generated command stub", () => {
+    expect(
+      isShimStub(
+        buildCommandStub({ name: "Taskless", description: "d" }, "tskl.md")
+      )
+    ).toBe(true);
+  });
+
+  it("returns false for a full canonical skill copy", () => {
+    // skillSource has no metadata.type — it is a full copy, not a stub.
+    expect(isShimStub(skillSource)).toBe(false);
+  });
+
+  it("returns false for content without frontmatter", () => {
+    expect(isShimStub("# just a heading\n")).toBe(false);
   });
 });
 

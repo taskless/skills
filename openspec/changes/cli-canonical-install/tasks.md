@@ -32,20 +32,20 @@
 - [x] 4.5 Ensure no code path creates a symlink for skills or commands
 - [x] 4.6 Persist per-target `mode` into `taskless.json` on write
 
-## 5. Migration: converge existing installs
+## 5. Convergence: self-healing applyInstallPlan
 
-- [ ] 5.1 Add a new `.taskless/` migration in `filesystem/migrations/` that seeds the canonical `.taskless/skills/`/`.taskless/commands/` store
-- [ ] 5.2 In the migration, convert existing full per-tool skill/command copies recorded in the prior manifest into reference stubs
-- [ ] 5.3 In the migration, replace any symlinked tool entry (e.g. `.claude/skills/<name>`) with a real reference stub (do not write through the symlink)
-- [ ] 5.4 Rewrite `taskless.json` install state with per-target `mode` during the migration (`.taskless` canonical, tool dirs reference)
-- [ ] 5.5 Unit test: a recorded multi-copy install converges to canonical + stubs; a symlinked tool entry becomes a real stub
+- [x] 5.1 Mark reference stubs with frontmatter `metadata.type: shim`; add an `isShimStub` helper
+- [x] 5.2 In `applyInstallPlan`, rewrite a reference file unless it is a current, non-drifted shim stub — converging full copies, symlinks, and drifted stubs on the next init/update
+- [x] 5.3 Unit test: a full per-tool copy is converted to a shim stub on apply
+- [x] 5.4 Unit test: a symlinked tool entry is replaced with a real shim stub
+- [x] 5.5 Unit test: migration version matrix — seed `.taskless/` at v0/v1/v2 and assert each forward-migrates to the latest schema
 
 ## 6. Update behavior
 
-- [ ] 6.1 Verify `taskless update` rewrites canonical `.taskless/` content and leaves reference stubs intact
-- [ ] 6.2 Verify update reports the converged layout (full-copy-to-stub and symlink conversions) in the install summary
-- [ ] 6.3 Unit test: update against a stub install does not clobber the stub
-- [ ] 6.4 Unit test: update never deletes the canonical store while cleaning another target
+- [x] 6.1 Verify `taskless update` rewrites canonical `.taskless/` content and leaves reference stubs intact
+- [x] 6.2 Verify update reports written and converted files per target in the install summary
+- [x] 6.3 Unit test: update against a stub install does not clobber the stub
+- [x] 6.4 Unit test: update never deletes the canonical store while cleaning another target
 
 ## 7. Verification and docs
 

@@ -24,7 +24,7 @@ The `.taskless/` canonical store SHALL NOT be a tool install target: no tool's d
 
 ### Requirement: Selected tool directories receive reference stubs
 
-For every selected tool directory, the CLI SHALL write a **reference stub** rather than a full copy. Each selected directory receives its own stub — `.claude/`, `.cursor/`, `.opencode/`, and `.agents/` are peer targets, and no directory is special-cased or routed onto another. A stub SHALL be an ordinary file (never a symlink). A skill stub SHALL contain valid YAML frontmatter with `name` and `description` copied from the canonical skill so the tool can discover and trigger it; its body SHALL instruct the agent to read the canonical file (`.taskless/skills/<name>/SKILL.md` for skills, `.taskless/commands/tskl/<name>.md` for commands) and follow it, and SHALL NOT duplicate the canonical content inline. Every stub SHALL point directly at a canonical file, never at another stub.
+For every selected tool directory, the CLI SHALL write a **reference stub** rather than a full copy. Each selected directory receives its own stub — `.claude/`, `.cursor/`, `.opencode/`, and `.agents/` are peer targets, and no directory is special-cased or routed onto another. A stub SHALL be an ordinary file (never a symlink). A skill stub SHALL contain valid YAML frontmatter with `name` and `description` copied from the canonical skill so the tool can discover and trigger it, plus a `metadata.type: shim` marker that identifies the file as a reference stub. Its body SHALL instruct the agent to read the canonical file (`.taskless/skills/<name>/SKILL.md` for skills, `.taskless/commands/tskl/<name>.md` for commands) and follow it, and SHALL NOT duplicate the canonical content inline. Every stub SHALL point directly at a canonical file, never at another stub.
 
 The CLI SHALL NOT create symlinks for any tool, for skills or commands.
 
@@ -39,6 +39,7 @@ The per-directory stub layout is:
 
 - **WHEN** the CLI writes a skill stub for a selected directory
 - **THEN** the stub SHALL be a regular file with frontmatter `name` and `description` matching the canonical skill
+- **AND** the stub frontmatter SHALL include `metadata.type: shim`
 - **AND** its body SHALL delegate to `.taskless/skills/<name>/SKILL.md` without inlining the canonical instructions
 
 #### Scenario: Each selected directory gets its own stub
@@ -92,7 +93,7 @@ Update SHALL NOT delete or `rm -rf` the canonical `.taskless/` store, nor any di
 
 ### Requirement: Existing installs converge to the canonical-plus-stub layout
 
-When a prior install recorded full skill or command copies in tool directories, or recorded a tool entry that exists on disk as a symlink, `taskless update` SHALL converge the repository onto the canonical-plus-stub layout: the canonical `.taskless/` store SHALL be seeded; each existing full per-tool copy SHALL be converted into a reference stub; any symlinked tool entry SHALL be replaced with a real stub file; and each target's `mode` SHALL be stamped (`.taskless` → `canonical`, tool directories → `reference`). Conversion SHALL be driven by recorded manifest state and SHALL be reported in the install summary.
+When a prior install left a full skill or command copy in a tool directory, or left a tool entry that exists on disk as a symlink, `taskless init`/`update` SHALL converge the repository onto the canonical-plus-stub layout with no separate migration step. `applyInstallPlan` SHALL seed the canonical `.taskless/` store and, for each `reference` target, SHALL rewrite the file unless it is already a current, non-drifted shim stub (a file carrying the `metadata.type: shim` marker with matching `name`/`description`). A full copy lacks the marker and a symlink is detected by `lstat`, so each is rewritten as a real stub. Convergence SHALL be reported in the install summary.
 
 #### Scenario: A full per-tool copy is converted to a stub
 

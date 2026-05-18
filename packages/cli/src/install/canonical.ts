@@ -70,8 +70,15 @@ export async function writeCanonicalCommand(
   return path;
 }
 
-/** Serialize ordered string fields into a `---`-delimited frontmatter block. */
-function frontmatterBlock(fields: Record<string, string>): string {
+/**
+ * Frontmatter `metadata` block stamped onto every stub. `type: shim` marks the
+ * file as a reference stub so it is distinguishable from a full copy without
+ * inspecting the body — see {@link isShimStub}.
+ */
+const SHIM_METADATA = { type: "shim" } as const;
+
+/** Serialize ordered frontmatter fields into a `---`-delimited block. */
+function frontmatterBlock(fields: Record<string, unknown>): string {
   const yaml = stringify(fields).trimEnd();
   return `---\n${yaml}\n---\n`;
 }
@@ -84,7 +91,11 @@ function frontmatterBlock(fields: Record<string, string>): string {
 export function buildSkillStub(meta: StubFrontmatter): string {
   const canonical = canonicalSkillPath(meta.name);
   return (
-    frontmatterBlock({ name: meta.name, description: meta.description }) +
+    frontmatterBlock({
+      name: meta.name,
+      description: meta.description,
+      metadata: SHIM_METADATA,
+    }) +
     "\n" +
     `This is a Taskless reference stub. The canonical skill is defined at ` +
     `\`${canonical}\`.\n\n` +
@@ -102,11 +113,12 @@ export function buildCommandStub(
   filename: string
 ): string {
   const canonical = canonicalCommandPath(filename);
-  const fields: Record<string, string> = {
+  const fields: Record<string, unknown> = {
     name: meta.name,
     description: meta.description,
   };
   if (meta.argumentHint) fields["argument-hint"] = meta.argumentHint;
+  fields.metadata = SHIM_METADATA;
   return (
     frontmatterBlock(fields) +
     "\n" +
@@ -129,4 +141,19 @@ export function stubFrontmatterDrifted(
 ): boolean {
   const { data } = parseFrontmatter(existingStub);
   return data.name !== meta.name || data.description !== meta.description;
+}
+
+/**
+ * Whether `content` is a Taskless reference stub, identified by its
+ * frontmatter `metadata.type === "shim"`. A full canonical copy lacks this
+ * marker, so install can tell a stub apart from a copy it must convert.
+ */
+export function isShimStub(content: string): boolean {
+  const { data } = parseFrontmatter(content);
+  const metadata = data.metadata;
+  return (
+    typeof metadata === "object" &&
+    metadata !== null &&
+    (metadata as Record<string, unknown>).type === "shim"
+  );
 }

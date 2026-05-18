@@ -62,24 +62,28 @@ The install state (`install/state.ts`) records a per-target `mode`. The `.taskle
 
 The wizard's location step is reframed from "where should skills be installed?" to "which tools do you want to enable Taskless for?" — a fixed multiselect of `.claude/`, `.cursor/`, `.opencode/`, `.agents/`, with detected entries pre-checked and `.agents/` the default when nothing is detected. The canonical `.taskless/` store is not a selectable entry: it is always written and always maintained, independent of the selection. Each checked entry produces one `reference` stub target; the unchecked entries produce nothing.
 
-### Decision: Cleanup is manifest-driven; existing installs converge via migration
+### Decision: Cleanup is manifest-driven; convergence is self-healing, not a migration
 
-The destructive `rm -rf` glob in `removeOwnedSkills` is removed. Cleanup operates solely on the recorded-manifest diff (`computeInstallDiff`): only paths a prior manifest recorded are removed, respecting each entry's `mode`. A new `.taskless/` migration (`filesystem/migrations/`) seeds the canonical `.taskless/` store, converts existing full per-tool copies into stubs, replaces any symlinked tool entry with a real stub, and rewrites `taskless.json` with per-target `mode`. Converting a full copy to a stub is explicit migration work — a leftover full `SKILL.md` whose `name`/`description` still match canonical would otherwise read as drift-free and never be regenerated. The bootstrap system already runs migrations on the next `update`.
+The destructive `rm -rf` glob in `removeOwnedSkills` is removed. Cleanup operates solely on the recorded-manifest diff (`computeInstallDiff`): only paths a prior manifest recorded are removed, respecting each entry's `mode`.
+
+Converging an existing install onto the canonical-plus-stub layout is **not** done with a `.taskless/` migration. Two reasons: a migration that needs embedded content and the tool catalog would import `install/install.ts`, forming an import cycle through `state.ts` → `migrate.ts`; and migrations run on _every_ `ensureTasklessDirectory` call, including `taskless check`, so a convergence migration would write skill files into a repo during an unrelated command.
+
+Instead, `applyInstallPlan` is **self-healing**. Every stub carries a frontmatter marker — `metadata.type: shim` (see `isShimStub`) — so a stub is distinguishable from a full copy without inspecting the body. When writing a `reference` target, `applyInstallPlan` rewrites the file unless it is already a current, non-drifted shim stub. That single rule converges every stale shape: a missing file, a full copy left by an older install, a symlink, or a drifted stub — all on the next `init`/`update`, with no migration. A legacy manifest with no `mode` still reads as `canonical`, so the manifest change needs no migration either.
 
 ## Risks / Trade-offs
 
 - **A stub per tool rather than a shared one** → The uniform model writes one stub into each selected tool directory instead of routing several tools onto a shared `.agents/` stub. Each stub is featherweight (~6 lines) and content is single-sourced, so drift is unaffected; the trade buys a uniform, routing-free model.
 - **Stub `description` drift from canonical** → If the canonical `description` changes, stubs go stale. Mitigation: `update` regenerates a stub _as a stub_ when frontmatter drifts — refreshing `name`/`description` only, never writing full body content.
 - **Double discovery** → A tool that reads more than one of the selected directories (e.g. a tool reading both `.agents/` and its own dir) sees two stubs for the same skill. Both resolve to the same canonical file, so behavior is identical; worst case is a duplicate listing. Acceptable.
-- **A consumer manually symlinked things** (the customer's current state) → The migration detects a symlinked tool entry and replaces it with a real stub file rather than writing through the link.
-- **A leftover full copy reads as drift-free** → An old per-tool full `SKILL.md` has `name`/`description` matching canonical, so the drift check alone would never regenerate it. Mitigation: the migration converts full copies to stubs explicitly, rather than relying on `update`'s drift check.
+- **A consumer manually symlinked things** (the customer's current state) → `applyInstallPlan` `lstat`s each reference path; a symlink is always replaced with a real stub file rather than written through.
+- **A leftover full copy reads as drift-free** → An old per-tool full `SKILL.md` has `name`/`description` matching canonical, so a `name`/`description` drift check alone would never regenerate it. Mitigation: the `metadata.type: shim` marker — a full copy lacks it, so `applyInstallPlan` treats any non-shim file as something to convert.
 
 ## Migration Plan
 
 1. Ship the new install model as the default `init`/`update` behavior (no flag).
-2. Add a `.taskless/` migration that: writes the canonical `.taskless/skills/` and `.taskless/commands/` store; converts existing full per-tool copies recorded in the prior manifest into stubs; replaces any symlinked tool entry with a real reference stub; and rewrites `taskless.json` install state with per-target `mode`.
-3. On a user's next `taskless update`, the bootstrap migration runner applies step 2; the install summary reports the converged layout.
-4. Rollback: the manifest change is additive (legacy entries read as `canonical`). Reverting the CLI leaves a valid `.taskless/` store; an older CLI would re-create per-tool full copies, which is the prior behavior — no corruption.
+2. No `.taskless/` schema migration is added. The manifest's new `mode` field is additive and backward-compatible (absent → `canonical`).
+3. On a user's next `taskless init`/`update`, `applyInstallPlan` self-heals: it seeds the canonical store and rewrites every reference file that is not a current shim stub (full copies, symlinks, drifted stubs).
+4. Rollback: reverting the CLI leaves a valid `.taskless/` store; an older CLI would re-create per-tool full copies, which is the prior behavior — no corruption.
 
 ## Open Questions
 
