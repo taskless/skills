@@ -6,13 +6,14 @@ The fix is to give canonical content its own home that no tool ever installs int
 
 ## What Changes
 
-- Canonical skill content moves to `.taskless/skills/<name>/SKILL.md`; canonical command content to `.taskless/commands/tskl/<name>.md`. Written **once**, in Taskless's owned namespace — no tool target ever cleans it up.
-- Every tool location receives a thin **reference stub**: an ordinary file with valid frontmatter and a body that delegates to the canonical file. No symlinks anywhere (symlink discovery is broken/unreliable across Cursor, OpenCode, Codex and fragile on Windows checkout).
-- `.agents/skills/<name>/SKILL.md` is a stub — it serves OpenCode, Cursor, and Codex, which read `.agents/skills/` natively. `.claude/skills/<name>/SKILL.md` is a stub for Claude Code. Command stubs go to `.claude/commands/tskl/` and `.cursor/commands/tskl/`.
-- **BREAKING**: Drop the separate `.cursor/skills/` and `.opencode/skills/` skill-install targets — Cursor and OpenCode read `.agents/skills/` natively, so those copies are removed, not written.
-- The install manifest (`.taskless/taskless.json`) gains a per-target **mode**: `canonical` (`.taskless/`) vs `reference` (every tool location). `update` rewrites canonical content only, creates stubs only when missing, and **never** overwrites a stub with full content.
+- Canonical skill content moves to `.taskless/skills/<name>/SKILL.md`; canonical command content to `.taskless/commands/tskl/<name>.md`. Written **once** and always maintained, in Taskless's owned namespace — no tool target ever cleans it up.
+- Every selected tool directory receives its own thin **reference stub**: an ordinary file with valid frontmatter and a body that delegates to the canonical file. No symlinks anywhere (symlink discovery is broken/unreliable across Cursor, OpenCode, Codex and fragile on Windows checkout).
+- Stubs are uniform: `.claude/`, `.cursor/`, `.opencode/`, and `.agents/` are peer targets. Each selected one gets a skill stub; `.claude/` and `.cursor/` additionally get a command stub. `.agents/` is an ordinary selectable target, not a special shared location.
+- Per-tool full skill copies are replaced by per-tool stubs. No target is dropped — the installed file shape changes from a full `SKILL.md` to a delegating stub, which is what kills the N-identical-copies drift.
+- The install manifest (`.taskless/taskless.json`) gains a per-target **mode**: `canonical` (`.taskless/`) vs `reference` (each tool directory). `update` rewrites canonical content only, regenerates a stub only when its frontmatter has drifted, and **never** overwrites a stub with full content.
+- The interactive wizard reframes its location step as "which tools do you want to enable Taskless for?" — a fixed multiselect of `.claude/.cursor/.opencode/.agents`, detected entries pre-checked.
 - Cleanup becomes strictly manifest-driven — no `rm -rf` of a path another target sources from.
-- A `.taskless/` migration converges existing installs (removes obsolete full copies, replaces any symlinked tool entries with real stubs, writes the canonical store).
+- A `.taskless/` migration converges existing installs: seeds the canonical store, converts existing full per-tool copies into stubs, replaces any symlinked tool entry with a real stub, and stamps per-target modes.
 
 ## Capabilities
 
@@ -22,13 +23,13 @@ The fix is to give canonical content its own home that no tool ever installs int
 
 ### Modified Capabilities
 
-- `cli-init`: The install/update model changes from per-tool full copies to a single canonical `.taskless/` store plus mode-aware reference stubs in every tool location. Canonical content location, the stub model, the manifest schema (per-target `mode`), update behavior (rewrite canonical only, preserve stubs), removal of the `.cursor`/`.opencode` skill copy targets, and extension of the model to commands are all requirement-level changes.
+- `cli-init`: The install/update model changes from per-tool full copies to a single canonical `.taskless/` store plus mode-aware reference stubs in each selected tool directory. Canonical content location, the uniform stub model, the manifest schema (per-target `mode`), update behavior (rewrite canonical only, preserve stubs), the wizard's reframed tool-selection step, and extension of the model to commands are all requirement-level changes.
 
 ## Impact
 
-- **Code**: `packages/cli/src/install/install.ts` (canonical store + stub writes, `installForTool`/`applyInstallPlan`, removal of `rm -rf` glob cleanup), `install/catalog.ts` / `TOOLS[]` (drop `.cursor`/`.opencode` skill targets), `install/state.ts` (manifest `mode` field), `install/frontmatter.ts` (stub generation).
+- **Code**: `packages/cli/src/install/install.ts` (canonical store + stub writes, the install-plan model, `applyInstallPlan`, removal of `rm -rf` glob cleanup), `install/canonical.ts` (canonical write + stub helpers), `install/state.ts` (manifest `mode` field), `commands/init.ts` + `wizard/` (plan construction, reframed tool-selection step, summary).
 - **Filesystem**: new `.taskless/skills/` and `.taskless/commands/` canonical directories; `.taskless/README.md` "Files" section updated.
-- **Migration**: a new `.taskless/` migration removes obsolete `.cursor/skills/`/`.opencode/skills/` copies, replaces symlinked tool entries with real stubs, and seeds per-target `mode` (`filesystem/migrations/`).
+- **Migration**: a new `.taskless/` migration seeds the canonical store, converts full per-tool copies into stubs, replaces symlinked tool entries with real stubs, and stamps per-target `mode` (`filesystem/migrations/`).
 - **Manifest**: `.taskless/taskless.json` install-state schema gains per-target `mode`.
-- **Tests**: install/update unit tests covering canonical write, stub generation, mode preservation across `update`, symlink-to-stub conversion, and obsolete-copy cleanup.
-- **Tools affected**: Claude Code (skill + command stubs), Cursor (command stub; skills via `.agents/` stub), OpenCode / Codex (skills via `.agents/` stub, no separate files).
+- **Tests**: install/update unit tests covering canonical write, stub generation, mode preservation across `update`, symlink-to-stub conversion, and full-copy-to-stub conversion.
+- **Tools affected**: Claude Code and Cursor (skill + command stubs); OpenCode and Codex/`.agents` (skill stub, no commands).

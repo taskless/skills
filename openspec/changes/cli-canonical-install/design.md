@@ -35,15 +35,16 @@ Two alternatives were considered and rejected:
 
 Putting the canonical in `.taskless/` separates "where content lives" from "where tools read it." No install target ever points its write/cleanup at `.taskless/skills/`, so the canonical-destruction bug becomes **structurally impossible** rather than something guarded against in code. `.taskless/` is collision-free (no other tool reads or writes it), and the layout is decoupled from the fate of the `.agents/` standard.
 
-### Decision: Every tool location gets a reference stub; `.agents/` included
+### Decision: Uniform per-tool stubs — every selected directory is a peer target
 
-Each tool location receives a stub — an ordinary `SKILL.md` (or command `.md`) with real `name`/`description` frontmatter (so the tool discovers and triggers it) and a body that says "read `.taskless/skills/<name>/SKILL.md` and follow it," without inlining canonical instructions.
+Each selected tool directory receives its own stub — an ordinary `SKILL.md` (or command `.md`) with real `name`/`description` frontmatter (so the tool discovers and triggers it) and a body that says "read `.taskless/skills/<name>/SKILL.md` and follow it," without inlining canonical instructions.
 
-- `.claude/skills/<name>/SKILL.md` — stub for Claude Code.
-- `.agents/skills/<name>/SKILL.md` — stub serving OpenCode, Cursor, and Codex, which read `.agents/skills/` natively. One stub covers all three; `.cursor/skills/` and `.opencode/skills/` are not written.
-- `.claude/commands/tskl/<name>.md` and `.cursor/commands/tskl/<name>.md` — command stubs.
+- `.claude/skills/<name>/SKILL.md` + `.claude/commands/tskl/<name>.md` — Claude Code.
+- `.cursor/skills/<name>/SKILL.md` + `.cursor/commands/tskl/<name>.md` — Cursor.
+- `.opencode/skills/<name>/SKILL.md` — OpenCode (no commands).
+- `.agents/skills/<name>/SKILL.md` — generic Agent Skills location, including Codex (no commands).
 
-`.agents/` holding a _stub_ rather than the real skill is mildly unidiomatic (the standard expects real content there), but the stub is itself a conformant, working skill. The upside: if/when `.agents/` is trusted enough to be canonical, "promotion" is just regenerating which file is full vs. stub — a non-event, no data migration.
+An alternative was considered and rejected: **routing** — since Cursor, OpenCode, and Codex read `.agents/skills/` natively, "enable Cursor" could be routed to a single shared `.agents/` stub and `.cursor/skills/` left unwritten. Rejected for two reasons: (a) it makes `.agents/` a special case in an otherwise uniform model, and the routing logic ("which tools collapse onto `.agents/`") is exactly the kind of cleverness that ages badly; (b) it depends on each tool's native `.agents/` discovery actually working, which the research found uneven. The uniform model treats `.agents/` as an ordinary peer: every selected directory gets exactly one stub, no routing, no special cases. The cost is one tiny stub per tool instead of a shared one — featherweight, and content is still single-sourced so drift is unaffected.
 
 Each stub points **directly** at the canonical file — never at another stub — so resolution is always a single hop.
 
@@ -57,27 +58,30 @@ _Alternative considered:_ hardlinks — rejected because `git clone` materialize
 
 The install state (`install/state.ts`) records a per-target `mode`. The `.taskless` target is `canonical`; every tool location is `reference`. `applyInstallPlan` branches on it: `canonical` gets full content written/rewritten; `reference` gets a stub generated only when absent or when frontmatter has drifted, and is **never** overwritten with full content. A legacy manifest with no `mode` defaults entries to `canonical`, preserving backward compatibility.
 
+### Decision: The wizard's location step becomes tool selection
+
+The wizard's location step is reframed from "where should skills be installed?" to "which tools do you want to enable Taskless for?" — a fixed multiselect of `.claude/`, `.cursor/`, `.opencode/`, `.agents/`, with detected entries pre-checked and `.agents/` the default when nothing is detected. The canonical `.taskless/` store is not a selectable entry: it is always written and always maintained, independent of the selection. Each checked entry produces one `reference` stub target; the unchecked entries produce nothing.
+
 ### Decision: Cleanup is manifest-driven; existing installs converge via migration
 
-The destructive `rm -rf` glob in `removeOwnedSkills` is removed. Cleanup operates solely on the recorded-manifest diff (`computeInstallDiff`): only paths a prior manifest recorded are removed, respecting each entry's `mode`. A new `.taskless/` migration (`filesystem/migrations/`) sweeps obsolete `.cursor/skills/`/`.opencode/skills/` full copies, replaces any symlinked tool entry with a real stub, seeds the canonical `.taskless/` store, and rewrites `taskless.json` with per-target `mode`. The bootstrap system already runs migrations on the next `update`.
+The destructive `rm -rf` glob in `removeOwnedSkills` is removed. Cleanup operates solely on the recorded-manifest diff (`computeInstallDiff`): only paths a prior manifest recorded are removed, respecting each entry's `mode`. A new `.taskless/` migration (`filesystem/migrations/`) seeds the canonical `.taskless/` store, converts existing full per-tool copies into stubs, replaces any symlinked tool entry with a real stub, and rewrites `taskless.json` with per-target `mode`. Converting a full copy to a stub is explicit migration work — a leftover full `SKILL.md` whose `name`/`description` still match canonical would otherwise read as drift-free and never be regenerated. The bootstrap system already runs migrations on the next `update`.
 
 ## Risks / Trade-offs
 
-- **One extra stub vs. an `.agents/`-canonical model** → The `.taskless/` model writes a stub in `.agents/` where an `.agents/`-canonical model would write the real file. One extra featherweight file; content is still single-sourced, so drift is unaffected. Worth it for the structural bug elimination.
+- **A stub per tool rather than a shared one** → The uniform model writes one stub into each selected tool directory instead of routing several tools onto a shared `.agents/` stub. Each stub is featherweight (~6 lines) and content is single-sourced, so drift is unaffected; the trade buys a uniform, routing-free model.
 - **Stub `description` drift from canonical** → If the canonical `description` changes, stubs go stale. Mitigation: `update` regenerates a stub _as a stub_ when frontmatter drifts — refreshing `name`/`description` only, never writing full body content.
-- **Double discovery** → A tool reading both `.agents/` and `.claude/` (OpenCode reads both) sees two stubs for the same skill. Both resolve to the same canonical file, so behavior is identical; worst case is a duplicate listing. Pre-existing in any multi-target model; acceptable.
+- **Double discovery** → A tool that reads more than one of the selected directories (e.g. a tool reading both `.agents/` and its own dir) sees two stubs for the same skill. Both resolve to the same canonical file, so behavior is identical; worst case is a duplicate listing. Acceptable.
 - **A consumer manually symlinked things** (the customer's current state) → The migration detects a symlinked tool entry and replaces it with a real stub file rather than writing through the link.
-- **`.agents/` standard regressing for a tool** → If a tool stops reading `.agents/`, it can be given its own stub via the same `mode: reference` mechanism — the model already generalizes to one stub per tool location.
+- **A leftover full copy reads as drift-free** → An old per-tool full `SKILL.md` has `name`/`description` matching canonical, so the drift check alone would never regenerate it. Mitigation: the migration converts full copies to stubs explicitly, rather than relying on `update`'s drift check.
 
 ## Migration Plan
 
 1. Ship the new install model as the default `init`/`update` behavior (no flag).
-2. Add a `.taskless/` migration that: writes the canonical `.taskless/skills/` and `.taskless/commands/` store; removes obsolete `.cursor/skills/`/`.opencode/skills/` full copies recorded in the prior manifest; replaces any symlinked tool entry with a real reference stub; and rewrites `taskless.json` install state with per-target `mode`.
-3. On a user's next `taskless update`, the bootstrap migration runner applies step 2; the install summary reports removed obsolete copies.
+2. Add a `.taskless/` migration that: writes the canonical `.taskless/skills/` and `.taskless/commands/` store; converts existing full per-tool copies recorded in the prior manifest into stubs; replaces any symlinked tool entry with a real reference stub; and rewrites `taskless.json` install state with per-target `mode`.
+3. On a user's next `taskless update`, the bootstrap migration runner applies step 2; the install summary reports the converged layout.
 4. Rollback: the manifest change is additive (legacy entries read as `canonical`). Reverting the CLI leaves a valid `.taskless/` store; an older CLI would re-create per-tool full copies, which is the prior behavior — no corruption.
 
 ## Open Questions
 
-- Resolved — empty `.cursor/skills/`/`.opencode/skills/` directories are left as-is. Git does not track empty directories, so once the obsolete copies are swept they disappear from commits and clones automatically; an empty dir only lingers in a local working tree. Adding code to delete it would be cosmetic-only, so the migration sweeps files and stops there.
 - Should the canonical `.taskless/skills/` store carry the staleness `metadata.version`, with stubs version-free — making staleness a single-file check? (Leaning: yes.)
 - Does the install summary need a per-tool "served by `.taskless/` canonical" line, or one canonical line plus the tool list? (Leaning: one canonical line; keep summary terse.)

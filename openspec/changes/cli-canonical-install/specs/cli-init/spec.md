@@ -2,7 +2,7 @@
 
 ### Requirement: Skill and command content is installed once to the canonical .taskless store
 
-The CLI SHALL write skill and command content exactly once per install, to a canonical store inside Taskless's owned `.taskless/` namespace: skill content to `.taskless/skills/<name>/SKILL.md` and command content to `.taskless/commands/tskl/<name>.md`. The canonical write SHALL occur on every install that contains at least one skill or command, regardless of how many tools are detected.
+The CLI SHALL write skill and command content exactly once per install, to a canonical store inside Taskless's owned `.taskless/` namespace: skill content to `.taskless/skills/<name>/SKILL.md` and command content to `.taskless/commands/tskl/<name>.md`. The canonical write SHALL occur on every install that contains at least one skill or command, regardless of which tools are selected.
 
 The `.taskless/` canonical store SHALL NOT be a tool install target: no tool's detection, install destination, or cleanup logic SHALL point at `.taskless/skills/` or `.taskless/commands/`. This guarantees that no install target can ever delete the canonical content.
 
@@ -12,9 +12,9 @@ The `.taskless/` canonical store SHALL NOT be a tool install target: no tool's d
 - **THEN** the CLI SHALL write the full skill content to `.taskless/skills/taskless/SKILL.md`
 - **AND** SHALL write the full command content to `.taskless/commands/tskl/tskl.md`
 
-#### Scenario: Canonical write happens regardless of detected tools
+#### Scenario: Canonical write happens regardless of selected tools
 
-- **WHEN** `taskless init` runs with any combination of tools detected, including none
+- **WHEN** `taskless init` runs with any combination of tool directories selected, including none
 - **THEN** the canonical `.taskless/` store SHALL be written
 
 #### Scenario: No tool target points at the canonical store
@@ -22,29 +22,30 @@ The `.taskless/` canonical store SHALL NOT be a tool install target: no tool's d
 - **WHEN** the install plan is constructed and applied
 - **THEN** no tool target's install or cleanup operation SHALL write to or delete `.taskless/skills/` or `.taskless/commands/`
 
-### Requirement: Tool locations receive reference stubs that delegate to the canonical store
+### Requirement: Selected tool directories receive reference stubs
 
-For every tool location that needs the skill or command, the CLI SHALL write a **reference stub** rather than a full copy. A stub SHALL be an ordinary file (never a symlink). A skill stub SHALL contain valid YAML frontmatter with `name` and `description` copied from the canonical skill so the tool can discover and trigger it; its body SHALL instruct the agent to read the canonical file (`.taskless/skills/<name>/SKILL.md` for skills, `.taskless/commands/tskl/<name>.md` for commands) and follow it, and SHALL NOT duplicate the canonical content inline. Every stub SHALL point directly at a canonical file, never at another stub.
+For every selected tool directory, the CLI SHALL write a **reference stub** rather than a full copy. Each selected directory receives its own stub — `.claude/`, `.cursor/`, `.opencode/`, and `.agents/` are peer targets, and no directory is special-cased or routed onto another. A stub SHALL be an ordinary file (never a symlink). A skill stub SHALL contain valid YAML frontmatter with `name` and `description` copied from the canonical skill so the tool can discover and trigger it; its body SHALL instruct the agent to read the canonical file (`.taskless/skills/<name>/SKILL.md` for skills, `.taskless/commands/tskl/<name>.md` for commands) and follow it, and SHALL NOT duplicate the canonical content inline. Every stub SHALL point directly at a canonical file, never at another stub.
 
 The CLI SHALL NOT create symlinks for any tool, for skills or commands.
 
-The stub locations are:
+The per-directory stub layout is:
 
-- `.claude/skills/<name>/SKILL.md` — skill stub for Claude Code.
-- `.agents/skills/<name>/SKILL.md` — skill stub serving OpenCode, Cursor, and Codex, which read `.agents/skills/` natively.
-- `.claude/commands/tskl/<name>.md` and `.cursor/commands/tskl/<name>.md` — command stubs.
+- `.claude/skills/<name>/SKILL.md` and `.claude/commands/tskl/<name>.md` — Claude Code.
+- `.cursor/skills/<name>/SKILL.md` and `.cursor/commands/tskl/<name>.md` — Cursor.
+- `.opencode/skills/<name>/SKILL.md` — OpenCode (no command stub).
+- `.agents/skills/<name>/SKILL.md` — generic Agent Skills location, including Codex (no command stub).
 
 #### Scenario: Skill stub has valid frontmatter and a delegating body
 
-- **WHEN** the CLI writes a skill stub for a tool
+- **WHEN** the CLI writes a skill stub for a selected directory
 - **THEN** the stub SHALL be a regular file with frontmatter `name` and `description` matching the canonical skill
 - **AND** its body SHALL delegate to `.taskless/skills/<name>/SKILL.md` without inlining the canonical instructions
 
-#### Scenario: One .agents stub serves the .agents-native tools
+#### Scenario: Each selected directory gets its own stub
 
-- **WHEN** any of OpenCode, Cursor, or Codex is detected and `taskless init` runs
-- **THEN** the CLI SHALL write a single skill stub at `.agents/skills/<name>/SKILL.md`
-- **AND** SHALL NOT write a skill file under `.opencode/skills/` or `.cursor/skills/`
+- **WHEN** `taskless init` runs with `.cursor/` and `.opencode/` both selected
+- **THEN** a skill stub SHALL be written to `.cursor/skills/taskless/SKILL.md`
+- **AND** a skill stub SHALL be written to `.opencode/skills/taskless/SKILL.md`
 
 #### Scenario: No symlinks are created
 
@@ -53,13 +54,13 @@ The stub locations are:
 
 ### Requirement: Install manifest records a per-target install mode
 
-Each target entry in `.taskless/taskless.json` install state SHALL record a `mode` field with one of two values: `canonical` (the `.taskless/` store, holding full content) or `reference` (a tool location holding stubs). The manifest SHALL remain backward-compatible: when reading a prior manifest with no `mode` field, the CLI SHALL treat existing entries as `canonical`.
+Each target entry in `.taskless/taskless.json` install state SHALL record a `mode` field with one of two values: `canonical` (the `.taskless/` store, holding full content) or `reference` (a tool directory holding stubs). The manifest SHALL remain backward-compatible: when reading a prior manifest with no `mode` field, the CLI SHALL treat existing entries as `canonical`.
 
 #### Scenario: Manifest records canonical and reference modes
 
 - **WHEN** `taskless init` writes the canonical store plus tool stubs
 - **THEN** the `.taskless` target entry SHALL have `mode: "canonical"`
-- **AND** each tool location entry (e.g. `.claude`, `.agents`) SHALL have `mode: "reference"`
+- **AND** each selected tool directory entry SHALL have `mode: "reference"`
 
 #### Scenario: Legacy manifest without mode is treated as canonical
 
@@ -89,16 +90,15 @@ Update SHALL NOT delete or `rm -rf` the canonical `.taskless/` store, nor any di
 - **THEN** it SHALL NOT delete `.taskless/skills/` or `.taskless/commands/` as part of cleaning up any target
 - **AND** the canonical content SHALL remain readable throughout the update
 
-### Requirement: Obsolete per-tool copies and symlinks are converged on update
+### Requirement: Existing installs converge to the canonical-plus-stub layout
 
-When a prior install recorded full skill copies under tool-specific skill directories that the new model no longer writes (`.cursor/skills/`, `.opencode/skills/`), or recorded a tool entry that exists on disk as a symlink, `taskless update` SHALL converge the repository onto the canonical-plus-stub layout: obsolete full copies SHALL be removed, and any symlinked tool entry SHALL be replaced with a real reference stub file. Removal SHALL be driven by recorded manifest state, not by glob-deletion of arbitrary paths, and SHALL be reported in the install summary.
+When a prior install recorded full skill or command copies in tool directories, or recorded a tool entry that exists on disk as a symlink, `taskless update` SHALL converge the repository onto the canonical-plus-stub layout: the canonical `.taskless/` store SHALL be seeded; each existing full per-tool copy SHALL be converted into a reference stub; any symlinked tool entry SHALL be replaced with a real stub file; and each target's `mode` SHALL be stamped (`.taskless` → `canonical`, tool directories → `reference`). Conversion SHALL be driven by recorded manifest state and SHALL be reported in the install summary.
 
-#### Scenario: Upgrading a multi-copy install converges on canonical
+#### Scenario: A full per-tool copy is converted to a stub
 
-- **WHEN** a user whose prior install wrote `.cursor/skills/taskless/SKILL.md` and `.opencode/skills/taskless/SKILL.md` runs `taskless update`
-- **THEN** those obsolete skill copies SHALL be removed
+- **WHEN** a user whose prior install wrote a full `.cursor/skills/taskless/SKILL.md` runs `taskless update`
+- **THEN** `.cursor/skills/taskless/SKILL.md` SHALL be replaced with a reference stub delegating to the canonical store
 - **AND** the canonical `.taskless/skills/taskless/SKILL.md` SHALL be present
-- **AND** the install summary SHALL report the removed obsolete copies
 
 #### Scenario: A symlinked tool entry is replaced with a real stub
 
@@ -110,7 +110,7 @@ When a prior install recorded full skill copies under tool-specific skill direct
 
 ### Requirement: Skills are installed as Agent Skills spec SKILL.md files
 
-The CLI SHALL install skill content using a canonical-store-plus-stub model rather than writing a full copy per detected tool. The full skill content SHALL be written exactly once to the canonical `.taskless/skills/<name>/SKILL.md`. Each tool location that needs the skill SHALL receive a reference stub as defined by the reference-stub requirement. Skill names SHALL be installed verbatim from the embedded source. No additional namespace prefixing SHALL be applied at install time.
+The CLI SHALL install skill content using a canonical-store-plus-stub model rather than writing a full copy per detected tool. The full skill content SHALL be written exactly once to the canonical `.taskless/skills/<name>/SKILL.md`. Each selected tool directory SHALL receive its own reference stub as defined by the reference-stub requirement. Skill names SHALL be installed verbatim from the embedded source. No additional namespace prefixing SHALL be applied at install time.
 
 #### Scenario: Canonical skill content matches source
 
@@ -118,19 +118,19 @@ The CLI SHALL install skill content using a canonical-store-plus-stub model rath
 - **THEN** the canonical `.taskless/skills/<name>/SKILL.md` content SHALL be identical to the embedded source from `skills/`
 - **AND** no frontmatter fields SHALL be modified at install time
 
-#### Scenario: Detected tool receives a stub, not a full copy
+#### Scenario: Selected tool directory receives a stub, not a full copy
 
-- **WHEN** the CLI installs the `taskless` skill and any tool is detected
-- **THEN** the tool's skill location SHALL contain a reference stub
+- **WHEN** the CLI installs the `taskless` skill and any tool directory is selected
+- **THEN** that directory's skill location SHALL contain a reference stub
 - **AND** SHALL NOT contain a full copy of the canonical skill content
 
 ### Requirement: Install manifest records what was installed per target
 
-The install manifest in `.taskless/taskless.json` continues to record what was written per target. Each target entry SHALL additionally record a `mode` field (`canonical` or `reference`) as defined by the per-target install mode requirement. The `.taskless` target records the canonical store; tool-location targets record the stubs written for that tool.
+The install manifest in `.taskless/taskless.json` continues to record what was written per target. Each target entry SHALL additionally record a `mode` field (`canonical` or `reference`) as defined by the per-target install mode requirement. The `.taskless` target records the canonical store; tool-directory targets record the stubs written for that directory.
 
 #### Scenario: Manifest records the canonical store and reference stubs with modes
 
-- **WHEN** init writes the canonical store and stubs for Claude Code and the `.agents/` location
+- **WHEN** init writes the canonical store and stubs for `.claude/` and `.agents/`
 - **THEN** the manifest's `install.targets[".taskless"]` SHALL have `mode: "canonical"`
 - **AND** `install.targets[".claude"]` and `install.targets[".agents"]` SHALL each have `mode: "reference"`
 
@@ -142,7 +142,7 @@ OpenCode SHALL be detected when any of the following exist in the project root:
 - `opencode.jsonc` file
 - `opencode.json` file
 
-OpenCode reads `.agents/skills/<name>/SKILL.md` natively, so detecting OpenCode SHALL ensure a skill stub exists at `.agents/skills/`; the CLI SHALL NOT write a skill file under `.opencode/skills/`. OpenCode SHALL NOT receive commands.
+When `.opencode/` is selected, a reference skill stub SHALL be installed to `.opencode/skills/<name>/SKILL.md`. OpenCode SHALL NOT receive commands.
 
 #### Scenario: OpenCode detected by .opencode directory
 
@@ -159,11 +159,11 @@ OpenCode reads `.agents/skills/<name>/SKILL.md` natively, so detecting OpenCode 
 - **WHEN** `opencode.json` exists as a file in the project root
 - **THEN** OpenCode SHALL be detected
 
-#### Scenario: Detecting OpenCode writes only the .agents stub
+#### Scenario: Selecting OpenCode writes a stub to .opencode/skills
 
-- **WHEN** OpenCode is detected and `taskless init` runs
-- **THEN** a skill stub SHALL exist at `.agents/skills/taskless/SKILL.md`
-- **AND** no skill file SHALL be written under `.opencode/skills/`
+- **WHEN** `.opencode/` is selected and `taskless init` runs
+- **THEN** a reference skill stub SHALL be written to `.opencode/skills/taskless/SKILL.md`
+- **AND** no command file SHALL be written under `.opencode/`
 
 ### Requirement: Cursor detection signals
 
@@ -172,7 +172,7 @@ Cursor SHALL be detected when any of the following exist in the project root:
 - `.cursor/` directory
 - `.cursorrules` file
 
-Cursor reads `.agents/skills/<name>/SKILL.md` natively, so detecting Cursor SHALL ensure a skill stub exists at `.agents/skills/`; the CLI SHALL NOT write a skill file under `.cursor/skills/`. Cursor SHALL receive a command stub at `.cursor/commands/tskl/<name>.md`.
+When `.cursor/` is selected, a reference skill stub SHALL be installed to `.cursor/skills/<name>/SKILL.md` and a reference command stub to `.cursor/commands/tskl/<name>.md`.
 
 #### Scenario: Cursor detected by .cursor directory
 
@@ -184,12 +184,11 @@ Cursor reads `.agents/skills/<name>/SKILL.md` natively, so detecting Cursor SHAL
 - **WHEN** `.cursorrules` exists as a file in the project root
 - **THEN** Cursor SHALL be detected
 
-#### Scenario: Detecting Cursor writes the .agents skill stub and a Cursor command stub
+#### Scenario: Selecting Cursor writes a skill stub and a command stub
 
-- **WHEN** Cursor is detected and `taskless init` runs
-- **THEN** a skill stub SHALL exist at `.agents/skills/taskless/SKILL.md`
-- **AND** no skill file SHALL be written under `.cursor/skills/`
-- **AND** a command stub SHALL be written to `.cursor/commands/tskl/`
+- **WHEN** `.cursor/` is selected and `taskless init` runs
+- **THEN** a reference skill stub SHALL be written to `.cursor/skills/taskless/SKILL.md`
+- **AND** a reference command stub SHALL be written to `.cursor/commands/tskl/`
 
 ### Requirement: Claude Code detection signals
 
@@ -198,38 +197,33 @@ Claude Code SHALL be detected when any of the following exist in the project roo
 - `.claude/` directory
 - `CLAUDE.md` file
 
-When Claude Code is detected, a reference skill stub SHALL be installed to `.claude/skills/<name>/SKILL.md` and a reference command stub SHALL be installed to `.claude/commands/tskl/<name>.md`.
+When `.claude/` is selected, a reference skill stub SHALL be installed to `.claude/skills/<name>/SKILL.md` and a reference command stub to `.claude/commands/tskl/<name>.md`.
 
 #### Scenario: Claude Code detected by .claude directory
 
 - **WHEN** `.claude/` exists as a directory in the project root
 - **THEN** Claude Code SHALL be detected
-- **AND** a skill stub SHALL be installed to `.claude/skills/`
+- **AND** a reference skill stub SHALL be installed to `.claude/skills/`
 
 #### Scenario: Claude Code detected by CLAUDE.md file
 
 - **WHEN** `CLAUDE.md` exists as a file in the project root
 - **AND** `.claude/` directory does not exist
 - **THEN** Claude Code SHALL be detected
-- **AND** a skill stub SHALL be installed to `.claude/skills/`
+- **AND** a reference skill stub SHALL be installed to `.claude/skills/`
 
 ### Requirement: Agents fallback install
 
-`.agents/skills/<name>/SKILL.md` SHALL hold a reference skill stub whenever any of OpenCode, Cursor, or Codex is detected, or when no tools are detected at all (the fallback case). The `.agents/` location SHALL always hold a stub — never full canonical content — and SHALL NOT receive commands. The `.agents/` target SHALL NOT be part of tool detection.
+`.agents/` is an ordinary selectable tool target, a peer of `.claude/`, `.cursor/`, and `.opencode/`. When `.agents/` is selected, a reference skill stub SHALL be installed to `.agents/skills/<name>/SKILL.md`. The `.agents/` target SHALL NOT receive commands. When no tools are detected, `.agents/` SHALL be the default selected target so a `taskless init` with zero detected tools still produces a usable install.
 
 #### Scenario: .agents stub written when no tools detected
 
 - **WHEN** a user runs `taskless init`
 - **AND** no tools are detected in the project root
-- **THEN** a skill stub SHALL be installed to `.agents/skills/`
+- **THEN** `.agents/` SHALL be selected by default
+- **AND** a reference skill stub SHALL be installed to `.agents/skills/`
 
-#### Scenario: .agents location never holds full content
-
-- **WHEN** the `.agents/skills/` stub is written
-- **THEN** it SHALL be a reference stub delegating to `.taskless/skills/`
-- **AND** SHALL NOT contain full canonical skill content
-
-#### Scenario: .agents location does not install commands
+#### Scenario: .agents target does not install commands
 
 - **WHEN** the `.agents/skills/` stub is written
 - **THEN** no command files SHALL be written to `.agents/`
@@ -246,8 +240,8 @@ For Claude Code, the CLI SHALL place a reference command stub at `.claude/comman
 
 #### Scenario: Command stubs are only placed for tools that support commands
 
-- **WHEN** the CLI installs for a tool that does not support commands
-- **THEN** no command file SHALL be written for that tool
+- **WHEN** the CLI installs for a tool directory that does not support commands (`.opencode/`, `.agents/`)
+- **THEN** no command file SHALL be written for that directory
 
 ### Requirement: Cursor commands are placed from embedded source
 
@@ -261,6 +255,25 @@ For Cursor, the CLI SHALL place a reference command stub at `.cursor/commands/ts
 
 #### Scenario: Cursor receives a skill stub and a command stub
 
-- **WHEN** Cursor is detected and the install plan is applied
-- **THEN** a skill stub SHALL serve Cursor via `.agents/skills/`
+- **WHEN** `.cursor/` is selected and the install plan is applied
+- **THEN** a skill stub SHALL be written to `.cursor/skills/`
 - **AND** a command stub SHALL be written to `.cursor/commands/tskl/`
+
+### Requirement: Wizard prompts the user to choose install locations
+
+The wizard's location step SHALL be presented as a tool-selection step: "which tools do you want to enable Taskless for?". It SHALL offer a fixed multiselect of `.claude/`, `.cursor/`, `.opencode/`, and `.agents/`, with detected directories pre-checked and `.agents/` pre-checked when no tools are detected. The canonical `.taskless/` store SHALL NOT appear as a selectable entry — it is always written. Each checked entry SHALL produce one `reference` stub target; the resulting install plan always contains the single `taskless` skill (and, for `.claude/` and `.cursor/`, the `tskl` command).
+
+#### Scenario: Detected tools are pre-checked
+
+- **WHEN** the wizard reaches the tool-selection step and `.claude/` is detected
+- **THEN** `.claude/` SHALL be pre-checked in the multiselect
+
+#### Scenario: Agents is the default when nothing is detected
+
+- **WHEN** the wizard reaches the tool-selection step and no tools are detected
+- **THEN** `.agents/` SHALL be pre-checked
+
+#### Scenario: Canonical store is not a selectable entry
+
+- **WHEN** the wizard renders the tool-selection multiselect
+- **THEN** `.taskless/` SHALL NOT appear as a selectable option

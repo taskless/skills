@@ -14,13 +14,14 @@
 - [x] 2.5 Unit test: generated stub has valid frontmatter, a delegating body, no inlined canonical content, and is a regular file
 - [x] 2.6 Unit test: drift detection flags a changed `description` and ignores an unchanged stub
 
-## 3. Tool registry and install plan
+## 3. Install-plan model and tool selection
 
-- [ ] 3.1 Update `TOOLS[]` / plan construction so OpenCode and Cursor no longer contribute a tool-specific skills target
-- [ ] 3.2 Make the `.taskless/` canonical store an unconditional `canonical`-mode target whenever the plan contains a skill or command
-- [ ] 3.3 Ensure each detected tool contributes `reference`-mode stub targets: `.claude/skills/` + `.claude/commands/tskl/` for Claude Code, `.agents/skills/` for OpenCode/Cursor/Codex, `.cursor/commands/tskl/` for Cursor
-- [ ] 3.4 Ensure `.agents/skills/` receives a stub when no tools are detected (fallback)
-- [ ] 3.5 Update the install summary to report the canonical `.taskless/` write and the stub locations / tools served
+- [ ] 3.1 Define a resolved install-plan target type `{ dir, mode, label, skills, commands }` decoupled from `ToolDescriptor`; keep `ToolDescriptor` for detection only
+- [ ] 3.2 Build the plan so the `.taskless/` canonical target (`mode: canonical`) is always present when the plan contains a skill or command
+- [ ] 3.3 Build a `reference`-mode stub target for each selected tool directory: skill stub for all; command stub for `.claude/` and `.cursor/` only
+- [ ] 3.4 Reframe the wizard location step as a fixed tool-selection multiselect (`.claude/.cursor/.opencode/.agents`), detected pre-checked, `.agents/` default when nothing detected
+- [ ] 3.5 Update non-interactive `init`/`update` plan construction to the same canonical + per-tool-stub model
+- [ ] 3.6 Update the install summary to report the canonical `.taskless/` write and each selected stub target
 
 ## 4. Apply install plan: mode-aware writes
 
@@ -34,15 +35,15 @@
 ## 5. Migration: converge existing installs
 
 - [ ] 5.1 Add a new `.taskless/` migration in `filesystem/migrations/` that seeds the canonical `.taskless/skills/`/`.taskless/commands/` store
-- [ ] 5.2 In the migration, remove obsolete `.cursor/skills/`/`.opencode/skills/` skill copies recorded in the prior manifest
+- [ ] 5.2 In the migration, convert existing full per-tool skill/command copies recorded in the prior manifest into reference stubs
 - [ ] 5.3 In the migration, replace any symlinked tool entry (e.g. `.claude/skills/<name>`) with a real reference stub (do not write through the symlink)
-- [ ] 5.4 Rewrite `taskless.json` install state with per-target `mode` during the migration
+- [ ] 5.4 Rewrite `taskless.json` install state with per-target `mode` during the migration (`.taskless` canonical, tool dirs reference)
 - [ ] 5.5 Unit test: a recorded multi-copy install converges to canonical + stubs; a symlinked tool entry becomes a real stub
 
 ## 6. Update behavior
 
 - [ ] 6.1 Verify `taskless update` rewrites canonical `.taskless/` content and leaves reference stubs intact
-- [ ] 6.2 Verify update reports removed obsolete copies and symlink conversions in the install summary
+- [ ] 6.2 Verify update reports the converged layout (full-copy-to-stub and symlink conversions) in the install summary
 - [ ] 6.3 Unit test: update against a stub install does not clobber the stub
 - [ ] 6.4 Unit test: update never deletes the canonical store while cleaning another target
 
