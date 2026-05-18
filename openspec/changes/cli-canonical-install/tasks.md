@@ -1,0 +1,55 @@
+## 1. Manifest schema: per-target mode
+
+- [x] 1.1 Add a `mode: "canonical" | "reference"` field to the per-target install-state type in `install/state.ts`
+- [x] 1.2 When reading a legacy manifest with no `mode`, default each target entry to `canonical`
+- [x] 1.3 Update `computeInstallDiff` so removals carry enough info to respect each entry's `mode`
+- [x] 1.4 Unit test: legacy manifest reads as `canonical`; round-trip of a manifest with both modes
+
+## 2. Canonical store and stub generation
+
+- [ ] 2.1 Add a canonical-write helper that writes embedded skill content to `.taskless/skills/<name>/SKILL.md` and command content to `.taskless/commands/tskl/<name>.md`
+- [ ] 2.2 Add a stub-generation helper that builds a `SKILL.md`/command file with `name`+`description` frontmatter copied from the canonical content and a body delegating to the canonical path
+- [ ] 2.3 Add a helper to detect frontmatter drift between an existing stub and the canonical content
+- [ ] 2.4 Unit test: canonical content matches embedded source verbatim
+- [ ] 2.5 Unit test: generated stub has valid frontmatter, a delegating body, no inlined canonical content, and is a regular file
+- [ ] 2.6 Unit test: drift detection flags a changed `description` and ignores an unchanged stub
+
+## 3. Tool registry and install plan
+
+- [ ] 3.1 Update `TOOLS[]` / plan construction so OpenCode and Cursor no longer contribute a tool-specific skills target
+- [ ] 3.2 Make the `.taskless/` canonical store an unconditional `canonical`-mode target whenever the plan contains a skill or command
+- [ ] 3.3 Ensure each detected tool contributes `reference`-mode stub targets: `.claude/skills/` + `.claude/commands/tskl/` for Claude Code, `.agents/skills/` for OpenCode/Cursor/Codex, `.cursor/commands/tskl/` for Cursor
+- [ ] 3.4 Ensure `.agents/skills/` receives a stub when no tools are detected (fallback)
+- [ ] 3.5 Update the install summary to report the canonical `.taskless/` write and the stub locations / tools served
+
+## 4. Apply install plan: mode-aware writes
+
+- [ ] 4.1 In `applyInstallPlan`, write full content only to the `canonical` `.taskless/` target
+- [ ] 4.2 For `reference` targets, write a stub only when absent or when frontmatter has drifted; never overwrite a stub with full content
+- [ ] 4.3 Remove the destructive `rm -rf` glob in `removeOwnedSkills`/`removeOwnedCommands`; rely solely on manifest-diff-driven removal
+- [ ] 4.4 Guarantee no target's cleanup deletes the canonical `.taskless/skills/` or `.taskless/commands/` store
+- [ ] 4.5 Ensure no code path creates a symlink for skills or commands
+- [ ] 4.6 Persist per-target `mode` into `taskless.json` on write
+
+## 5. Migration: converge existing installs
+
+- [ ] 5.1 Add a new `.taskless/` migration in `filesystem/migrations/` that seeds the canonical `.taskless/skills/`/`.taskless/commands/` store
+- [ ] 5.2 In the migration, remove obsolete `.cursor/skills/`/`.opencode/skills/` skill copies recorded in the prior manifest
+- [ ] 5.3 In the migration, replace any symlinked tool entry (e.g. `.claude/skills/<name>`) with a real reference stub (do not write through the symlink)
+- [ ] 5.4 Rewrite `taskless.json` install state with per-target `mode` during the migration
+- [ ] 5.5 Unit test: a recorded multi-copy install converges to canonical + stubs; a symlinked tool entry becomes a real stub
+
+## 6. Update behavior
+
+- [ ] 6.1 Verify `taskless update` rewrites canonical `.taskless/` content and leaves reference stubs intact
+- [ ] 6.2 Verify update reports removed obsolete copies and symlink conversions in the install summary
+- [ ] 6.3 Unit test: update against a stub install does not clobber the stub
+- [ ] 6.4 Unit test: update never deletes the canonical store while cleaning another target
+
+## 7. Verification and docs
+
+- [ ] 7.1 Run `pnpm typecheck` and `pnpm lint`; fix any issues
+- [ ] 7.2 Run the CLI test suite; update existing install/update tests for the canonical-store-plus-stub model
+- [ ] 7.3 Add a changeset describing the new install model and the BREAKING removal of `.cursor`/`.opencode` skill copies
+- [ ] 7.4 Update CLI README / `help` text for `init`/`update` to describe the canonical `.taskless/` layout
+- [ ] 7.5 Update the `.taskless/README.md` "Files" section to document `skills/` and `commands/`
