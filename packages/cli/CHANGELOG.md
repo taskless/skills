@@ -1,5 +1,24 @@
 # @taskless/cli
 
+## 0.8.0
+
+### Minor Changes
+
+- d254b67: Install a single canonical skill/command store with thin per-tool reference stubs.
+  - **Canonical store**: `taskless init`/`update` now writes the skill and command content exactly once, to `.taskless/skills/<name>/SKILL.md` and `.taskless/commands/tskl/<name>.md`. This Taskless-owned directory is never a tool install target, so no install or cleanup step can ever delete it.
+  - **Reference stubs**: each enabled tool directory (`.claude/`, `.cursor/`, `.opencode/`, `.agents/`) receives a thin reference stub instead of a full copy — an ordinary file (never a symlink) carrying `name`/`description` frontmatter, a `metadata.type: shim` marker, and a body that delegates to the canonical file. This ends the N-identical-copies drift of the previous per-tool full-copy model. `.claude/` and `.cursor/` also receive a `tskl` command stub; `.opencode/` and `.agents/` receive skills only.
+  - **Per-target install mode**: `.taskless/taskless.json` records a `mode` (`canonical` | `reference`) per target. The field is additive and backward-compatible — a manifest written before this change reads its entries as `canonical`, so no schema migration is needed.
+  - **Self-healing convergence**: `applyInstallPlan` rewrites a reference file unless it is already a current, non-drifted shim stub. Full per-tool copies left by older installs, manually-created symlinks, and stubs whose frontmatter has drifted are all converged into stubs on the next `init`/`update`. The destructive `rm -rf` glob cleanup is removed; cleanup is now driven solely by the recorded-manifest diff and scoped to each target's own directory.
+  - **Wizard tool selection**: the wizard's location step is reframed as "which tools do you want to enable Taskless for?" — a fixed multiselect of `.claude/`, `.cursor/`, `.opencode/`, `.agents/`, with detected entries pre-checked and `.agents/` the default when nothing is detected. The canonical `.taskless/` store is always written and is not a selectable entry.
+  - **No symlinks**: the CLI never creates symlinks for skills or commands. Symlink-based skill discovery is unreliable across Cursor, OpenCode, and Codex, and breaks on Windows checkout.
+
+- f6fbaba: Add `taskless onboard` post-install discovery flow and migrate recipe rendering to sprintf-js.
+  - **`taskless onboard` subcommand**: a thin gate that prints an agent-facing recipe walking the host AI tool through mining the codebase, agent-memory files (CLAUDE.md / AGENTS.md / .cursorrules), recent PR review comments (via `gh`), and issue-tracker tickets (via MCP) for high-signal rule candidates. Output is a bullet list the user can materialize via `taskless rule create`. Three modes: default prints the recipe (refused if already complete), `--force` re-runs regardless of state, `--mark-complete` writes `install.onboarded: true` (invoked only by the agent after explicit user confirmation). `--force` and `--mark-complete` are mutually exclusive.
+  - **`install.onboarded` manifest field**: optional 3-state boolean (absent / `false` / `true`) added to `.taskless/taskless.json`. `taskless init` never writes it; only `taskless onboard --mark-complete` does. Re-installs preserve the existing value.
+  - **Post-install onboarding trailer**: after a successful `taskless init` (both wizard and `--no-interactive` paths), the CLI prints a one-line trailer pointing the user at the new flow. Wording adapts to the install plan: when commands were installed (Claude Code, Cursor), the trailer mentions `/tskl onboard`, the Taskless skill, and `taskless onboard`; when no commands were installed (OpenCode, Codex, `.agents/` fallback), it mentions the skill and the CLI only. `taskless update` does not print the trailer.
+  - **Skill description trigger expanded**: the consolidated `taskless` skill now also volunteers Taskless when the user asks to add/write/create a rule and has NOT named a specific lint/format/static-analysis tool. Suppressing examples (illustrative — any named tool of this kind suppresses): `eslint`, `ruff`, `biome`, `ast-grep`. Behavior on this trigger is a quiet single-line offer, not a full recipe; declines are sticky within the conversation only and never written to disk. Replaces the prior blanket "do NOT trigger on generic ESLint/linting" carve-out.
+  - **Recipe substitution refactor**: recipe rendering switched from ad-hoc `{{KEY}}` `replaceAll` calls to `sprintf-js` named arguments. All recipes now use `%(KEY)s` placeholders. `CLI_VERSION` and `INPUT_SCHEMA` continue to resolve to system-rendered values; `PACKAGE_MANAGER_DLX` joins them as an "agent-fill" marker rendered as `<package-manager-dlx>`. Recipes that contain literal `%` characters must escape as `%%` per sprintf-js conventions.
+
 ## 0.7.0
 
 ### Minor Changes
