@@ -49,8 +49,8 @@
 
 ## 7. Verification and docs
 
-- [ ] 7.1 Run `pnpm typecheck` and `pnpm lint`; fix any issues
-- [ ] 7.2 Run the CLI test suite; update existing install/update tests for the canonical-store-plus-stub model
-- [ ] 7.3 Add a changeset describing the new install model and the BREAKING removal of `.cursor`/`.opencode` skill copies
-- [ ] 7.4 Update CLI README / `help` text for `init`/`update` to describe the canonical `.taskless/` layout
-- [ ] 7.5 Update the `.taskless/README.md` "Files" section to document `skills/` and `commands/`
+- [x] 7.1 Run `pnpm typecheck` and `pnpm lint`; fix any issues
+- [x] 7.2 Run the CLI test suite; update existing install/update tests for the canonical-store-plus-stub model
+- [x] 7.3 Add a changeset describing the new install model and the BREAKING removal of `.cursor`/`.opencode` skill copies
+- [x] 7.4 Update CLI README / `help` text for `init`/`update` to describe the canonical `.taskless/` layout
+- [x] 7.5 Update the `.taskless/README.md` "Files" section to document `skills/` and `commands/`

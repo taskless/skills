@@ -26,18 +26,22 @@ npx @taskless/cli init --no-interactive
 ```
 
 The wizard will:
-1. Detect installed tools (Claude Code, OpenCode, Cursor) and let
-   the user pick install locations.
+1. Detect installed tools (Claude Code, OpenCode, Cursor) and ask
+   which tools to enable Taskless for.
 2. Show the auth tradeoff and offer to log in (skippable).
 3. Show a diff against the previous install state before writing.
-4. Write the consolidated `taskless` skill (and `tskl` command for
-   Claude Code) to each selected location.
+4. Write the canonical `taskless` skill (and `tskl` command) once to
+   `.taskless/`, then a thin reference stub into each selected tool
+   directory (`.claude/`, `.cursor/`, `.opencode/`, `.agents/`).
 5. Update `.taskless/taskless.json` with the install manifest.
 
-If the user is on v0.6 or earlier, the wizard removes the obsolete
-per-task skills (taskless-check, taskless-create-rule, etc.) and the
-old slash commands as part of the install. The summary shows what
-was removed.
+The skill content lives in exactly one place — `.taskless/skills/` —
+and each tool directory holds only a short stub that points at it.
+Stale layouts from older installs (full per-tool copies, symlinks)
+are converged into stubs automatically. If the user is on v0.6 or
+earlier, the obsolete per-task skills (taskless-check, etc.) and old
+slash commands are removed as part of the install; the summary shows
+what was removed.
 
 ## Errors
 

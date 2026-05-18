@@ -27,11 +27,13 @@ The CLI:
 1. Detects installed tools (Claude Code, OpenCode, Cursor, etc.)
 2. Reads the previous install state from `.taskless/taskless.json`
 3. Computes the diff (skills/commands to add, remove)
-4. Writes the consolidated `taskless` skill (and `tskl` command for
-   tools that support commands) to each detected location
-5. Removes obsolete files from prior versions
+4. Rewrites the canonical `taskless` skill and `tskl` command in
+   `.taskless/`, and refreshes the reference stub in each detected
+   tool directory
+5. Converts any stale full copies or symlinks left by older installs
+   into stubs, and removes obsolete files from prior versions
 6. Updates the install manifest
-7. Prints a summary including what was added and removed
+7. Prints a summary including what was written and removed
 
 ## Errors
 

@@ -32,14 +32,21 @@ Outputs CLI version, tool status, and login info as JSON to stdout:
 ### `taskless init`
 
 Launches an interactive wizard that detects supported tool directories in the
-current project (`.claude/`, `.opencode/`, `.cursor/`, `.agents/`), lets you
-pick which ones to install into, and walks through the auth tradeoff before
+current project (`.claude/`, `.opencode/`, `.cursor/`, `.agents/`), asks which
+tools to enable Taskless for, and walks through the auth tradeoff before
 writing anything. Running `taskless` with no subcommand in a TTY also launches
 this wizard. Without a TTY, bare `taskless` prints a short context preamble
 followed by the topic index from `taskless help`.
 
 In v0.7+, there is exactly one skill (`taskless`) and one command (`tskl`) —
 no opt-in selection needed.
+
+The skill and command content is written **once** to a canonical store in
+`.taskless/skills/` and `.taskless/commands/`. Each enabled tool directory
+receives only a thin reference stub — an ordinary file with a delegating body,
+never a symlink — so there is a single source of truth and no drift between
+copies. Stale layouts from earlier versions (full per-tool copies, symlinks)
+are converged into stubs automatically on the next `init`/`update`.
 
 For CI and scripted installs, pass `--no-interactive` to skip all prompts:
 
