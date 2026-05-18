@@ -498,7 +498,7 @@ The install manifest in `.taskless/taskless.json` continues to record what was w
 
 ### Requirement: Re-install computes a diff against the previous manifest
 
-Re-install diff computation is unchanged. With v0.7.0 the diff for a v0.6 user shows 10 skill removals + 6 command removals + 1 skill addition + 1 command addition per detected target. Removals require user confirmation per the existing requirement.
+A re-install SHALL compute a diff against the previous manifest. With v0.7.0 the diff for a v0.6 user shows 10 skill removals + 6 command removals + 1 skill addition + 1 command addition per detected target. Removals SHALL require user confirmation per the existing requirement.
 
 #### Scenario: Upgrade from v0.6 shows removals in summary
 
