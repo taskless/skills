@@ -31,3 +31,41 @@ describe("ask wrapper", () => {
     }
   });
 });
+
+describe("locationChoices", () => {
+  it("offers every shim target and never the canonical .taskless store", async () => {
+    const { locationChoices } = await import("../src/wizard/steps/locations");
+    const values = locationChoices([]).options.map((o) => o.value);
+    expect(values).toEqual([".claude", ".cursor", ".opencode", ".agents"]);
+    expect(values).not.toContain(".taskless");
+  });
+
+  it("pre-checks .agents/ when no tools are detected", async () => {
+    const { locationChoices } = await import("../src/wizard/steps/locations");
+    expect(locationChoices([]).initialValues).toEqual([".agents"]);
+  });
+
+  it("pre-checks a detected tool and hints it as detected", async () => {
+    const { locationChoices } = await import("../src/wizard/steps/locations");
+    const { TOOLS } = await import("../src/install/install");
+    const claude = TOOLS.find((t) => t.name === "Claude Code")!;
+
+    const { options, initialValues } = locationChoices([claude]);
+    expect(initialValues).toEqual([".claude"]);
+    expect(options.find((o) => o.value === ".claude")?.hint).toBe("detected");
+    expect(options.find((o) => o.value === ".cursor")?.hint).toBe(
+      "not detected"
+    );
+  });
+
+  it("pre-checks every detected tool's directory", async () => {
+    const { locationChoices } = await import("../src/wizard/steps/locations");
+    const { TOOLS } = await import("../src/install/install");
+    const claude = TOOLS.find((t) => t.name === "Claude Code")!;
+    const codex = TOOLS.find((t) => t.name === "Codex")!;
+
+    const { initialValues } = locationChoices([claude, codex]);
+    expect(initialValues).toContain(".claude");
+    expect(initialValues).toContain(".agents");
+  });
+});
