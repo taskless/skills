@@ -62,7 +62,7 @@ describe("cli", () => {
         temporaryDirectory,
       ]);
       expect(stdout).toContain("No tools detected. Using fallback: .agents/");
-      expect(stdout).toContain("Agent Skills: installed");
+      expect(stdout).toContain("Agent Skills (.agents/)");
     });
 
     it("installs skills when .claude/ directory exists", async () => {
