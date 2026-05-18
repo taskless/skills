@@ -3,12 +3,13 @@ import { defineCommand } from "citty";
 
 import { ensureTasklessDirectory } from "../filesystem/directory";
 import {
-  AGENTS_FALLBACK,
   applyInstallPlan,
+  buildInstallPlan,
+  DEFAULT_SHIM_DIR,
+  detectSelectedDirectories,
   detectTools,
-  getEmbeddedSkills,
   getEmbeddedCommands,
-  type InstallPlanTarget,
+  getEmbeddedSkills,
 } from "../install/install";
 import { getMandatorySkillNames } from "../install/catalog";
 import { getTelemetry } from "../telemetry";
@@ -133,40 +134,20 @@ async function runNonInteractive(
   const mandatoryNames = new Set(getMandatorySkillNames());
   const skills = allSkills.filter((s) => mandatoryNames.has(s.name));
   const commands = getEmbeddedCommands();
-  const tools = await detectTools(cwd);
 
-  const planTargets: InstallPlanTarget[] = [];
-  let usingFallback = false;
-
-  if (tools.length > 0) {
-    for (const tool of tools) {
-      planTargets.push({
-        tool,
-        skills,
-        commands: tool.commands ? commands : [],
-      });
-    }
-  } else {
-    usingFallback = true;
-    planTargets.push({
-      tool: AGENTS_FALLBACK,
-      skills,
-      commands: [],
-    });
-  }
-
-  const commandsInstalled = planTargets.some((t) => t.commands.length > 0);
-
-  const result = await applyInstallPlan(
-    cwd,
-    { targets: planTargets },
-    { cliVersion: getCliVersion() }
+  const detected = await detectTools(cwd);
+  const selectedDirectories = await detectSelectedDirectories(cwd);
+  const plan = buildInstallPlan(selectedDirectories, skills, commands);
+  const commandsInstalled = plan.targets.some(
+    (t) => t.mode === "reference" && t.commands.length > 0
   );
 
-  if (usingFallback) {
-    console.log(
-      `No tools detected. Using fallback: ${AGENTS_FALLBACK.installDir}/`
-    );
+  const result = await applyInstallPlan(cwd, plan, {
+    cliVersion: getCliVersion(),
+  });
+
+  if (detected.length === 0) {
+    console.log(`No tools detected. Using fallback: ${DEFAULT_SHIM_DIR}/`);
   }
 
   const skillsByTarget = groupValuesByTarget(
@@ -194,21 +175,31 @@ async function runNonInteractive(
     }))
   );
 
-  for (const { tool } of planTargets) {
-    const targetSkills = skillsByTarget.get(tool.installDir) ?? [];
-    const targetCommands = commandsByTarget.get(tool.installDir) ?? [];
-    const removedSkills = removedSkillsByTarget.get(tool.installDir) ?? [];
-    const removedCommands = removedCommandsByTarget.get(tool.installDir) ?? [];
+  for (const target of plan.targets) {
+    const writtenSkills = skillsByTarget.get(target.dir) ?? [];
+    const writtenCommands = commandsByTarget.get(target.dir) ?? [];
+    const removedSkills = removedSkillsByTarget.get(target.dir) ?? [];
+    const removedCommands = removedCommandsByTarget.get(target.dir) ?? [];
+    const noun = target.mode === "canonical" ? "canonical file" : "stub";
+
+    if (
+      writtenSkills.length === 0 &&
+      writtenCommands.length === 0 &&
+      removedSkills.length === 0 &&
+      removedCommands.length === 0
+    ) {
+      console.log(`${target.label} (${target.dir}/): up to date`);
+      continue;
+    }
+
     console.log(
-      `${tool.name}: installed ${String(targetSkills.length)} skill(s)`
+      `${target.label} (${target.dir}/): wrote ${String(writtenSkills.length)} skill ${noun}(s)`
     );
-    for (const name of targetSkills) {
+    for (const name of writtenSkills) {
       console.log(`  - ${name}`);
     }
-    if (targetCommands.length > 0 && tool.commands) {
-      console.log(
-        `  + ${String(targetCommands.length)} command(s) in ${tool.installDir}/${tool.commands.path}/`
-      );
+    if (writtenCommands.length > 0) {
+      console.log(`  + ${String(writtenCommands.length)} command ${noun}(s)`);
     }
     if (removedSkills.length > 0) {
       console.log(
@@ -244,7 +235,5 @@ function groupValuesByTarget(
 }
 
 async function detectedLocationDirectories(cwd: string): Promise<string[]> {
-  const tools = await detectTools(cwd);
-  if (tools.length === 0) return [AGENTS_FALLBACK.installDir];
-  return tools.map((t) => t.installDir);
+  return detectSelectedDirectories(cwd);
 }

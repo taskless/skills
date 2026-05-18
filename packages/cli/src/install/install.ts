@@ -1,18 +1,19 @@
-import {
-  readFile,
-  readdir,
-  rm,
-  stat,
-  writeFile,
-  mkdir,
-} from "node:fs/promises";
-import { join, basename, dirname } from "node:path";
+import { lstat, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { basename, dirname, join } from "node:path";
 
+import {
+  buildCommandStub,
+  buildSkillStub,
+  stubFrontmatterDrifted,
+  writeCanonicalCommand,
+  writeCanonicalSkill,
+} from "./canonical";
 import { parseFrontmatter } from "./frontmatter";
 import {
   computeInstallDiff,
   readInstallState,
   writeInstallState,
+  type InstallMode,
   type InstallState,
 } from "./state";
 
@@ -28,6 +29,12 @@ const commandFiles: Record<string, string> = import.meta.glob(
   { query: "?raw", import: "default", eager: true }
 );
 
+/**
+ * Taskless-owned namespace holding the canonical skill/command content. It is
+ * never a tool target — no detection, install, or cleanup logic points here.
+ */
+export const CANONICAL_DIR = ".taskless";
+
 // --- Types ---
 
 export interface DetectionSignal {
@@ -35,16 +42,15 @@ export interface DetectionSignal {
   path: string;
 }
 
+/**
+ * A detectable AI tool. Used only for detection — the install destination is
+ * `installDir`, which is matched against the fixed {@link SHIM_TARGETS}
+ * catalog to decide which directories to pre-check in the wizard.
+ */
 export interface ToolDescriptor {
   name: string;
   detect: DetectionSignal[];
   installDir: string;
-  skills: {
-    path: string;
-  };
-  commands?: {
-    path: string;
-  };
 }
 
 export interface EmbeddedSkill {
@@ -58,6 +64,9 @@ export interface EmbeddedSkill {
 export interface EmbeddedCommand {
   filename: string;
   content: string;
+  name: string;
+  description: string;
+  argumentHint?: string;
 }
 
 export interface SkillStatus {
@@ -72,7 +81,7 @@ export interface ToolStatus {
   skills: SkillStatus[];
 }
 
-// --- Tool Registry ---
+// --- Tool Registry (detection only) ---
 
 export const TOOLS: ToolDescriptor[] = [
   {
@@ -82,12 +91,6 @@ export const TOOLS: ToolDescriptor[] = [
       { type: "file", path: "CLAUDE.md" },
     ],
     installDir: ".claude",
-    skills: {
-      path: "skills",
-    },
-    commands: {
-      path: "commands/tskl",
-    },
   },
   {
     name: "OpenCode",
@@ -97,9 +100,6 @@ export const TOOLS: ToolDescriptor[] = [
       { type: "file", path: "opencode.json" },
     ],
     installDir: ".opencode",
-    skills: {
-      path: "skills",
-    },
   },
   {
     name: "Cursor",
@@ -108,12 +108,6 @@ export const TOOLS: ToolDescriptor[] = [
       { type: "file", path: ".cursorrules" },
     ],
     installDir: ".cursor",
-    skills: {
-      path: "skills",
-    },
-    commands: {
-      path: "commands/tskl",
-    },
   },
   {
     name: "Codex",
@@ -122,20 +116,32 @@ export const TOOLS: ToolDescriptor[] = [
       { type: "file", path: ".codex/config.toml" },
     ],
     installDir: ".agents",
-    skills: {
-      path: "skills",
-    },
   },
 ];
 
-export const AGENTS_FALLBACK: ToolDescriptor = {
-  name: "Agent Skills",
-  detect: [],
-  installDir: ".agents",
-  skills: {
-    path: "skills",
-  },
-};
+/**
+ * A selectable stub destination. The wizard offers this fixed catalog as the
+ * "which tools do you want to enable Taskless for?" multiselect; every entry
+ * is a peer — no directory is special-cased or routed onto another.
+ */
+export interface ShimTarget {
+  /** Directory the stub is written into, relative to the project root. */
+  dir: string;
+  /** Human-readable label for prompts and summaries. */
+  label: string;
+  /** Whether this directory receives the `tskl` command stub. */
+  commands: boolean;
+}
+
+export const SHIM_TARGETS: readonly ShimTarget[] = [
+  { dir: ".claude", label: "Claude Code", commands: true },
+  { dir: ".cursor", label: "Cursor", commands: true },
+  { dir: ".opencode", label: "OpenCode", commands: false },
+  { dir: ".agents", label: "Agent Skills", commands: false },
+];
+
+/** Directory selected by default when no tools are detected. */
+export const DEFAULT_SHIM_DIR = ".agents";
 
 // --- Detection ---
 
@@ -166,6 +172,19 @@ export async function detectTools(cwd: string): Promise<ToolDescriptor[]> {
   return results.filter((t): t is ToolDescriptor => t !== undefined);
 }
 
+/**
+ * The shim directories to pre-select for a project: the install directories
+ * of every detected tool, or `.agents/` when nothing is detected.
+ */
+export async function detectSelectedDirectories(
+  cwd: string
+): Promise<string[]> {
+  const tools = await detectTools(cwd);
+  if (tools.length === 0) return [DEFAULT_SHIM_DIR];
+  const directories = new Set(tools.map((t) => t.installDir));
+  return SHIM_TARGETS.map((s) => s.dir).filter((d) => directories.has(d));
+}
+
 // --- Embedded Skills ---
 
 export function getEmbeddedSkills(): EmbeddedSkill[] {
@@ -189,137 +208,96 @@ export function getEmbeddedSkills(): EmbeddedSkill[] {
 // --- Embedded Commands ---
 
 export function getEmbeddedCommands(): EmbeddedCommand[] {
-  return Object.entries(commandFiles).map(([path, content]) => ({
-    filename: basename(path),
-    content,
-  }));
+  return Object.entries(commandFiles).map(([path, content]) => {
+    const parsed = parseFrontmatter(content);
+    const data = parsed.data as {
+      name?: string;
+      description?: string;
+      "argument-hint"?: string;
+    };
+    const filename = basename(path);
+    return {
+      filename,
+      content,
+      name: data.name ?? filename.replace(/\.md$/, ""),
+      description: data.description ?? "",
+      argumentHint: data["argument-hint"],
+    };
+  });
 }
 
-// --- Cleanup ---
-
-/** Known prefixes for Taskless-owned skills (current and legacy) */
-const SKILL_PREFIXES = ["taskless-", "use-taskless-"];
-
-/** Known directory names for Taskless-owned commands (current and legacy) */
-const COMMAND_DIRS = ["tskl", "taskless"];
+// --- Install Plan ---
 
 /**
- * Remove all Taskless-owned skill directories so a fresh set can be installed.
- * Matches any directory starting with known prefixes.
+ * A resolved install target. Either the single `canonical` `.taskless/` store
+ * (full content) or a `reference` tool directory (thin stubs).
  */
-async function removeOwnedSkills(
-  cwd: string,
-  tool: ToolDescriptor
-): Promise<void> {
-  const skillsDirectory = join(cwd, tool.installDir, tool.skills.path);
-
-  let entries: string[];
-  try {
-    entries = await readdir(skillsDirectory);
-  } catch {
-    return;
-  }
-
-  const owned = entries.filter((name) =>
-    SKILL_PREFIXES.some((prefix) => name.startsWith(prefix))
-  );
-
-  for (const name of owned) {
-    await rm(join(skillsDirectory, name), { recursive: true, force: true });
-  }
-}
-
-/**
- * Remove all Taskless-owned command directories so a fresh set can be installed.
- * Matches known command directory names.
- */
-async function removeOwnedCommands(
-  cwd: string,
-  tool: ToolDescriptor
-): Promise<void> {
-  if (!tool.commands) return;
-
-  const commandsBase = join(cwd, tool.installDir, dirname(tool.commands.path));
-
-  for (const directoryName of COMMAND_DIRS) {
-    await rm(join(commandsBase, directoryName), {
-      recursive: true,
-      force: true,
-    });
-  }
-}
-
-// --- Installation ---
-
-export interface InstallResult {
-  skills: string[];
-  commands: string[];
-}
-
-export async function installForTool(
-  cwd: string,
-  tool: ToolDescriptor,
-  skills: EmbeddedSkill[],
-  commands: EmbeddedCommand[]
-): Promise<InstallResult> {
-  const installedSkills: string[] = [];
-  const installedCommands: string[] = [];
-
-  // Remove all Taskless-owned skills and commands before installing fresh
-  await removeOwnedSkills(cwd, tool);
-  await removeOwnedCommands(cwd, tool);
-
-  // Install skills verbatim
-  for (const skill of skills) {
-    const skillDirectory = join(
-      cwd,
-      tool.installDir,
-      tool.skills.path,
-      skill.name
-    );
-    await mkdir(skillDirectory, { recursive: true });
-    await writeFile(join(skillDirectory, "SKILL.md"), skill.content, "utf8");
-    installedSkills.push(skill.name);
-  }
-
-  // Place commands for any tool descriptor that defines a commands path
-  if (tool.commands) {
-    const commandDirectory = join(cwd, tool.installDir, tool.commands.path);
-    await mkdir(commandDirectory, { recursive: true });
-    for (const command of commands) {
-      await writeFile(
-        join(commandDirectory, command.filename),
-        command.content,
-        "utf8"
-      );
-      installedCommands.push(command.filename);
-    }
-  }
-
-  return { skills: installedSkills, commands: installedCommands };
-}
-
-// --- Wizard-facing install plan ---
-
-/**
- * Per-target slice of an install plan. Each slice names the tool descriptor
- * to install into plus the explicit skill and command lists the caller chose.
- */
-export interface InstallPlanTarget {
-  tool: ToolDescriptor;
+export interface PlanTarget {
+  dir: string;
+  label: string;
+  mode: InstallMode;
   skills: EmbeddedSkill[];
   commands: EmbeddedCommand[];
 }
 
-/**
- * Full plan handed to {@link applyInstallPlan}. Targets are independent —
- * applying a plan replaces the entire install state, so targets not listed
- * here and that were recorded in the previous install state will be treated
- * as removals and surgically cleaned up.
- */
 export interface InstallPlan {
-  targets: InstallPlanTarget[];
+  targets: PlanTarget[];
 }
+
+/**
+ * Build an install plan: the always-present canonical `.taskless/` target
+ * plus one `reference` stub target per selected directory. The canonical
+ * target is included whenever the plan carries any skill or command.
+ */
+export function buildInstallPlan(
+  selectedDirectories: readonly string[],
+  skills: EmbeddedSkill[],
+  commands: EmbeddedCommand[]
+): InstallPlan {
+  const targets: PlanTarget[] = [];
+
+  if (skills.length > 0 || commands.length > 0) {
+    targets.push({
+      dir: CANONICAL_DIR,
+      label: "Taskless canonical store",
+      mode: "canonical",
+      skills,
+      commands,
+    });
+  }
+
+  for (const shim of SHIM_TARGETS) {
+    if (!selectedDirectories.includes(shim.dir)) continue;
+    targets.push({
+      dir: shim.dir,
+      label: shim.label,
+      mode: "reference",
+      skills,
+      commands: shim.commands ? commands : [],
+    });
+  }
+
+  return { targets };
+}
+
+/**
+ * The install-state target map a plan would produce. Shared by
+ * {@link applyInstallPlan} and callers that need to preview the diff (the
+ * wizard) so both derive identical state.
+ */
+export function planToStateTargets(plan: InstallPlan): InstallState["targets"] {
+  const targets: InstallState["targets"] = {};
+  for (const target of plan.targets) {
+    targets[target.dir] = {
+      skills: target.skills.map((s) => s.name),
+      commands: target.commands.map((c) => c.filename),
+      mode: target.mode,
+    };
+  }
+  return targets;
+}
+
+// --- Installation ---
 
 export interface ApplyInstallOptions {
   cliVersion: string;
@@ -334,91 +312,122 @@ export interface ApplyInstallResult {
   removedCommands: Array<{ target: string; command: string }>;
 }
 
+/** Filesystem path of a skill directory inside any target. */
+function skillDirectory(
+  cwd: string,
+  targetDirectory: string,
+  name: string
+): string {
+  return join(cwd, targetDirectory, "skills", name);
+}
+
+/** Filesystem path of a command file inside any target. */
+function commandFile(
+  cwd: string,
+  targetDirectory: string,
+  filename: string
+): string {
+  return join(cwd, targetDirectory, "commands", "tskl", filename);
+}
+
+/** Replace `path` with a regular file if it currently exists as a symlink. */
+async function unlinkIfSymlink(path: string): Promise<void> {
+  try {
+    const stats = await lstat(path);
+    if (stats.isSymbolicLink()) {
+      await rm(path, { force: true });
+    }
+  } catch {
+    // Missing path — nothing to unlink.
+  }
+}
+
 /**
- * Tool registry keyed by installDir so state-based cleanup can find the
- * original paths for a target recorded in a previous manifest. The agents
- * fallback is included since prior installs may have written to it.
- *
- * Order matters: TOOLS entries come first so registered tools win over the
- * fallback when they share an installDir. Codex is registered with
- * installDir `.agents` (Codex's documented read path), and Array.find
- * returns the first match — so the lookup resolves to Codex rather than
- * AGENTS_FALLBACK whenever both are valid for the same directory.
+ * Write a skill into a target. A `canonical` target receives the full
+ * embedded content; a `reference` target receives a stub, written only when
+ * absent or when its frontmatter has drifted. Returns whether a file was
+ * written.
  */
-const ALL_KNOWN_TOOLS: readonly ToolDescriptor[] = [...TOOLS, AGENTS_FALLBACK];
-
-function findToolByInstallDirectory(
-  directory: string
-): ToolDescriptor | undefined {
-  return ALL_KNOWN_TOOLS.find((t) => t.installDir === directory);
-}
-
-async function writeSkillFile(
+async function writeSkill(
   cwd: string,
-  tool: ToolDescriptor,
+  target: PlanTarget,
   skill: EmbeddedSkill
-): Promise<void> {
-  const skillDirectory = join(
-    cwd,
-    tool.installDir,
-    tool.skills.path,
-    skill.name
-  );
-  await mkdir(skillDirectory, { recursive: true });
-  await writeFile(join(skillDirectory, "SKILL.md"), skill.content, "utf8");
-}
+): Promise<boolean> {
+  if (target.mode === "canonical") {
+    await writeCanonicalSkill(cwd, skill.name, skill.content);
+    return true;
+  }
 
-async function writeCommandFile(
-  cwd: string,
-  tool: ToolDescriptor,
-  command: EmbeddedCommand
-): Promise<void> {
-  if (!tool.commands) return;
-  const commandDirectory = join(cwd, tool.installDir, tool.commands.path);
-  await mkdir(commandDirectory, { recursive: true });
+  const path = join(skillDirectory(cwd, target.dir, skill.name), "SKILL.md");
+  const existing = await readFile(path, "utf8").catch(() => {});
+  if (
+    existing !== undefined &&
+    !stubFrontmatterDrifted(existing, {
+      name: skill.name,
+      description: skill.description,
+    })
+  ) {
+    return false;
+  }
+
+  await unlinkIfSymlink(path);
+  await mkdir(dirname(path), { recursive: true });
   await writeFile(
-    join(commandDirectory, command.filename),
-    command.content,
+    path,
+    buildSkillStub({ name: skill.name, description: skill.description }),
     "utf8"
   );
-}
-
-async function deleteSkill(
-  cwd: string,
-  tool: ToolDescriptor,
-  skillName: string
-): Promise<void> {
-  const skillDirectory = join(
-    cwd,
-    tool.installDir,
-    tool.skills.path,
-    skillName
-  );
-  await rm(skillDirectory, { recursive: true, force: true });
-}
-
-async function deleteCommand(
-  cwd: string,
-  tool: ToolDescriptor,
-  commandFilename: string
-): Promise<void> {
-  if (!tool.commands) return;
-  const commandPath = join(
-    cwd,
-    tool.installDir,
-    tool.commands.path,
-    commandFilename
-  );
-  await rm(commandPath, { force: true });
+  return true;
 }
 
 /**
- * Apply an explicit install plan, using the previously-recorded state in
- * `.taskless/taskless.json` to surgically delete files that are no longer
- * selected. Unlike {@link installForTool}, this function NEVER glob-deletes
- * Taskless-prefixed files — it only touches files recorded in the prior
- * state. First-run installs (no prior state) write all plan files with
- * zero deletions.
+ * Write a command into a target. Mirrors {@link writeSkill}: full content for
+ * a `canonical` target, a drift-checked stub for a `reference` target.
+ */
+async function writeCommand(
+  cwd: string,
+  target: PlanTarget,
+  command: EmbeddedCommand
+): Promise<boolean> {
+  if (target.mode === "canonical") {
+    await writeCanonicalCommand(cwd, command.filename, command.content);
+    return true;
+  }
+
+  const path = commandFile(cwd, target.dir, command.filename);
+  const existing = await readFile(path, "utf8").catch(() => {});
+  if (
+    existing !== undefined &&
+    !stubFrontmatterDrifted(existing, {
+      name: command.name,
+      description: command.description,
+    })
+  ) {
+    return false;
+  }
+
+  await unlinkIfSymlink(path);
+  await mkdir(dirname(path), { recursive: true });
+  await writeFile(
+    path,
+    buildCommandStub(
+      {
+        name: command.name,
+        description: command.description,
+        argumentHint: command.argumentHint,
+      },
+      command.filename
+    ),
+    "utf8"
+  );
+  return true;
+}
+
+/**
+ * Apply an install plan. The previous manifest state drives surgical cleanup:
+ * only skills/commands recorded for a target and no longer present are
+ * removed, and each removal is scoped to that target's own directory — so no
+ * target's cleanup can ever reach into the canonical `.taskless/` store.
  */
 export async function applyInstallPlan(
   cwd: string,
@@ -431,55 +440,44 @@ export async function applyInstallPlan(
   const nextState: InstallState = {
     installedAt: now().toISOString(),
     cliVersion: options.cliVersion,
-    targets: {},
+    targets: planToStateTargets(plan),
   };
-
-  for (const { tool, skills, commands } of plan.targets) {
-    nextState.targets[tool.installDir] = {
-      skills: skills.map((s) => s.name),
-      commands: commands.map((c) => c.filename),
-    };
-  }
 
   const diff = computeInstallDiff(previousState, nextState);
 
   const removedSkills: Array<{ target: string; skill: string }> = [];
   const removedCommands: Array<{ target: string; command: string }> = [];
 
+  // Removals are scoped to each diff entry's own directory. Since no tool
+  // target's directory is ever `.taskless`, this can never delete canonical
+  // content as a side effect of cleaning up another target.
   for (const entry of diff.entries) {
-    if (
-      entry.removals.skills.length === 0 &&
-      entry.removals.commands.length === 0
-    ) {
-      continue;
-    }
-    const tool = findToolByInstallDirectory(entry.target);
-    if (!tool) continue;
-
     for (const skillName of entry.removals.skills) {
-      await deleteSkill(cwd, tool, skillName);
+      await rm(skillDirectory(cwd, entry.target, skillName), {
+        recursive: true,
+        force: true,
+      });
       removedSkills.push({ target: entry.target, skill: skillName });
     }
-    for (const commandFilename of entry.removals.commands) {
-      await deleteCommand(cwd, tool, commandFilename);
-      removedCommands.push({ target: entry.target, command: commandFilename });
+    for (const filename of entry.removals.commands) {
+      await rm(commandFile(cwd, entry.target, filename), { force: true });
+      removedCommands.push({ target: entry.target, command: filename });
     }
   }
 
   const writtenSkills: Array<{ target: string; skill: string }> = [];
   const writtenCommands: Array<{ target: string; command: string }> = [];
 
-  for (const { tool, skills, commands } of plan.targets) {
-    for (const skill of skills) {
-      await writeSkillFile(cwd, tool, skill);
-      writtenSkills.push({ target: tool.installDir, skill: skill.name });
+  for (const target of plan.targets) {
+    for (const skill of target.skills) {
+      if (await writeSkill(cwd, target, skill)) {
+        writtenSkills.push({ target: target.dir, skill: skill.name });
+      }
     }
-    for (const command of commands) {
-      await writeCommandFile(cwd, tool, command);
-      writtenCommands.push({
-        target: tool.installDir,
-        command: command.filename,
-      });
+    for (const command of target.commands) {
+      if (await writeCommand(cwd, target, command)) {
+        writtenCommands.push({ target: target.dir, command: command.filename });
+      }
     }
   }
 
@@ -496,11 +494,15 @@ export async function applyInstallPlan(
 
 // --- Staleness Check ---
 
-async function readInstalledSkillVersion(
-  skillPath: string
+async function readCanonicalSkillVersion(
+  cwd: string,
+  name: string
 ): Promise<string | undefined> {
   try {
-    const content = await readFile(skillPath, "utf8");
+    const content = await readFile(
+      join(skillDirectory(cwd, CANONICAL_DIR, name), "SKILL.md"),
+      "utf8"
+    );
     const parsed = parseFrontmatter(content);
     const metadata = parsed.data.metadata as Record<string, string> | undefined;
     return metadata?.version;
@@ -509,24 +511,14 @@ async function readInstalledSkillVersion(
   }
 }
 
+/**
+ * Report skill staleness for every detected tool. Versions are read from the
+ * canonical `.taskless/` store — stubs are version-free — so every detected
+ * tool reflects the single canonical install.
+ */
 export async function checkStaleness(cwd: string): Promise<ToolStatus[]> {
   const embedded = getEmbeddedSkills();
   const tools = await detectTools(cwd);
-
-  // Include .agents/ fallback if the directory exists (from a previous
-  // fallback install) AND no detected tool already uses that installDir.
-  // Codex registers installDir `.agents`, so without this guard a Codex
-  // repo would surface duplicate/contradictory statuses for the same
-  // directory (once under Codex, once under AGENTS_FALLBACK).
-  const fallbackAlreadyCovered = tools.some(
-    (t) => t.installDir === AGENTS_FALLBACK.installDir
-  );
-  const fallbackExists = await stat(join(cwd, AGENTS_FALLBACK.installDir))
-    .then((s) => s.isDirectory())
-    .catch(() => false);
-  if (fallbackExists && !fallbackAlreadyCovered) {
-    tools.push(AGENTS_FALLBACK);
-  }
 
   const results: ToolStatus[] = [];
 
@@ -534,14 +526,7 @@ export async function checkStaleness(cwd: string): Promise<ToolStatus[]> {
     const skillStatuses: SkillStatus[] = [];
 
     for (const skill of embedded) {
-      const installedPath = join(
-        cwd,
-        tool.installDir,
-        tool.skills.path,
-        skill.name,
-        "SKILL.md"
-      );
-      const installedVersion = await readInstalledSkillVersion(installedPath);
+      const installedVersion = await readCanonicalSkillVersion(cwd, skill.name);
       const currentVersion = skill.metadata.version ?? "unknown";
 
       skillStatuses.push({
