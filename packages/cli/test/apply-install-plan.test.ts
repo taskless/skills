@@ -1,13 +1,15 @@
 import {
+  lstat,
   mkdir,
   mkdtemp,
   readFile,
   rm,
   stat,
+  symlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
@@ -16,6 +18,7 @@ import {
   getEmbeddedCommands,
   getEmbeddedSkills,
 } from "../src/install/install";
+import { isShimStub } from "../src/install/canonical";
 import { parseFrontmatter } from "../src/install/frontmatter";
 import { readInstallState, writeInstallState } from "../src/install/state";
 
@@ -219,6 +222,45 @@ describe("applyInstallPlan", () => {
     for (const name of v6Commands) {
       expect(await exists(join(claudeCommands, name))).toBe(false);
     }
+  });
+
+  it("converts a full per-tool copy into a shim stub", async () => {
+    const skill = tasklessSkill();
+    const claudeSkill = join(cwd, ".claude", "skills", "taskless", "SKILL.md");
+    // An older install left a full copy here — no shim marker.
+    await mkdir(dirname(claudeSkill), { recursive: true });
+    await writeFile(claudeSkill, skill.content, "utf8");
+    expect(isShimStub(await readFile(claudeSkill, "utf8"))).toBe(false);
+
+    await applyInstallPlan(cwd, buildInstallPlan([".claude"], [skill], []), {
+      cliVersion: "0.7.0",
+    });
+
+    const after = await readFile(claudeSkill, "utf8");
+    expect(isShimStub(after)).toBe(true);
+    expect(parseFrontmatter(after).content).toContain(
+      ".taskless/skills/taskless/SKILL.md"
+    );
+  });
+
+  it("replaces a symlinked tool entry with a real shim stub", async () => {
+    const skill = tasklessSkill();
+    const claudeSkill = join(cwd, ".claude", "skills", "taskless", "SKILL.md");
+    const linkTarget = join(cwd, "external-skill.md");
+    await writeFile(linkTarget, skill.content, "utf8");
+    await mkdir(dirname(claudeSkill), { recursive: true });
+    await symlink(linkTarget, claudeSkill);
+
+    await applyInstallPlan(cwd, buildInstallPlan([".claude"], [skill], []), {
+      cliVersion: "0.7.0",
+    });
+
+    const stats = await lstat(claudeSkill);
+    expect(stats.isSymbolicLink()).toBe(false);
+    expect(stats.isFile()).toBe(true);
+    expect(isShimStub(await readFile(claudeSkill, "utf8"))).toBe(true);
+    // The symlink target file itself is left untouched.
+    expect(await readFile(linkTarget, "utf8")).toBe(skill.content);
   });
 
   it("does not touch unknown files in a skills directory", async () => {

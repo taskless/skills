@@ -154,3 +154,54 @@ describe("migration 2 — install state", () => {
     });
   });
 });
+
+/** The latest schema version, derived from a fresh bootstrap. */
+async function latestSchemaVersion(): Promise<number> {
+  const fresh = await mkdtemp(join(tmpdir(), "taskless-migrate-latest-"));
+  try {
+    await ensureTasklessDirectory(fresh);
+    const manifest = JSON.parse(
+      await readFile(join(fresh, ".taskless", "taskless.json"), "utf8")
+    ) as { version: number };
+    return manifest.version;
+  } finally {
+    await rm(fresh, { recursive: true, force: true });
+  }
+}
+
+describe("migration version matrix", () => {
+  let temporaryDirectory: string;
+
+  beforeEach(async () => {
+    temporaryDirectory = await mkdtemp(
+      join(tmpdir(), "taskless-migrate-matrix-")
+    );
+  });
+
+  afterEach(async () => {
+    await rm(temporaryDirectory, { recursive: true, force: true });
+  });
+
+  // Seed .taskless/ at every prior schema version and confirm each
+  // forward-migrates cleanly to the latest. Catches a future migration that
+  // forgets to handle an older starting point.
+  for (const startVersion of [0, 1, 2]) {
+    it(`forward-migrates a v${String(startVersion)} project to the latest schema`, async () => {
+      const latest = await latestSchemaVersion();
+      const tasklessDirectory = join(temporaryDirectory, ".taskless");
+      await mkdir(tasklessDirectory, { recursive: true });
+      await writeFile(
+        join(tasklessDirectory, "taskless.json"),
+        JSON.stringify({ version: startVersion }),
+        "utf8"
+      );
+
+      await ensureTasklessDirectory(temporaryDirectory);
+
+      const manifest = JSON.parse(
+        await readFile(join(tasklessDirectory, "taskless.json"), "utf8")
+      ) as { version: number };
+      expect(manifest.version).toBe(latest);
+    });
+  }
+});

@@ -13,7 +13,7 @@ The fix is to give canonical content its own home that no tool ever installs int
 - The install manifest (`.taskless/taskless.json`) gains a per-target **mode**: `canonical` (`.taskless/`) vs `reference` (each tool directory). `update` rewrites canonical content only, regenerates a stub only when its frontmatter has drifted, and **never** overwrites a stub with full content.
 - The interactive wizard reframes its location step as "which tools do you want to enable Taskless for?" — a fixed multiselect of `.claude/.cursor/.opencode/.agents`, detected entries pre-checked.
 - Cleanup becomes strictly manifest-driven — no `rm -rf` of a path another target sources from.
-- A `.taskless/` migration converges existing installs: seeds the canonical store, converts existing full per-tool copies into stubs, replaces any symlinked tool entry with a real stub, and stamps per-target modes.
+- Existing installs converge without a migration. Stubs carry a `metadata.type: shim` frontmatter marker, and `applyInstallPlan` self-heals: it rewrites any reference file that is not a current shim stub — a full copy from an older install, a symlink, or a drifted stub — on the next `init`/`update`.
 
 ## Capabilities
 
@@ -29,7 +29,6 @@ The fix is to give canonical content its own home that no tool ever installs int
 
 - **Code**: `packages/cli/src/install/install.ts` (canonical store + stub writes, the install-plan model, `applyInstallPlan`, removal of `rm -rf` glob cleanup), `install/canonical.ts` (canonical write + stub helpers), `install/state.ts` (manifest `mode` field), `commands/init.ts` + `wizard/` (plan construction, reframed tool-selection step, summary).
 - **Filesystem**: new `.taskless/skills/` and `.taskless/commands/` canonical directories; `.taskless/README.md` "Files" section updated.
-- **Migration**: a new `.taskless/` migration seeds the canonical store, converts full per-tool copies into stubs, replaces symlinked tool entries with real stubs, and stamps per-target `mode` (`filesystem/migrations/`).
-- **Manifest**: `.taskless/taskless.json` install-state schema gains per-target `mode`.
+- **Manifest**: `.taskless/taskless.json` install-state schema gains per-target `mode` (backward-compatible — a missing `mode` reads as `canonical`).
 - **Tests**: install/update unit tests covering canonical write, stub generation, mode preservation across `update`, symlink-to-stub conversion, and full-copy-to-stub conversion.
 - **Tools affected**: Claude Code and Cursor (skill + command stubs); OpenCode and Codex/`.agents` (skill stub, no commands).

@@ -4,6 +4,7 @@ import { basename, dirname, join } from "node:path";
 import {
   buildCommandStub,
   buildSkillStub,
+  isShimStub,
   stubFrontmatterDrifted,
   writeCanonicalCommand,
   writeCanonicalSkill,
@@ -343,10 +344,33 @@ async function unlinkIfSymlink(path: string): Promise<void> {
 }
 
 /**
+ * Whether a `reference` file at `path` must be (re)written. Self-healing: a
+ * file is rewritten unless it is already a current, non-drifted shim stub.
+ * That converges anything stale onto the canonical-plus-stub layout —
+ * a missing file, a full copy left by an older install, a symlink, or a
+ * stub whose frontmatter has drifted.
+ */
+async function referenceNeedsRewrite(
+  path: string,
+  meta: { name: string; description: string }
+): Promise<boolean> {
+  let stats;
+  try {
+    stats = await lstat(path);
+  } catch {
+    return true; // missing
+  }
+  if (stats.isSymbolicLink()) return true; // always replace a symlink
+  const existing = await readFile(path, "utf8").catch(() => {});
+  if (existing === undefined) return true;
+  if (!isShimStub(existing)) return true; // a full copy — convert it
+  return stubFrontmatterDrifted(existing, meta);
+}
+
+/**
  * Write a skill into a target. A `canonical` target receives the full
- * embedded content; a `reference` target receives a stub, written only when
- * absent or when its frontmatter has drifted. Returns whether a file was
- * written.
+ * embedded content; a `reference` target receives a shim stub, (re)written
+ * per {@link referenceNeedsRewrite}. Returns whether a file was written.
  */
 async function writeSkill(
   cwd: string,
@@ -359,30 +383,18 @@ async function writeSkill(
   }
 
   const path = join(skillDirectory(cwd, target.dir, skill.name), "SKILL.md");
-  const existing = await readFile(path, "utf8").catch(() => {});
-  if (
-    existing !== undefined &&
-    !stubFrontmatterDrifted(existing, {
-      name: skill.name,
-      description: skill.description,
-    })
-  ) {
-    return false;
-  }
+  const meta = { name: skill.name, description: skill.description };
+  if (!(await referenceNeedsRewrite(path, meta))) return false;
 
   await unlinkIfSymlink(path);
   await mkdir(dirname(path), { recursive: true });
-  await writeFile(
-    path,
-    buildSkillStub({ name: skill.name, description: skill.description }),
-    "utf8"
-  );
+  await writeFile(path, buildSkillStub(meta), "utf8");
   return true;
 }
 
 /**
  * Write a command into a target. Mirrors {@link writeSkill}: full content for
- * a `canonical` target, a drift-checked stub for a `reference` target.
+ * a `canonical` target, a self-healing shim stub for a `reference` target.
  */
 async function writeCommand(
   cwd: string,
@@ -395,13 +407,11 @@ async function writeCommand(
   }
 
   const path = commandFile(cwd, target.dir, command.filename);
-  const existing = await readFile(path, "utf8").catch(() => {});
   if (
-    existing !== undefined &&
-    !stubFrontmatterDrifted(existing, {
+    !(await referenceNeedsRewrite(path, {
       name: command.name,
       description: command.description,
-    })
+    }))
   ) {
     return false;
   }
