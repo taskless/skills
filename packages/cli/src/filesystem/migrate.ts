@@ -8,6 +8,12 @@ import installMigration from "./migrations/0002-install";
 export interface TasklessInstallTarget {
   skills?: string[];
   commands?: string[];
+  /**
+   * Install mode for this target: `canonical` (full content) or `reference`
+   * (stubs delegating to the canonical store). Absent in manifests written
+   * before this field existed; consumers treat a missing value as canonical.
+   */
+  mode?: "canonical" | "reference";
 }
 
 export interface TasklessInstallManifest {

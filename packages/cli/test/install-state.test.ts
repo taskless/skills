@@ -137,12 +137,53 @@ describe("readInstallState / writeInstallState", () => {
         ".claude": {
           skills: ["taskless-check", "taskless-ci"],
           commands: ["check"],
+          mode: "canonical",
         },
       },
     };
     await writeInstallState(temporaryDirectory, state);
 
     const roundtrip = await readInstallState(temporaryDirectory);
+    expect(roundtrip).toEqual(state);
+  });
+
+  it("treats a legacy manifest target without mode as canonical", async () => {
+    const tasklessDirectory = join(temporaryDirectory, ".taskless");
+    await writeFile(
+      join(tasklessDirectory, "taskless.json"),
+      JSON.stringify({
+        version: 2,
+        install: {
+          targets: { ".claude": { skills: ["taskless"], commands: ["tskl"] } },
+        },
+      }),
+      "utf8"
+    );
+
+    const state = await readInstallState(temporaryDirectory);
+    expect(state.targets[".claude"]?.mode).toBe("canonical");
+  });
+
+  it("round-trips canonical and reference modes", async () => {
+    const state: InstallState = {
+      targets: {
+        ".taskless": {
+          skills: ["taskless"],
+          commands: ["tskl"],
+          mode: "canonical",
+        },
+        ".claude": {
+          skills: ["taskless"],
+          commands: ["tskl"],
+          mode: "reference",
+        },
+      },
+    };
+    await writeInstallState(temporaryDirectory, state);
+
+    const roundtrip = await readInstallState(temporaryDirectory);
+    expect(roundtrip.targets[".taskless"]?.mode).toBe("canonical");
+    expect(roundtrip.targets[".claude"]?.mode).toBe("reference");
     expect(roundtrip).toEqual(state);
   });
 

@@ -8,9 +8,22 @@ import { readManifest, writeManifest } from "../filesystem/migrate";
 
 const TASKLESS_DIR = ".taskless";
 
+/**
+ * How a target holds its content. A `canonical` target stores the full
+ * skill/command files; a `reference` target stores thin stubs that delegate
+ * to the canonical store.
+ */
+export type InstallMode = "canonical" | "reference";
+
 export interface InstallTargetRecord {
   skills: string[];
   commands: string[];
+  /**
+   * Install mode for this target. Optional on in-memory records and absent
+   * in manifests written before this field existed — {@link readInstallState}
+   * normalizes a missing value to `canonical`.
+   */
+  mode?: InstallMode;
 }
 
 export interface InstallState {
@@ -21,6 +34,13 @@ export interface InstallState {
 
 export interface InstallDiffEntry {
   target: string;
+  /**
+   * Effective install mode for this target: the next state's mode when the
+   * target survives, otherwise the previous state's mode, defaulting to
+   * `canonical`. Lets removal logic respect a target's mode without a second
+   * state lookup.
+   */
+  mode: InstallMode;
   additions: { skills: string[]; commands: string[] };
   removals: { skills: string[]; commands: string[] };
   unchanged: { skills: string[]; commands: string[] };
@@ -41,6 +61,8 @@ function toInstallState(
       targets[name] = {
         skills: t.skills ?? [],
         commands: t.commands ?? [],
+        // A manifest written before `mode` existed is treated as canonical.
+        mode: t.mode ?? "canonical",
       };
     }
   }
@@ -57,6 +79,7 @@ function toInstallManifest(state: InstallState): TasklessInstallManifest {
     const entry: TasklessInstallTarget = {};
     if (t.skills.length > 0) entry.skills = [...t.skills];
     if (t.commands.length > 0) entry.commands = [...t.commands];
+    if (t.mode) entry.mode = t.mode;
     targets[name] = entry;
   }
   const manifest: TasklessInstallManifest = { targets };
@@ -132,6 +155,13 @@ export function computeInstallDiff(
     const skillDiff = diffArrays(previous_.skills, current.skills);
     const commandDiff = diffArrays(previous_.commands, current.commands);
 
+    // Prefer the next state's mode (target survives), fall back to the
+    // previous state's mode (target removed), default to canonical.
+    const mode: InstallMode =
+      next.targets[target]?.mode ??
+      previous.targets[target]?.mode ??
+      "canonical";
+
     if (skillDiff.additions.length > 0 || commandDiff.additions.length > 0) {
       hasAdditions = true;
     }
@@ -141,6 +171,7 @@ export function computeInstallDiff(
 
     entries.push({
       target,
+      mode,
       additions: {
         skills: skillDiff.additions,
         commands: commandDiff.additions,
