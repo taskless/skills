@@ -16,6 +16,12 @@ const CANONICAL_DIR = ".taskless";
 export interface StubFrontmatter {
   name: string;
   description: string;
+  /**
+   * Version of the canonical content this stub was generated from. Carried
+   * for reference and kept in lockstep — a version change counts as drift, so
+   * `update` regenerates the stub.
+   */
+  version?: string;
 }
 
 /**
@@ -71,11 +77,14 @@ export async function writeCanonicalCommand(
 }
 
 /**
- * Frontmatter `metadata` block stamped onto every stub. `type: shim` marks the
+ * Frontmatter `metadata` block stamped onto a stub. `type: shim` marks the
  * file as a reference stub so it is distinguishable from a full copy without
- * inspecting the body — see {@link isShimStub}.
+ * inspecting the body (see {@link isShimStub}); `version` records the
+ * canonical version the stub was generated from.
  */
-const SHIM_METADATA = { type: "shim" } as const;
+function shimMetadata(version: string | undefined): Record<string, string> {
+  return version ? { type: "shim", version } : { type: "shim" };
+}
 
 /** Serialize ordered frontmatter fields into a `---`-delimited block. */
 function frontmatterBlock(fields: Record<string, unknown>): string {
@@ -94,7 +103,7 @@ export function buildSkillStub(meta: StubFrontmatter): string {
     frontmatterBlock({
       name: meta.name,
       description: meta.description,
-      metadata: SHIM_METADATA,
+      metadata: shimMetadata(meta.version),
     }) +
     "\n" +
     `This is a Taskless reference stub. The canonical skill is defined at ` +
@@ -118,7 +127,7 @@ export function buildCommandStub(
     description: meta.description,
   };
   if (meta.argumentHint) fields["argument-hint"] = meta.argumentHint;
-  fields.metadata = SHIM_METADATA;
+  fields.metadata = shimMetadata(meta.version);
   return (
     frontmatterBlock(fields) +
     "\n" +
@@ -140,7 +149,13 @@ export function stubFrontmatterDrifted(
   meta: StubFrontmatter
 ): boolean {
   const { data } = parseFrontmatter(existingStub);
-  return data.name !== meta.name || data.description !== meta.description;
+  if (data.name !== meta.name || data.description !== meta.description) {
+    return true;
+  }
+  const metadata = data.metadata as { version?: unknown } | undefined;
+  const stubVersion =
+    typeof metadata?.version === "string" ? metadata.version : undefined;
+  return stubVersion !== meta.version;
 }
 
 /**

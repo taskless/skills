@@ -8,6 +8,8 @@ import {
   stubFrontmatterDrifted,
   writeCanonicalCommand,
   writeCanonicalSkill,
+  type CommandStubFrontmatter,
+  type StubFrontmatter,
 } from "./canonical";
 import { parseFrontmatter } from "./frontmatter";
 import {
@@ -68,6 +70,7 @@ export interface EmbeddedCommand {
   name: string;
   description: string;
   argumentHint?: string;
+  version?: string;
 }
 
 export interface SkillStatus {
@@ -215,6 +218,7 @@ export function getEmbeddedCommands(): EmbeddedCommand[] {
       name?: string;
       description?: string;
       "argument-hint"?: string;
+      metadata?: Record<string, string>;
     };
     const filename = basename(path);
     return {
@@ -223,6 +227,7 @@ export function getEmbeddedCommands(): EmbeddedCommand[] {
       name: data.name ?? filename.replace(/\.md$/, ""),
       description: data.description ?? "",
       argumentHint: data["argument-hint"],
+      version: data.metadata?.version,
     };
   });
 }
@@ -352,7 +357,7 @@ async function unlinkIfSymlink(path: string): Promise<void> {
  */
 async function referenceNeedsRewrite(
   path: string,
-  meta: { name: string; description: string }
+  meta: StubFrontmatter
 ): Promise<boolean> {
   let stats;
   try {
@@ -383,7 +388,11 @@ async function writeSkill(
   }
 
   const path = join(skillDirectory(cwd, target.dir, skill.name), "SKILL.md");
-  const meta = { name: skill.name, description: skill.description };
+  const meta: StubFrontmatter = {
+    name: skill.name,
+    description: skill.description,
+    version: skill.metadata.version,
+  };
   if (!(await referenceNeedsRewrite(path, meta))) return false;
 
   await unlinkIfSymlink(path);
@@ -407,29 +416,17 @@ async function writeCommand(
   }
 
   const path = commandFile(cwd, target.dir, command.filename);
-  if (
-    !(await referenceNeedsRewrite(path, {
-      name: command.name,
-      description: command.description,
-    }))
-  ) {
-    return false;
-  }
+  const meta: CommandStubFrontmatter = {
+    name: command.name,
+    description: command.description,
+    argumentHint: command.argumentHint,
+    version: command.version,
+  };
+  if (!(await referenceNeedsRewrite(path, meta))) return false;
 
   await unlinkIfSymlink(path);
   await mkdir(dirname(path), { recursive: true });
-  await writeFile(
-    path,
-    buildCommandStub(
-      {
-        name: command.name,
-        description: command.description,
-        argumentHint: command.argumentHint,
-      },
-      command.filename
-    ),
-    "utf8"
-  );
+  await writeFile(path, buildCommandStub(meta, command.filename), "utf8");
   return true;
 }
 

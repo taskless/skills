@@ -79,6 +79,20 @@ describe("buildSkillStub", () => {
     expect(stub).not.toContain(SENTINEL);
   });
 
+  it("carries metadata.type shim and the canonical version", () => {
+    const stub = buildSkillStub({
+      name: "taskless",
+      description: "d",
+      version: "0.7.0",
+    });
+    const metadata = parseFrontmatter(stub).data.metadata as {
+      type?: string;
+      version?: string;
+    };
+    expect(metadata.type).toBe("shim");
+    expect(metadata.version).toBe("0.7.0");
+  });
+
   it("writes to disk as a regular file, not a symlink", async () => {
     const temporaryDirectory = await mkdtemp(join(tmpdir(), "taskless-stub-"));
     try {
@@ -175,6 +189,16 @@ describe("stubFrontmatterDrifted", () => {
   it("returns true when the name has drifted", () => {
     const stub = buildSkillStub(meta);
     expect(stubFrontmatterDrifted(stub, { ...meta, name: "renamed" })).toBe(
+      true
+    );
+  });
+
+  it("returns true when the version has drifted", () => {
+    const stub = buildSkillStub({ ...meta, version: "0.7.0" });
+    expect(stubFrontmatterDrifted(stub, { ...meta, version: "0.7.0" })).toBe(
+      false
+    );
+    expect(stubFrontmatterDrifted(stub, { ...meta, version: "0.8.0" })).toBe(
       true
     );
   });
