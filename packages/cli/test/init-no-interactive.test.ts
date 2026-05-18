@@ -39,7 +39,7 @@ describe("taskless init --no-interactive", () => {
       cwd,
     ]);
 
-    expect(stdout).toContain("Claude Code: installed");
+    expect(stdout).toContain("Claude Code (.claude/)");
 
     expect(
       await exists(join(cwd, ".claude", "skills", "taskless", "SKILL.md"))
@@ -91,7 +91,7 @@ describe("taskless init --no-interactive", () => {
     ]);
 
     expect(stderr).toContain("Detected non-interactive context");
-    expect(stdout).toContain("Claude Code: installed");
+    expect(stdout).toContain("Claude Code (.claude/)");
   });
 
   it("`taskless update` runs the same non-interactive install path", async () => {
@@ -104,7 +104,7 @@ describe("taskless init --no-interactive", () => {
       cwd,
     ]);
 
-    expect(stdout).toContain("Claude Code: installed");
+    expect(stdout).toContain("Claude Code (.claude/)");
     expect(
       await exists(join(cwd, ".claude", "skills", "taskless", "SKILL.md"))
     ).toBe(true);
