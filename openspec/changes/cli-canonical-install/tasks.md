@@ -16,21 +16,21 @@
 
 ## 3. Install-plan model and tool selection
 
-- [ ] 3.1 Define a resolved install-plan target type `{ dir, mode, label, skills, commands }` decoupled from `ToolDescriptor`; keep `ToolDescriptor` for detection only
-- [ ] 3.2 Build the plan so the `.taskless/` canonical target (`mode: canonical`) is always present when the plan contains a skill or command
-- [ ] 3.3 Build a `reference`-mode stub target for each selected tool directory: skill stub for all; command stub for `.claude/` and `.cursor/` only
-- [ ] 3.4 Reframe the wizard location step as a fixed tool-selection multiselect (`.claude/.cursor/.opencode/.agents`), detected pre-checked, `.agents/` default when nothing detected
-- [ ] 3.5 Update non-interactive `init`/`update` plan construction to the same canonical + per-tool-stub model
-- [ ] 3.6 Update the install summary to report the canonical `.taskless/` write and each selected stub target
+- [x] 3.1 Define a resolved install-plan target type `{ dir, mode, label, skills, commands }` decoupled from `ToolDescriptor`; keep `ToolDescriptor` for detection only
+- [x] 3.2 Build the plan so the `.taskless/` canonical target (`mode: canonical`) is always present when the plan contains a skill or command
+- [x] 3.3 Build a `reference`-mode stub target for each selected tool directory: skill stub for all; command stub for `.claude/` and `.cursor/` only
+- [x] 3.4 Reframe the wizard location step as a fixed tool-selection multiselect (`.claude/.cursor/.opencode/.agents`), detected pre-checked, `.agents/` default when nothing detected
+- [x] 3.5 Update non-interactive `init`/`update` plan construction to the same canonical + per-tool-stub model
+- [x] 3.6 Update the install summary to report the canonical `.taskless/` write and each selected stub target
 
 ## 4. Apply install plan: mode-aware writes
 
-- [ ] 4.1 In `applyInstallPlan`, write full content only to the `canonical` `.taskless/` target
-- [ ] 4.2 For `reference` targets, write a stub only when absent or when frontmatter has drifted; never overwrite a stub with full content
-- [ ] 4.3 Remove the destructive `rm -rf` glob in `removeOwnedSkills`/`removeOwnedCommands`; rely solely on manifest-diff-driven removal
-- [ ] 4.4 Guarantee no target's cleanup deletes the canonical `.taskless/skills/` or `.taskless/commands/` store
-- [ ] 4.5 Ensure no code path creates a symlink for skills or commands
-- [ ] 4.6 Persist per-target `mode` into `taskless.json` on write
+- [x] 4.1 In `applyInstallPlan`, write full content only to the `canonical` `.taskless/` target
+- [x] 4.2 For `reference` targets, write a stub only when absent or when frontmatter has drifted; never overwrite a stub with full content
+- [x] 4.3 Remove the destructive `rm -rf` glob in `removeOwnedSkills`/`removeOwnedCommands`; rely solely on manifest-diff-driven removal
+- [x] 4.4 Guarantee no target's cleanup deletes the canonical `.taskless/skills/` or `.taskless/commands/` store
+- [x] 4.5 Ensure no code path creates a symlink for skills or commands
+- [x] 4.6 Persist per-target `mode` into `taskless.json` on write
 
 ## 5. Migration: converge existing installs
 

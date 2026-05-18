@@ -4,13 +4,10 @@ import { getOnboardTrailer } from "../commands/onboard";
 import { ensureTasklessDirectory } from "../filesystem/directory";
 import {
   applyInstallPlan,
-  AGENTS_FALLBACK,
+  buildInstallPlan,
   getEmbeddedCommands,
   getEmbeddedSkills,
-  TOOLS,
-  type EmbeddedCommand,
-  type InstallPlanTarget,
-  type ToolDescriptor,
+  planToStateTargets,
 } from "../install/install";
 import { computeInstallDiff, readInstallState } from "../install/state";
 import { getTelemetry } from "../telemetry";
@@ -35,20 +32,6 @@ export interface WizardResult {
   cancelledStep?: string;
 }
 
-/**
- * Lookup map keyed by installDir, derived from the canonical registry.
- *
- * AGENTS_FALLBACK is seeded first so that any registered tool sharing its
- * installDir overwrites it (Object.fromEntries keeps the last value for a
- * duplicate key). Codex's installDir is `.agents` — the same as the
- * fallback — so this ordering ensures `.agents` resolves to Codex when
- * Codex is in TOOLS, while still leaving the fallback descriptor available
- * for users who never had Codex registered.
- */
-const TOOL_BY_INSTALL_DIR: Record<string, ToolDescriptor> = Object.fromEntries(
-  [AGENTS_FALLBACK, ...TOOLS].map((tool) => [tool.installDir, tool])
-);
-
 export async function runWizard(
   options: RunWizardOptions
 ): Promise<WizardResult> {
@@ -71,38 +54,19 @@ export async function runWizard(
     authPromptShown = authResult.prompted;
     authCompleted = authResult.loggedIn;
 
-    const embeddedSkills = getEmbeddedSkills();
-    const embeddedCommands = getEmbeddedCommands();
     // Catalog has one entry now (`taskless`); install all embedded skills.
-    const selectedSkills = embeddedSkills;
-
-    const planTargets: InstallPlanTarget[] = locations.map((directory) => {
-      const tool = TOOL_BY_INSTALL_DIR[directory];
-      if (!tool) {
-        throw new Error(`Unknown install location: ${directory}`);
-      }
-      return {
-        tool,
-        skills: selectedSkills,
-        commands: tool.commands ? embeddedCommands : [],
-      };
-    });
+    const plan = buildInstallPlan(
+      locations,
+      getEmbeddedSkills(),
+      getEmbeddedCommands()
+    );
 
     const previousState = await readInstallState(options.cwd);
-    const nextStateForDiff = {
+    const diff = computeInstallDiff(previousState, {
       installedAt: previousState.installedAt,
       cliVersion: previousState.cliVersion,
-      targets: Object.fromEntries(
-        planTargets.map((t) => [
-          t.tool.installDir,
-          {
-            skills: t.skills.map((s) => s.name),
-            commands: t.commands.map((c: EmbeddedCommand) => c.filename),
-          },
-        ])
-      ),
-    };
-    const diff = computeInstallDiff(previousState, nextStateForDiff);
+      targets: planToStateTargets(plan),
+    });
 
     const proceed = await renderSummaryAndConfirm(diff);
     if (!proceed) {
@@ -114,14 +78,14 @@ export async function runWizard(
     await ensureTasklessDirectory(options.cwd, {
       onNotice: (message) => log.info(message),
     });
-    await applyInstallPlan(
-      options.cwd,
-      { targets: planTargets },
-      { cliVersion: getCliVersion() }
-    );
+    await applyInstallPlan(options.cwd, plan, {
+      cliVersion: getCliVersion(),
+    });
 
     outro("Taskless is ready to go.");
-    const commandsInstalled = planTargets.some((t) => t.commands.length > 0);
+    const commandsInstalled = plan.targets.some(
+      (t) => t.mode === "reference" && t.commands.length > 0
+    );
     console.log(getOnboardTrailer({ commandsInstalled }));
     return finish({ status: "completed" });
   } catch (error) {
