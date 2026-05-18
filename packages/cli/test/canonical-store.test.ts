@@ -1,0 +1,154 @@
+import { lstat, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+import {
+  buildCommandStub,
+  buildSkillStub,
+  stubFrontmatterDrifted,
+  writeCanonicalCommand,
+  writeCanonicalSkill,
+} from "../src/install/canonical";
+import { parseFrontmatter } from "../src/install/frontmatter";
+
+const SENTINEL = "INLINED-CANONICAL-BODY-MARKER";
+
+const skillSource = `---
+name: taskless
+description: Use for any Taskless task.
+---
+
+# Taskless
+
+${SENTINEL} — full canonical skill instructions live here.
+`;
+
+describe("writeCanonicalSkill / writeCanonicalCommand", () => {
+  let temporaryDirectory: string;
+
+  beforeEach(async () => {
+    temporaryDirectory = await mkdtemp(join(tmpdir(), "taskless-canonical-"));
+  });
+
+  afterEach(async () => {
+    await rm(temporaryDirectory, { recursive: true, force: true });
+  });
+
+  it("writes skill content to .taskless/skills verbatim", async () => {
+    const path = await writeCanonicalSkill(
+      temporaryDirectory,
+      "taskless",
+      skillSource
+    );
+    expect(path).toBe(
+      join(temporaryDirectory, ".taskless", "skills", "taskless", "SKILL.md")
+    );
+    expect(await readFile(path, "utf8")).toBe(skillSource);
+  });
+
+  it("writes command content to .taskless/commands/tskl verbatim", async () => {
+    const commandSource = "---\nname: Taskless\n---\n\nbody\n";
+    const path = await writeCanonicalCommand(
+      temporaryDirectory,
+      "tskl.md",
+      commandSource
+    );
+    expect(path).toBe(
+      join(temporaryDirectory, ".taskless", "commands", "tskl", "tskl.md")
+    );
+    expect(await readFile(path, "utf8")).toBe(commandSource);
+  });
+});
+
+describe("buildSkillStub", () => {
+  it("produces valid frontmatter, a delegating body, and no inlined content", () => {
+    const stub = buildSkillStub({
+      name: "taskless",
+      description: "Use for any Taskless task.",
+    });
+
+    const { data, content } = parseFrontmatter(stub);
+    expect(data.name).toBe("taskless");
+    expect(data.description).toBe("Use for any Taskless task.");
+
+    expect(content).toContain(".taskless/skills/taskless/SKILL.md");
+    expect(content.toLowerCase()).toContain("read");
+    expect(stub).not.toContain(SENTINEL);
+  });
+
+  it("writes to disk as a regular file, not a symlink", async () => {
+    const temporaryDirectory = await mkdtemp(join(tmpdir(), "taskless-stub-"));
+    try {
+      const stubPath = join(temporaryDirectory, "SKILL.md");
+      await writeFile(
+        stubPath,
+        buildSkillStub({ name: "taskless", description: "desc" }),
+        "utf8"
+      );
+      const stats = await lstat(stubPath);
+      expect(stats.isFile()).toBe(true);
+      expect(stats.isSymbolicLink()).toBe(false);
+    } finally {
+      await rm(temporaryDirectory, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("buildCommandStub", () => {
+  it("passes $ARGUMENTS through and delegates to the canonical command", () => {
+    const stub = buildCommandStub(
+      { name: "Taskless", description: "Run any Taskless action." },
+      "tskl.md"
+    );
+    const { data, content } = parseFrontmatter(stub);
+    expect(data.name).toBe("Taskless");
+    expect(content).toContain("$ARGUMENTS");
+    expect(content).toContain(".taskless/commands/tskl/tskl.md");
+  });
+
+  it("preserves the canonical argument-hint when present", () => {
+    const stub = buildCommandStub(
+      {
+        name: "Taskless",
+        description: "Run any Taskless action.",
+        argumentHint: "<describe what you want to do>",
+      },
+      "tskl.md"
+    );
+    const { data } = parseFrontmatter(stub);
+    expect(data["argument-hint"]).toBe("<describe what you want to do>");
+  });
+
+  it("omits argument-hint when the canonical command has none", () => {
+    const stub = buildCommandStub(
+      { name: "Taskless", description: "Run any Taskless action." },
+      "tskl.md"
+    );
+    const { data } = parseFrontmatter(stub);
+    expect(data["argument-hint"]).toBeUndefined();
+  });
+});
+
+describe("stubFrontmatterDrifted", () => {
+  const meta = { name: "taskless", description: "Use for any Taskless task." };
+
+  it("returns false for a stub that still matches the canonical", () => {
+    const stub = buildSkillStub(meta);
+    expect(stubFrontmatterDrifted(stub, meta)).toBe(false);
+  });
+
+  it("returns true when the description has drifted", () => {
+    const stub = buildSkillStub(meta);
+    expect(
+      stubFrontmatterDrifted(stub, { ...meta, description: "changed" })
+    ).toBe(true);
+  });
+
+  it("returns true when the name has drifted", () => {
+    const stub = buildSkillStub(meta);
+    expect(stubFrontmatterDrifted(stub, { ...meta, name: "renamed" })).toBe(
+      true
+    );
+  });
+});

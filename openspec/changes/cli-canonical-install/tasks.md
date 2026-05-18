@@ -7,12 +7,12 @@
 
 ## 2. Canonical store and stub generation
 
-- [ ] 2.1 Add a canonical-write helper that writes embedded skill content to `.taskless/skills/<name>/SKILL.md` and command content to `.taskless/commands/tskl/<name>.md`
-- [ ] 2.2 Add a stub-generation helper that builds a `SKILL.md`/command file with `name`+`description` frontmatter copied from the canonical content and a body delegating to the canonical path
-- [ ] 2.3 Add a helper to detect frontmatter drift between an existing stub and the canonical content
-- [ ] 2.4 Unit test: canonical content matches embedded source verbatim
-- [ ] 2.5 Unit test: generated stub has valid frontmatter, a delegating body, no inlined canonical content, and is a regular file
-- [ ] 2.6 Unit test: drift detection flags a changed `description` and ignores an unchanged stub
+- [x] 2.1 Add a canonical-write helper that writes embedded skill content to `.taskless/skills/<name>/SKILL.md` and command content to `.taskless/commands/tskl/<name>.md`
+- [x] 2.2 Add a stub-generation helper that builds a `SKILL.md`/command file with `name`+`description` frontmatter copied from the canonical content and a body delegating to the canonical path
+- [x] 2.3 Add a helper to detect frontmatter drift between an existing stub and the canonical content
+- [x] 2.4 Unit test: canonical content matches embedded source verbatim
+- [x] 2.5 Unit test: generated stub has valid frontmatter, a delegating body, no inlined canonical content, and is a regular file
+- [x] 2.6 Unit test: drift detection flags a changed `description` and ignores an unchanged stub
 
 ## 3. Tool registry and install plan
 
