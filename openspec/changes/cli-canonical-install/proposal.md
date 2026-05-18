@@ -13,7 +13,7 @@ The fix is to give canonical content its own home that no tool ever installs int
 - The install manifest (`.taskless/taskless.json`) gains a per-target **mode**: `canonical` (`.taskless/`) vs `reference` (each tool directory). `update` rewrites canonical content only, regenerates a stub only when its frontmatter has drifted, and **never** overwrites a stub with full content.
 - The interactive wizard reframes its location step as "which tools do you want to enable Taskless for?" — a fixed multiselect of `.claude/.cursor/.opencode/.agents`, detected entries pre-checked.
 - Cleanup becomes strictly manifest-driven — no `rm -rf` of a path another target sources from.
-- Existing installs converge without a migration. Stubs carry a `metadata.type: shim` frontmatter marker, and `applyInstallPlan` self-heals: it rewrites any reference file that is not a current shim stub — a full copy from an older install, a symlink, or a drifted stub — on the next `init`/`update`.
+- Existing installs converge without a migration. Stubs carry `metadata` with a `type: shim` marker and the canonical `version`, and `applyInstallPlan` self-heals: it rewrites any reference file that is not a current shim stub — a full copy from an older install, a symlink, or a drifted stub — on the next `init`/`update`.
 
 ## Capabilities
 
