@@ -49,9 +49,26 @@ export async function renderSummaryAndConfirm(
 
   return ask("summary", () =>
     confirm({
-      message:
-        "Some files will be removed from locations recorded in the previous install. Proceed?",
+      message: buildRemovalConfirmMessage(diff),
       initialValue: true,
     })
   );
+}
+
+/**
+ * Build an itemized removal confirmation: one clause per target losing
+ * content, naming the directory and its removed stub count (skills +
+ * commands). Only meaningful when {@link InstallDiff.hasRemovals} is true, so
+ * at least one clause is produced in that case.
+ */
+export function buildRemovalConfirmMessage(diff: InstallDiff): string {
+  const clauses: string[] = [];
+  for (const entry of diff.entries) {
+    const count = entry.removals.skills.length + entry.removals.commands.length;
+    if (count === 0) continue;
+    clauses.push(
+      `${entry.target}/ (${String(count)} stub${count === 1 ? "" : "s"})`
+    );
+  }
+  return `Remove Taskless from ${clauses.join(", ")}?`;
 }

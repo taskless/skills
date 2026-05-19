@@ -19,6 +19,9 @@ const clackResponses: {
   summary?: boolean | symbol;
 } = {};
 
+// Captures the message of the summary confirm prompt for assertions.
+let summaryConfirmMessage: string | undefined;
+
 vi.mock("@clack/prompts", () => ({
   intro: () => {},
   outro: () => {},
@@ -36,6 +39,7 @@ vi.mock("@clack/prompts", () => ({
     if (message.toLowerCase().includes("log in")) {
       return Promise.resolve(clackResponses.auth);
     }
+    summaryConfirmMessage = message;
     return Promise.resolve(clackResponses.summary);
   }),
 }));
@@ -58,6 +62,7 @@ beforeEach(async () => {
   clackResponses.locations = undefined;
   clackResponses.auth = undefined;
   clackResponses.summary = undefined;
+  summaryConfirmMessage = undefined;
   vi.stubEnv("TASKLESS_TOKEN", "stub-token");
 });
 
@@ -165,5 +170,63 @@ describe("runWizard end-to-end", () => {
     const result = await runWizard({ cwd });
     expect(result.status).toBe("cancelled");
     expect(result.cancelledStep).toBe("summary");
+  });
+
+  it("unchecking a previously-installed location removes its stubs", async () => {
+    const { runWizard } = await import("../src/wizard");
+
+    // First run: install Taskless into both .claude/ and .agents/.
+    clackResponses.locations = [".claude", ".agents"];
+    clackResponses.summary = true;
+    await runWizard({ cwd });
+
+    const claudeSkill = join(cwd, ".claude", "skills", "taskless", "SKILL.md");
+    const agentsSkill = join(cwd, ".agents", "skills", "taskless", "SKILL.md");
+    expect(await exists(claudeSkill)).toBe(true);
+    expect(await exists(agentsSkill)).toBe(true);
+
+    // Second run: uncheck .claude/, keep .agents/ — consolidating onto .agents.
+    summaryConfirmMessage = undefined;
+    clackResponses.locations = [".agents"];
+    clackResponses.summary = true;
+    const result = await runWizard({ cwd });
+
+    expect(result.status).toBe("completed");
+    // The .claude/ stub is removed; the .agents/ stub is retained.
+    expect(await exists(claudeSkill)).toBe(false);
+    expect(await exists(agentsSkill)).toBe(true);
+
+    // The removal confirmation is itemized for the unchecked location.
+    expect(summaryConfirmMessage).toBeDefined();
+    expect(summaryConfirmMessage).toContain("Remove Taskless from");
+    expect(summaryConfirmMessage).toContain(".claude/");
+    expect(summaryConfirmMessage).not.toContain(".agents/");
+
+    // The manifest no longer records the .claude/ target.
+    const manifest = JSON.parse(
+      await readFile(join(cwd, ".taskless", "taskless.json"), "utf8")
+    ) as { install: { targets: Record<string, unknown> } };
+    expect(manifest.install.targets[".claude"]).toBeUndefined();
+    expect(manifest.install.targets[".agents"]).toBeDefined();
+  });
+
+  it("declining the removal confirm keeps the unchecked location's stubs", async () => {
+    const { runWizard } = await import("../src/wizard");
+
+    clackResponses.locations = [".claude", ".agents"];
+    clackResponses.summary = true;
+    await runWizard({ cwd });
+
+    const claudeSkill = join(cwd, ".claude", "skills", "taskless", "SKILL.md");
+    expect(await exists(claudeSkill)).toBe(true);
+
+    // Uncheck .claude/ but decline the removal confirm — nothing is removed.
+    clackResponses.locations = [".agents"];
+    clackResponses.summary = false;
+    const result = await runWizard({ cwd });
+
+    expect(result.status).toBe("cancelled");
+    expect(result.cancelledStep).toBe("summary");
+    expect(await exists(claudeSkill)).toBe(true);
   });
 });
