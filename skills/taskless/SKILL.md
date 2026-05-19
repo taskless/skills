@@ -22,7 +22,7 @@ description: |
   suggestion section.
 metadata:
   author: taskless
-  version: 0.8.0
+  version: 0.8.1
   commandName: tskl
 compatibility: Designed for Agents implementing the Agent Skills specification.
 ---

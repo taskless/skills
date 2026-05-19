@@ -1,5 +1,24 @@
 # @taskless/cli
 
+## 0.8.1
+
+### Patch Changes
+
+- b2fd824: Stop stamping a version into reference stubs to keep the footprint outside `.taskless/` stable across releases.
+  - **Version-free stubs**: `buildSkillStub` / `buildCommandStub` no longer write `metadata.version` into the reference stubs installed into tool directories. Previously every release that bumped the bundled version counted as drift, so `update` rewrote every stub even when its `name`/`description` were unchanged — pure churn in projects that consume Taskless.
+  - **Drift is name/description only, going forward**: `stubFrontmatterDrifted` regenerates a stub when its discoverable `name`/`description` changes — not on every version bump. The canonical version still lives in `.taskless/` (the skill `SKILL.md` frontmatter), which is where staleness checks already read it from.
+  - **One-time migration**: `stubFrontmatterDrifted` also treats the presence of a `metadata.version` field as drift, so the next `init` / `update` rewrites each already-installed stub once to strip the obsolete line. After that pass the stub footprint is byte-stable across releases and only changes when the shim's `name`/`description` does.
+  - **Command shim cleanup**: removed the stale `metadata.version` from the `/tskl` command source. It had been pinned at `0.6.0` while its body last changed in `0.7.0`; the field was only ever consumed to stamp stubs, so it is now dead.
+
+  No functional change between 0.8.0 and this release — stub frontmatter was never a documented public API. Expect a single one-time rewrite of existing stubs (to drop the version line); thereafter installs and `update` runs no longer report or rewrite stubs purely because of a version bump.
+
+- 48506ff: Make the wizard's tool-selection step manifest-aware so unchecking a location removes Taskless from it.
+  - **Manifest-driven pre-check**: the `taskless init` tool-selection multiselect now pre-checks the union of directories recorded in the install manifest and detected tool directories — previously it pre-checked detected tools only. A location Taskless already installed into (notably `.agents/`, which has no detection signal of its own) now shows checked, so it can be unchecked to remove the stubs. The install engine already performed manifest-diffed, target-scoped removal; this only surfaces it in the UI.
+  - **Three-state hint**: each entry is hinted by origin — `installed` (recorded in the manifest, takes precedence), `detected` (tool present), or `not detected`.
+  - **Itemized removal confirmation**: when unchecking a location triggers removals, the confirm prompt now names each target and its stub count (e.g. `Remove Taskless from .claude/ (2 stubs)?`) instead of a generic message.
+
+  The non-interactive `init --no-interactive` / `update` paths are unchanged, and the canonical `.taskless/` store is never removed.
+
 ## 0.8.0
 
 ### Minor Changes
