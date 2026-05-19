@@ -117,11 +117,12 @@ describe("locationChoices", () => {
 function diffEntry(
   target: string,
   removedSkills: string[],
-  removedCommands: string[] = []
+  removedCommands: string[] = [],
+  mode: "reference" | "canonical" = "reference"
 ) {
   return {
     target,
-    mode: "reference" as const,
+    mode,
     additions: { skills: [], commands: [] },
     removals: { skills: removedSkills, commands: removedCommands },
     unchanged: { skills: [], commands: [] },
@@ -154,5 +155,33 @@ describe("buildRemovalConfirmMessage", () => {
       hasRemovals: true,
     });
     expect(message).toBe("Remove Taskless from .cursor/ (1 stub)?");
+  });
+
+  it("excludes canonical-store removals from the itemized list", async () => {
+    const { buildRemovalConfirmMessage } =
+      await import("../src/wizard/steps/summary");
+    const message = buildRemovalConfirmMessage({
+      entries: [
+        diffEntry(".taskless", ["old-skill"], [], "canonical"),
+        diffEntry(".cursor", ["taskless"]),
+      ],
+      hasAdditions: false,
+      hasRemovals: true,
+    });
+    expect(message).toBe("Remove Taskless from .cursor/ (1 stub)?");
+    expect(message).not.toContain(".taskless/");
+  });
+
+  it("falls back to a generic prompt when only the canonical store loses files", async () => {
+    const { buildRemovalConfirmMessage } =
+      await import("../src/wizard/steps/summary");
+    const message = buildRemovalConfirmMessage({
+      entries: [diffEntry(".taskless", ["old-skill"], [], "canonical")],
+      hasAdditions: false,
+      hasRemovals: true,
+    });
+    expect(message).toBe(
+      "Some files recorded in the previous install will be removed. Proceed?"
+    );
   });
 });

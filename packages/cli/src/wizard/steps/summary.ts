@@ -56,19 +56,26 @@ export async function renderSummaryAndConfirm(
 }
 
 /**
- * Build an itemized removal confirmation: one clause per target losing
- * content, naming the directory and its removed stub count (skills +
- * commands). Only meaningful when {@link InstallDiff.hasRemovals} is true, so
- * at least one clause is produced in that case.
+ * Build an itemized removal confirmation: one clause per `reference` target
+ * losing stubs, naming the directory and its removed stub count (skills +
+ * commands). Canonical-store removals are excluded — they are not an
+ * uninstall of a tool location, so "Remove Taskless from .taskless/" would be
+ * misleading; when only canonical removals are present the message falls back
+ * to a generic prompt. Only meaningful when {@link InstallDiff.hasRemovals}
+ * is true.
  */
 export function buildRemovalConfirmMessage(diff: InstallDiff): string {
   const clauses: string[] = [];
   for (const entry of diff.entries) {
+    if (entry.mode === "canonical") continue;
     const count = entry.removals.skills.length + entry.removals.commands.length;
     if (count === 0) continue;
     clauses.push(
       `${entry.target}/ (${String(count)} stub${count === 1 ? "" : "s"})`
     );
+  }
+  if (clauses.length === 0) {
+    return "Some files recorded in the previous install will be removed. Proceed?";
   }
   return `Remove Taskless from ${clauses.join(", ")}?`;
 }
