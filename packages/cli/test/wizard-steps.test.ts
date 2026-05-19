@@ -68,4 +68,91 @@ describe("locationChoices", () => {
     expect(initialValues).toContain(".claude");
     expect(initialValues).toContain(".agents");
   });
+
+  it("pre-checks a manifest-recorded location with no detected tool", async () => {
+    const { locationChoices } = await import("../src/wizard/steps/locations");
+    const { options, initialValues } = locationChoices([], [".agents"]);
+    expect(initialValues).toEqual([".agents"]);
+    expect(options.find((o) => o.value === ".agents")?.hint).toBe("installed");
+  });
+
+  it("pre-checks the union of manifest and detected directories", async () => {
+    const { locationChoices } = await import("../src/wizard/steps/locations");
+    const { TOOLS } = await import("../src/install/install");
+    const claude = TOOLS.find((t) => t.name === "Claude Code")!;
+
+    const { options, initialValues } = locationChoices([claude], [".agents"]);
+    expect(initialValues).toEqual([".claude", ".agents"]);
+    expect(options.find((o) => o.value === ".claude")?.hint).toBe("detected");
+    expect(options.find((o) => o.value === ".agents")?.hint).toBe("installed");
+  });
+
+  it("hints a location as installed even when its tool is also detected", async () => {
+    const { locationChoices } = await import("../src/wizard/steps/locations");
+    const { TOOLS } = await import("../src/install/install");
+    const claude = TOOLS.find((t) => t.name === "Claude Code")!;
+
+    const { options } = locationChoices([claude], [".claude"]);
+    expect(options.find((o) => o.value === ".claude")?.hint).toBe("installed");
+  });
+
+  it("ignores the canonical .taskless store recorded in the manifest", async () => {
+    const { locationChoices } = await import("../src/wizard/steps/locations");
+    const { options, initialValues } = locationChoices([], [".taskless"]);
+    // .taskless is filtered out, so nothing is pre-checked from the manifest
+    // and the first-run .agents/ default applies.
+    expect(initialValues).toEqual([".agents"]);
+    expect(options.map((o) => o.value)).not.toContain(".taskless");
+    expect(options.find((o) => o.value === ".agents")?.hint).toBe(
+      "generic agent skills"
+    );
+  });
+
+  it("falls back to .agents/ when neither manifest nor detection has entries", async () => {
+    const { locationChoices } = await import("../src/wizard/steps/locations");
+    expect(locationChoices([], []).initialValues).toEqual([".agents"]);
+  });
+});
+
+function diffEntry(
+  target: string,
+  removedSkills: string[],
+  removedCommands: string[] = []
+) {
+  return {
+    target,
+    mode: "reference" as const,
+    additions: { skills: [], commands: [] },
+    removals: { skills: removedSkills, commands: removedCommands },
+    unchanged: { skills: [], commands: [] },
+  };
+}
+
+describe("buildRemovalConfirmMessage", () => {
+  it("itemizes each target losing stubs with its count", async () => {
+    const { buildRemovalConfirmMessage } =
+      await import("../src/wizard/steps/summary");
+    const message = buildRemovalConfirmMessage({
+      entries: [
+        diffEntry(".claude", ["taskless"], ["tskl.md"]),
+        diffEntry(".cursor", ["taskless"]),
+      ],
+      hasAdditions: false,
+      hasRemovals: true,
+    });
+    expect(message).toBe(
+      "Remove Taskless from .claude/ (2 stubs), .cursor/ (1 stub)?"
+    );
+  });
+
+  it("skips targets with no removals", async () => {
+    const { buildRemovalConfirmMessage } =
+      await import("../src/wizard/steps/summary");
+    const message = buildRemovalConfirmMessage({
+      entries: [diffEntry(".agents", []), diffEntry(".cursor", ["taskless"])],
+      hasAdditions: false,
+      hasRemovals: true,
+    });
+    expect(message).toBe("Remove Taskless from .cursor/ (1 stub)?");
+  });
 });
