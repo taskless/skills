@@ -7,7 +7,6 @@ tags:
   - taskless
 metadata:
   author: taskless
-  version: 0.6.0
   commandName: tskl
 ---
 

@@ -79,18 +79,14 @@ describe("buildSkillStub", () => {
     expect(stub).not.toContain(SENTINEL);
   });
 
-  it("carries metadata.type shim and the canonical version", () => {
-    const stub = buildSkillStub({
-      name: "taskless",
-      description: "d",
-      version: "0.7.0",
-    });
+  it("carries metadata.type shim and records no version", () => {
+    const stub = buildSkillStub({ name: "taskless", description: "d" });
     const metadata = parseFrontmatter(stub).data.metadata as {
       type?: string;
       version?: string;
     };
     expect(metadata.type).toBe("shim");
-    expect(metadata.version).toBe("0.7.0");
+    expect(metadata.version).toBeUndefined();
   });
 
   it("writes to disk as a regular file, not a symlink", async () => {
@@ -193,13 +189,19 @@ describe("stubFrontmatterDrifted", () => {
     );
   });
 
-  it("returns true when the version has drifted", () => {
-    const stub = buildSkillStub({ ...meta, version: "0.7.0" });
-    expect(stubFrontmatterDrifted(stub, { ...meta, version: "0.7.0" })).toBe(
-      false
-    );
-    expect(stubFrontmatterDrifted(stub, { ...meta, version: "0.8.0" })).toBe(
-      true
-    );
+  it("treats a lingering metadata.version as drift (one-time migration)", () => {
+    const legacyStub = [
+      "---",
+      "name: taskless",
+      "description: Use for any Taskless task.",
+      "metadata:",
+      "  type: shim",
+      "  version: 0.7.0",
+      "---",
+      "",
+      "body",
+      "",
+    ].join("\n");
+    expect(stubFrontmatterDrifted(legacyStub, meta)).toBe(true);
   });
 });

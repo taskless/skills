@@ -12,16 +12,15 @@ import { parseFrontmatter } from "./frontmatter";
  */
 const CANONICAL_DIR = ".taskless";
 
-/** Frontmatter fields copied verbatim from canonical content into a stub. */
+/**
+ * Frontmatter fields copied verbatim from canonical content into a stub.
+ * Intentionally version-free: a stub is part of the footprint outside
+ * `.taskless`, so it must stay byte-stable across releases that do not change
+ * its `name`/`description`. The canonical version lives only in `.taskless`.
+ */
 export interface StubFrontmatter {
   name: string;
   description: string;
-  /**
-   * Version of the canonical content this stub was generated from. Carried
-   * for reference and kept in lockstep — a version change counts as drift, so
-   * `update` regenerates the stub.
-   */
-  version?: string;
 }
 
 /**
@@ -79,11 +78,11 @@ export async function writeCanonicalCommand(
 /**
  * Frontmatter `metadata` block stamped onto a stub. `type: shim` marks the
  * file as a reference stub so it is distinguishable from a full copy without
- * inspecting the body (see {@link isShimStub}); `version` records the
- * canonical version the stub was generated from.
+ * inspecting the body (see {@link isShimStub}). No version is recorded — the
+ * stub footprint outside `.taskless` is kept stable across releases.
  */
-function shimMetadata(version: string | undefined): Record<string, string> {
-  return version ? { type: "shim", version } : { type: "shim" };
+function shimMetadata(): Record<string, string> {
+  return { type: "shim" };
 }
 
 /** Serialize ordered frontmatter fields into a `---`-delimited block. */
@@ -103,7 +102,7 @@ export function buildSkillStub(meta: StubFrontmatter): string {
     frontmatterBlock({
       name: meta.name,
       description: meta.description,
-      metadata: shimMetadata(meta.version),
+      metadata: shimMetadata(),
     }) +
     "\n" +
     `This is a Taskless reference stub. The canonical skill is defined at ` +
@@ -127,7 +126,7 @@ export function buildCommandStub(
     description: meta.description,
   };
   if (meta.argumentHint) fields["argument-hint"] = meta.argumentHint;
-  fields.metadata = shimMetadata(meta.version);
+  fields.metadata = shimMetadata();
   return (
     frontmatterBlock(fields) +
     "\n" +
@@ -140,9 +139,14 @@ export function buildCommandStub(
 }
 
 /**
- * Report whether an existing stub's frontmatter has drifted from the
- * canonical `name`/`description`. Used by `update` to decide whether a stub
- * needs regeneration — a stub that still matches is left untouched.
+ * Report whether an existing stub's frontmatter has drifted from what would
+ * be generated now. Used by `update` to decide whether a stub needs
+ * regeneration — a stub that still matches is left untouched.
+ *
+ * Drift triggers on a `name`/`description` change, and — as a one-time
+ * migration — on the presence of a `metadata.version` field. Current stubs
+ * carry no version; an older stub that still has one is rewritten once to
+ * strip it, after which it stays byte-stable across releases.
  */
 export function stubFrontmatterDrifted(
   existingStub: string,
@@ -153,9 +157,7 @@ export function stubFrontmatterDrifted(
     return true;
   }
   const metadata = data.metadata as { version?: unknown } | undefined;
-  const stubVersion =
-    typeof metadata?.version === "string" ? metadata.version : undefined;
-  return stubVersion !== meta.version;
+  return metadata?.version !== undefined;
 }
 
 /**

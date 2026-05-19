@@ -70,7 +70,6 @@ export interface EmbeddedCommand {
   name: string;
   description: string;
   argumentHint?: string;
-  version?: string;
 }
 
 export interface SkillStatus {
@@ -218,7 +217,6 @@ export function getEmbeddedCommands(): EmbeddedCommand[] {
       name?: string;
       description?: string;
       "argument-hint"?: string;
-      metadata?: Record<string, string>;
     };
     const filename = basename(path);
     return {
@@ -227,7 +225,6 @@ export function getEmbeddedCommands(): EmbeddedCommand[] {
       name: data.name ?? filename.replace(/\.md$/, ""),
       description: data.description ?? "",
       argumentHint: data["argument-hint"],
-      version: data.metadata?.version,
     };
   });
 }
@@ -391,7 +388,6 @@ async function writeSkill(
   const meta: StubFrontmatter = {
     name: skill.name,
     description: skill.description,
-    version: skill.metadata.version,
   };
   if (!(await referenceNeedsRewrite(path, meta))) return false;
 
@@ -420,7 +416,6 @@ async function writeCommand(
     name: command.name,
     description: command.description,
     argumentHint: command.argumentHint,
-    version: command.version,
   };
   if (!(await referenceNeedsRewrite(path, meta))) return false;
 
