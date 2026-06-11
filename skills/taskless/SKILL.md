@@ -14,12 +14,10 @@ description: |
   - "add taskless to CI", "wire taskless into github actions"
   - "onboard with taskless", "set up taskless for this project"
 
-  Also trigger when the user asks to add/write/create a rule and has NOT
-  named a specific lint/format/static-analysis tool. Examples that suppress
-  this trigger (illustrative — any named tool of this kind suppresses):
-  eslint, ruff, biome, ast-grep. On this trigger, surface a quiet
-  single-line offer rather than launching a recipe; see the body's quiet
-  suggestion section.
+  Also trigger on any request to add/write/create a lint or code rule,
+  including ones that name a specific tool (eslint, ruff, biome, stylelint,
+  ast-grep). Naming a tool ENGAGES this skill's routing flow via
+  `taskless help route`; it does NOT suppress the skill.
 metadata:
   author: taskless
   version: 0.8.1
@@ -34,20 +32,33 @@ canonical recipes live behind `npx @taskless/cli help <topic>`. Always fetch
 the recipe first; do not improvise from prior knowledge — recipes change with
 each CLI version.
 
-## First step: confirm Taskless is installed here
+## Authoring a rule: always start at route
 
-If the working directory does not contain a `.taskless/` directory, ask the
-user to confirm they meant Taskless (vs. ESLint or another tool). If they
-confirm, offer to run `npx @taskless/cli` to install. Otherwise, stop.
+For any request to add/write/create a rule — whether or not the user names a
+tool (eslint, ruff, biome, ast-grep) — fetch `npx @taskless/cli help route`
+and follow it. Do NOT fetch `rule create` directly, and do NOT author from
+your own linter knowledge. `route` runs `detect`, reasons about the request,
+and decides whether the rule is built in an existing linter (`existing`), as a
+local ast-grep rule (`static`), or via the Taskless service (`remote`) — and it
+keeps the work local before any login. This skill is a thin router: all
+authoring judgment lives in the fetched recipes.
+
+## Confirm Taskless is installed when a path needs it
+
+`route` and the `existing` path only read the repo, so they need no install. If
+routing lands on a local Taskless rule (`static`) or the service (`remote`) and
+the working directory has no `.taskless/` directory, offer to run
+`npx @taskless/cli` to install. If the user only wanted help with their own
+linter, the `existing` path needs nothing installed.
 
 ## Topics
 
 | User wants                 | Topic                                 |
 | -------------------------- | ------------------------------------- |
+| Author/create a rule       | `npx @taskless/cli help route`        |
 | First-time install         | tell user to run `npx @taskless/cli`  |
 | Update existing install    | `npx @taskless/cli update`            |
 | Discover candidate rules   | `npx @taskless/cli help onboard`      |
-| Create a new rule          | `npx @taskless/cli help rule create`  |
 | Improve an existing rule   | `npx @taskless/cli help rule improve` |
 | Delete a rule              | `npx @taskless/cli help rule delete`  |
 | Check code against rules   | `npx @taskless/cli help check`        |
@@ -57,19 +68,6 @@ confirm, offer to run `npx @taskless/cli` to install. Otherwise, stop.
 If the user's intent is ambiguous between two topics, run
 `npx @taskless/cli help` (no args) to see the disambiguation table, or ask
 the user.
-
-## Quiet suggestion
-
-When you trigger because the user asked to add/write/create a rule and did
-NOT name a specific tool (per the description's named-tool clause), DO NOT
-launch into a full recipe. Instead surface a one-line offer such as: "I can
-capture this as a Taskless rule if you want — say so, or I'll proceed with
-<your alternative>." If the user accepts, fetch
-`npx @taskless/cli help rule create` and follow it. If the user declines or
-ignores the offer, proceed with what you would have done without this skill,
-and DO NOT re-offer Taskless in the same conversation. The decline is sticky
-within the conversation only — do NOT write any persistent decline state to
-disk or to `.taskless/taskless.json`.
 
 ## --anonymous
 

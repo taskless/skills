@@ -25,11 +25,11 @@
 
 ## 4. Skill routing posture (skill-taskless)
 
-- [ ] 4.1 Update `skills/taskless/SKILL.md` `description`: replace the named-tool suppression clause so naming a linter engages routing via `taskless help route`; tighten (reword shorter) rather than append trigger text
-- [ ] 4.1a Measure the resulting `description` length and assert it is ≤ 1024 chars (Agent Skills ceiling); treat overflow as a blocking failure and trim trigger wording until it fits
-- [ ] 4.2 Update the skill body to route authoring requests through `taskless help route` (not `rule create` directly); remove the "quiet suggestion" suppression path; keep the skill a thin router with no linter knowledge
-- [ ] 4.3 Bump the skill `metadata.version` per the file conventions
-- [ ] 4.4 Verify the skill change against the updated `skill-taskless` scenarios (routing on named tool, no suppression wording, local-first before login)
+- [x] 4.1 Update `skills/taskless/SKILL.md` `description`: replace the named-tool suppression clause so naming a linter engages routing via `taskless help route`; tighten (reword shorter) rather than append trigger text
+- [x] 4.1a Measure the resulting `description` length and assert it is ≤ 1024 chars (Agent Skills ceiling); treat overflow as a blocking failure and trim trigger wording until it fits — measured 835 chars
+- [x] 4.2 Update the skill body to route authoring requests through `taskless help route` (not `rule create` directly); remove the "quiet suggestion" suppression path; keep the skill a thin router with no linter knowledge
+- [x] 4.3 Bump the skill `metadata.version` per the file conventions — version is build-locked to package version (assertSkillVersions); added a `minor` changeset so the release path bumps both in lockstep rather than hand-editing a mismatch
+- [x] 4.4 Verify the skill change against the updated `skill-taskless` scenarios (routing on named tool, no suppression wording, local-first before login)
 
 ## 5. Validation + quality gate
 
