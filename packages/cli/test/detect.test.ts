@@ -1,0 +1,154 @@
+import { execFile } from "node:child_process";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { promisify } from "node:util";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+const execFileAsync = promisify(execFile);
+const binPath = resolve(import.meta.dirname, "../dist/index.js");
+
+interface ExecError extends Error {
+  stdout?: string;
+  stderr?: string;
+  code?: number;
+}
+
+async function runCli(
+  args: string[],
+  cwd: string
+): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  try {
+    const { stdout, stderr } = await execFileAsync("node", [binPath, ...args], {
+      cwd,
+    });
+    return { stdout, stderr, exitCode: 0 };
+  } catch (error) {
+    const error_ = error as ExecError;
+    return {
+      stdout: error_.stdout ?? "",
+      stderr: error_.stderr ?? "",
+      exitCode: error_.code ?? 1,
+    };
+  }
+}
+
+interface DetectJson {
+  success: boolean;
+  linters: { name: string; configFiles: string[] }[];
+  languages: string[];
+  frameworks: string[];
+  ruleStyles: { source: string; description: string }[];
+}
+
+async function detect(cwd: string): Promise<DetectJson> {
+  const { stdout, exitCode } = await runCli(
+    ["detect", "--json", "-d", cwd],
+    cwd
+  );
+  expect(exitCode).toBe(0);
+  return JSON.parse(stdout.trim()) as DetectJson;
+}
+
+function linterNames(result: DetectJson): string[] {
+  return result.linters.map((l) => l.name);
+}
+
+describe("taskless detect", () => {
+  let cwd: string;
+
+  beforeEach(async () => {
+    cwd = await mkdtemp(join(tmpdir(), "taskless-detect-"));
+  });
+
+  afterEach(async () => {
+    await rm(cwd, { recursive: true, force: true });
+  });
+
+  it("detects eslint from a config file", async () => {
+    await writeFile(join(cwd, ".eslintrc.json"), "{}", "utf8");
+    const result = await detect(cwd);
+    expect(linterNames(result)).toContain("eslint");
+  });
+
+  it("detects ruff from a pyproject [tool.ruff] table", async () => {
+    await writeFile(
+      join(cwd, "pyproject.toml"),
+      "[tool.ruff]\nline-length = 88\n",
+      "utf8"
+    );
+    const result = await detect(cwd);
+    expect(linterNames(result)).toContain("ruff");
+    expect(result.languages).toContain("Python");
+  });
+
+  it("detects rubocop from .rubocop.yml", async () => {
+    await writeFile(join(cwd, ".rubocop.yml"), "", "utf8");
+    await writeFile(join(cwd, "Gemfile"), "", "utf8");
+    const result = await detect(cwd);
+    expect(linterNames(result)).toContain("rubocop");
+    expect(result.languages).toContain("Ruby");
+  });
+
+  it("detects biome from biome.json", async () => {
+    await writeFile(join(cwd, "biome.json"), "{}", "utf8");
+    const result = await detect(cwd);
+    expect(linterNames(result)).toContain("biome");
+  });
+
+  it("detects stylelint from a package.json devDependency", async () => {
+    await writeFile(
+      join(cwd, "package.json"),
+      JSON.stringify({ devDependencies: { stylelint: "^16.0.0" } }),
+      "utf8"
+    );
+    const result = await detect(cwd);
+    expect(linterNames(result)).toContain("stylelint");
+  });
+
+  it("infers languages and frameworks from package.json", async () => {
+    await writeFile(
+      join(cwd, "package.json"),
+      JSON.stringify({
+        dependencies: { react: "^18", next: "^14" },
+        devDependencies: { typescript: "^5" },
+      }),
+      "utf8"
+    );
+    const result = await detect(cwd);
+    expect(result.languages).toEqual(
+      expect.arrayContaining(["JavaScript", "TypeScript"])
+    );
+    expect(result.frameworks).toEqual(
+      expect.arrayContaining(["React", "Next.js"])
+    );
+  });
+
+  it("surfaces the repo's own Taskless rule styles", async () => {
+    await mkdir(join(cwd, ".taskless", "rules"), { recursive: true });
+    const result = await detect(cwd);
+    expect(result.ruleStyles.some((s) => s.source === ".taskless/rules")).toBe(
+      true
+    );
+  });
+
+  it("emits a stable JSON shape with only signal keys (no packaged-rule claims)", async () => {
+    await writeFile(join(cwd, ".eslintrc.json"), "{}", "utf8");
+    const result = await detect(cwd);
+    expect(Object.keys(result).toSorted()).toEqual(
+      ["frameworks", "languages", "linters", "ruleStyles", "success"].toSorted()
+    );
+    // A linter entry exposes only name + config evidence, never a rule-name claim.
+    for (const linter of result.linters) {
+      expect(Object.keys(linter).toSorted()).toEqual(
+        ["configFiles", "name"].toSorted()
+      );
+    }
+  });
+
+  it("runs successfully with no linters, no network, and no auth", async () => {
+    const result = await detect(cwd);
+    expect(result.success).toBe(true);
+    expect(result.linters).toEqual([]);
+  });
+});
