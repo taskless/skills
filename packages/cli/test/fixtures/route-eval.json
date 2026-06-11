@@ -1,0 +1,79 @@
+{
+  "description": "Honesty eval fixtures for the `route` recipe. Each case is a labeled request with the destination route SHOULD reach. `trap` names the failure direction the case guards against (or null for a clean case). These are a calibration dataset for evaluating the route recipe's decisions; the route decision itself is made by an agent following help/route.txt, so these are not asserted against a code classifier — the coverage test only checks the dataset stays balanced across routes and both failure directions.",
+  "routes": ["existing", "static", "remote"],
+  "traps": ["over-claim", "over-escalate", "under-engage"],
+  "cases": [
+    {
+      "request": "warn on console.log",
+      "expected": "existing",
+      "trap": "over-claim",
+      "reason": "ESLint's packaged no-console already covers this; claiming it for a Taskless rule erodes trust where Taskless would never win."
+    },
+    {
+      "request": "sort our imports",
+      "expected": "existing",
+      "trap": "over-claim",
+      "reason": "Formatter / eslint-plugin-import territory, not a semantic rule."
+    },
+    {
+      "request": "disallow `any` in TypeScript",
+      "expected": "existing",
+      "trap": "over-claim",
+      "reason": "@typescript-eslint/no-explicit-any is a packaged rule; enable it rather than authoring."
+    },
+    {
+      "request": "write a Ruff rule for X (repo has ruff.toml)",
+      "expected": "existing",
+      "trap": "under-engage",
+      "reason": "Naming a tool must ENGAGE routing into that tool, not suppress the skill."
+    },
+    {
+      "request": "add an ESLint rule banning direct process.env reads outside config/",
+      "expected": "existing",
+      "trap": "under-engage",
+      "reason": "User named ESLint and wants a custom rule; author it in ESLint's dialect, mined from the repo's own rules."
+    },
+    {
+      "request": "controllers must not import the db module directly",
+      "expected": "static",
+      "trap": null,
+      "reason": "Bespoke syntactic import ban, no packaged rule, cleanly expressible as a local ast-grep rule."
+    },
+    {
+      "request": "never call fetch directly — use our http wrapper",
+      "expected": "static",
+      "trap": null,
+      "reason": "Call/import ban; classic local ast-grep pattern."
+    },
+    {
+      "request": "enforce our feature-flag naming convention ff_*",
+      "expected": "static",
+      "trap": "over-escalate",
+      "reason": "Repo-specific identifier pattern is a simple local ast-grep rule; escalating to the service here wastes a generation and a login."
+    },
+    {
+      "request": "flag string literals that look like API keys in source files",
+      "expected": "static",
+      "trap": "over-escalate",
+      "reason": "A regex-shaped syntactic match is locally solvable; do not route to remote just because it sounds security-ish."
+    },
+    {
+      "request": "every API handler must parse its request body through a Zod schema before using it",
+      "expected": "remote",
+      "trap": null,
+      "reason": "Cross-statement intent (parse-before-use) that a single ast-grep pattern strains to express; let the service classify static vs runtime."
+    },
+    {
+      "request": "flag any PR that adds a new env var without documenting it in the README",
+      "expected": "remote",
+      "trap": null,
+      "reason": "Cross-file, config-vs-docs consistency — needs a runtime check.ts the service generates."
+    },
+    {
+      "request": "ensure every exported function in a route file has a matching test in __tests__",
+      "expected": "remote",
+      "trap": null,
+      "reason": "Cross-file correlation no static syntactic matcher expresses; service/runtime territory."
+    }
+  ]
+}
