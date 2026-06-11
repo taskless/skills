@@ -18,10 +18,10 @@
 
 ## 3. Help registration + telemetry (cli-help)
 
-- [ ] 3.1 Confirm the four `.txt` recipes are picked up by the `import.meta.glob` embedding and resolve via `taskless help <topic>`
-- [ ] 3.2 Ensure `route`, `existing`, `static`, `remote` appear in the `taskless help` (no-arg) topic index
-- [ ] 3.3 Verify `help_<topic>` intent telemetry fires for each routing topic
-- [ ] 3.4 Add tests for topic resolution, index listing, and telemetry capture
+- [x] 3.1 Confirm the four `.txt` recipes are picked up by the `import.meta.glob` embedding and resolve via `taskless help <topic>`
+- [x] 3.2 Ensure `route`, `existing`, `static`, `remote` appear in the `taskless help` (no-arg) topic index
+- [x] 3.3 Verify `help_<topic>` intent telemetry fires for each routing topic
+- [x] 3.4 Add tests for topic resolution, index listing, and telemetry capture
 
 ## 4. Skill routing posture (skill-taskless)
 
