@@ -8,8 +8,9 @@ same time, the skill actively _suppresses_ itself when a user names a linter
 (eslint, ruff, biome), stepping back from exactly the requests where Taskless
 could help author the rule in that tool's own dialect. We want a local routing
 layer that keeps authoring on-device whenever possible, engages other linters
-instead of deferring, and only suggests login when a rule provably cannot be
-built locally.
+instead of deferring, and suggests login only when it is not reasonably
+confident a rule can be built locally — or when a confident local attempt has
+failed and the user confirms spending a generation.
 
 ## What Changes
 
@@ -19,7 +20,8 @@ built locally.
 - **NEW routing recipe layer** under `help`, replacing the rule-type-agnostic
   `rule create` entry as the front door for "author a rule":
   - `route` — the lightweight **local classifier**. Biased to stay local;
-    suggests login only when local authoring provably fails.
+    suggests login when it is not reasonably confident the rule is locally
+    solvable, or when a confident local attempt fails and the user confirms.
   - `existing` — author a rule in a linter already detected in the repo, in that
     tool's dialect, sourced from the repo's own rules plus the agent's WebFetch.
   - `static` — author a local ast-grep rule on-device, verified against the
@@ -62,9 +64,10 @@ built locally.
   `remote`) in the help index and emit their intent telemetry, consistent with
   existing topic registration and embedding requirements.
 - `skill-taskless`: Reverse the named-tool suppression clause — when a user names
-  a linter or asks to author a rule, the skill routes through `taskless help
-route` instead of quieting. The skill stays a thin router and adds no rule
-  knowledge of its own. **Hard constraint:** the skill `description` field has a
+  a linter or asks to author a rule, the skill routes through
+  `npx @taskless/cli help route` instead of quieting. The skill stays a thin
+  router and adds no rule knowledge of its own. **Hard constraint:** the skill
+  `description` field has a
   1024-character ceiling (Agent Skills spec). Reversing the suppression clause and
   adding routing trigger language compete for that budget, so trigger wording must
   be _tightened_ as this and future capabilities land — not appended. Treat the
@@ -77,10 +80,10 @@ route` instead of quieting. The skill stays a thin router and adds no rule
 - **New help recipes**: `packages/cli/src/help/{route,existing,static,remote}.txt`,
   embedded via the existing `import.meta.glob` build step.
 - **Skill body + description**: `skills/taskless/SKILL.md` routing/trigger text.
-- **Reused, unchanged**: `rule create` (remote backend for `remote`), `rule
-verify` (the local verification gate), the canonical on-disk rule shape — remote
-  and local paths already write the same files/paths, so `check`/`improve`/`verify`
-  see one dialect.
+- **Reused, unchanged**: `rule create` (remote backend for `remote`),
+  `rule verify` (the local verification gate), the canonical on-disk rule
+  shape — remote and local paths already write the same files/paths, so
+  `check`/`improve`/`verify` see one dialect.
 - **Upstream dependency**: the Runtime Rules project (TSKL `Runtime Rules`) owns
   static-vs-runtime; this change references it and never redefines it.
 - **No new network dependencies**; `detect` and the local authoring paths are

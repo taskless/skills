@@ -23,7 +23,18 @@ failed and the user confirms.
    ```
    This returns the configured linters, languages/frameworks, and the
    repo's own rule styles. It is deterministic and offline — use it as
-   ground truth instead of guessing the repo's tooling.
+   ground truth instead of guessing the repo's tooling. The output shape:
+   ```json
+   {
+     "success": true,
+     "linters": [{ "name": "eslint", "configFiles": [".eslintrc.json"] }],
+     "languages": ["JavaScript", "TypeScript"],
+     "frameworks": ["React"],
+     "ruleStyles": [
+       { "source": ".taskless/rules", "description": "Existing Taskless ast-grep rules." }
+     ]
+   }
+   ```
 
 2. **Write your reasoning BEFORE naming a destination.** Do not pick a
    route first and justify it after. Write a short rationale covering:
@@ -46,13 +57,15 @@ failed and the user confirms.
      pattern** → fetch `taskless help static`. Reasonable confidence is
      enough here; you do not need certainty, because step 4 backstops a
      wrong-but-reasonable bet.
-   - **You are NOT reasonably confident it is locally solvable** → fetch
-     `taskless help remote`. Do not manufacture a deliberate local
-     failure to reach this; route here directly.
+   - **You reasonably believe it CANNOT be solved locally** (a positive
+     judgment — e.g. it needs cross-file or semantic checks ast-grep can't
+     express) → fetch `taskless help remote`. Do not manufacture a
+     deliberate local failure to reach this; route here directly.
 
-   If you cannot reasonably place the request as local or remote, ASK the
-   user a clarifying question. Uncertainty is a reason to ask, never a
-   reason to spend a generation on `remote`.
+   These are three distinct states. If you genuinely cannot tell whether
+   the request is local or remote — mere uncertainty, not a belief that it
+   needs the service — ASK the user a clarifying question. Uncertainty is a
+   reason to ask, never a reason to spend a generation on `remote`.
 
 4. **Failure fallback (try-verify-escalate).** If you committed to a
    local `static` rule on reasonable confidence and it then FAILS
