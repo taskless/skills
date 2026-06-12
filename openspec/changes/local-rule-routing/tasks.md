@@ -34,6 +34,6 @@
 ## 5. Validation + quality gate
 
 - [x] 5.1 Run `pnpm openspec validate local-rule-routing` and resolve any issues
-- [x] 5.2 Add/curate the honesty eval fixtures (labeled request → expected route) and assert the `route` heuristic against both failure directions: under-confident (escalating a locally-solvable request to login) and over-confident (claiming local for a request that needs the service). Use the fixtures to calibrate the "confident enough for local" threshold — dataset at `test/fixtures/route-eval.json` with a coverage test; route decision is agent-made (recipe-followed), so the test guards dataset balance across routes + both traps rather than running a code classifier
+- [x] 5.2 Add/curate the honesty eval fixtures (labeled request → expected route) and assert the `route` heuristic against both failure directions: under-confident (escalating a locally-solvable request to login) and over-confident (claiming local for a request that needs the service). Use the fixtures to calibrate the "confident enough for local" threshold — dataset at `packages/cli/test/fixtures/route-eval.json` with a coverage test (`packages/cli/test/route-eval.test.ts`); route decision is agent-made (recipe-followed), so the test guards dataset balance across routes + every declared trap rather than running a code classifier
 - [x] 5.3 Run `pnpm typecheck` and `pnpm lint`; fix all failures
 - [x] 5.4 Manual smoke: `taskless detect --json`, then `taskless help route`/`existing`/`static`/`remote` resolve and read coherently end-to-end

@@ -24,6 +24,9 @@ const fixtures = JSON.parse(
   readFileSync(resolve(import.meta.dirname, "fixtures/route-eval.json"), "utf8")
 ) as EvalFixtures;
 
+const casesForTrap = (trap: string): EvalCase[] =>
+  fixtures.cases.filter((c) => c.trap === trap);
+
 describe("route honesty eval fixtures", () => {
   it("declares the three routes and both failure-direction traps", () => {
     expect(fixtures.routes).toEqual(["existing", "static", "remote"]);
@@ -55,18 +58,26 @@ describe("route honesty eval fixtures", () => {
     }
   });
 
-  it("guards both failure directions: over-claim and over-escalate", () => {
-    const overClaim = fixtures.cases.filter((c) => c.trap === "over-claim");
-    const overEscalate = fixtures.cases.filter(
-      (c) => c.trap === "over-escalate"
-    );
-    // Over-claim cases must expect a non-`static` local route (Taskless should
-    // not have grabbed them); over-escalate cases must expect a local route
-    // (they should not have gone to remote).
-    expect(overClaim.length).toBeGreaterThan(0);
-    expect(overEscalate.length).toBeGreaterThan(0);
-    for (const c of overClaim) expect(c.expected).toBe("existing");
-    for (const c of overEscalate) expect(c.expected).toBe("static");
+  it("guards every declared trap with at least one correctly-routed case", () => {
+    // Each declared trap must have at least one case, so the dataset can't
+    // silently stop covering a failure direction while the test still passes.
+    for (const trap of fixtures.traps) {
+      expect(
+        casesForTrap(trap).length,
+        `trap ${trap} needs >= 1 case`
+      ).toBeGreaterThan(0);
+    }
+
+    // Over-claim: Taskless should not have grabbed it → expect `existing`.
+    for (const c of casesForTrap("over-claim"))
+      expect(c.expected).toBe("existing");
+    // Over-escalate: locally solvable → expect `static`, not remote.
+    for (const c of casesForTrap("over-escalate"))
+      expect(c.expected).toBe("static");
+    // Under-engage: naming a tool must engage routing into that linter, not
+    // suppress → expect `existing`.
+    for (const c of casesForTrap("under-engage"))
+      expect(c.expected).toBe("existing");
   });
 
   it("includes genuine remote cases that are not locally solvable", () => {
