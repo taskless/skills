@@ -59,11 +59,14 @@ authentication.
 ### Requirement: Detect emits a stable JSON shape
 
 When `--json` is set, `detect` SHALL emit a single structured JSON object whose
-shape is validated by a published output schema, consistent with other
-`--json` commands in the CLI.
+shape is validated internally against a stable Zod output schema before being
+printed, consistent with how other `--json` commands in the CLI (e.g. `info`,
+`check`) validate their output. The schema is an internal contract, not a
+published artifact, and `detect` does not expose a `--schema` mode.
 
-#### Scenario: JSON output validates against the schema
+#### Scenario: JSON output validates against the internal schema
 
 - **WHEN** `detect --json` succeeds
-- **THEN** stdout SHALL be a single JSON object conforming to the detect output
-  schema (linters, languages/frameworks, existing rule styles)
+- **THEN** stdout SHALL be a single JSON object that the command has validated
+  against its internal output schema (linters, languages/frameworks, existing
+  rule styles)
