@@ -143,6 +143,43 @@ Run `${CLAUDE_SKILL_ROOT}/scripts/fetch_pr_checks.py` to get structured failure 
 
 **Wait if pending:** If review bot checks (sentry, warden, cursor, bugbot, seer, codeql) are still running, wait before proceeding—they post actionable feedback that must be evaluated. Informational bots (codecov) are not worth waiting for.
 
+#### Stacked PRs: ignore the OpenSpec Archive Check unless this is the last PR in the chain
+
+The `PR OpenSpec Archive Check` (workflow `pr-check-openspec.yml`) fails whenever
+any unarchived directory exists under `openspec/changes/`. A change is archived
+exactly once, at the END of the work — so in a stack of PRs that all carry the
+same in-progress change directory, this check will fail on every PR. Archiving on
+an intermediate PR is wrong: it would remove the change docs before the
+implementation PRs above it have merged.
+
+So, before treating an archive-check failure as actionable, determine ONE thing:
+**is this PR the last in the chain (the tip)?** The base branch is irrelevant —
+the bottom PR of a stack often targets the default branch yet still has work
+stacked on top of it, so it must NOT archive either.
+
+A PR is the tip when no other OPEN PR targets this PR's head branch as its base:
+
+```bash
+gh pr view --json headRefName --jq '.headRefName'
+gh pr list --state open --base <this-PR-head-branch> --json number
+```
+
+An empty list → nothing is stacked on top → this PR is the tip.
+
+Then:
+
+- **Not the tip** (some open PR is stacked on this one) → IGNORE the
+  `PR OpenSpec Archive Check` failure. Do NOT archive the change on this PR.
+  Treat the check as expected-red and do not let it block the iterate loop
+  (still address every other failing check and all feedback normally).
+- **The tip** (nothing stacked on top — including an ordinary standalone PR) →
+  the change MUST be archived before merge. Archive it (move
+  `openspec/changes/<name>/` under `openspec/changes/archive/` via the OpenSpec
+  archive flow), commit, and push so the check goes green.
+
+This rule applies ONLY to the OpenSpec Archive Check. Every other check is
+handled normally regardless of stack position.
+
 ### 5. Fix CI Failures
 
 For each failure in the script output:
