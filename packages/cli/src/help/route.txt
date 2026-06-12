@@ -27,7 +27,7 @@ failed and the user confirms.
    ```json
    {
      "success": true,
-     "linters": [{ "name": "eslint", "configFiles": [".eslintrc.json"] }],
+     "linters": [{ "name": "eslint", "evidence": [".eslintrc.json"] }],
      "languages": ["JavaScript", "TypeScript"],
      "frameworks": ["React"],
      "ruleStyles": [

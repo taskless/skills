@@ -4,7 +4,12 @@ import { resolve } from "node:path";
 
 export interface DetectedLinter {
   name: string;
-  configFiles: string[];
+  /**
+   * On-disk evidence for this linter: config-file paths, a `pyproject.toml`
+   * table marker, or a `package.json` dependency marker. Not all entries are
+   * file paths.
+   */
+  evidence: string[];
 }
 
 export interface RuleStyle {
@@ -163,12 +168,34 @@ interface PackageJson {
   eslintConfig?: unknown;
 }
 
+/** Object keys, but only for a plain object (a malformed manifest field that
+ * is an array, string, or null contributes no dependency names). */
+function plainObjectKeys(value: unknown): string[] {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return [];
+  }
+  return Object.keys(value as Record<string, unknown>);
+}
+
+/**
+ * Whether a `pyproject.toml` declares the `[tool.<table>]` table or a nested
+ * table under it (`[tool.<table>.<sub>]`), without matching a similarly-named
+ * sibling like `[tool.<table>-lsp]`. Matches at a line start so a value
+ * containing the literal text doesn't trigger a false positive.
+ */
+function hasPyprojectTable(pyproject: string, table: string): boolean {
+  const escaped = table.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+  return new RegExp(String.raw`^\s*\[tool\.${escaped}(\]|\.)`, "m").test(
+    pyproject
+  );
+}
+
 /** Collect all declared dependency names from a parsed package.json. */
 function allDependencyNames(packageJson: PackageJson): Set<string> {
   return new Set([
-    ...Object.keys(packageJson.dependencies ?? {}),
-    ...Object.keys(packageJson.devDependencies ?? {}),
-    ...Object.keys(packageJson.peerDependencies ?? {}),
+    ...plainObjectKeys(packageJson.dependencies),
+    ...plainObjectKeys(packageJson.devDependencies),
+    ...plainObjectKeys(packageJson.peerDependencies),
   ]);
 }
 
@@ -204,8 +231,12 @@ export async function detectRepository(cwd: string): Promise<DetectResult> {
       if (has(file)) evidence.push(file);
     }
     for (const table of signal.pyprojectTables ?? []) {
-      if (pyproject.includes(`[tool.${table}`))
+      // Match the exact table `[tool.ruff]` or a nested table
+      // `[tool.ruff.lint]`, but NOT a similarly-prefixed table like
+      // `[tool.ruff-lsp]`. The char after the table name must be `]` or `.`.
+      if (hasPyprojectTable(pyproject, table)) {
         evidence.push(`pyproject.toml [tool.${table}]`);
+      }
     }
     for (const dep of signal.packageDeps ?? []) {
       if (deps.has(dep)) evidence.push(`package.json (${dep})`);
@@ -215,7 +246,7 @@ export async function detectRepository(cwd: string): Promise<DetectResult> {
       evidence.push("package.json (eslintConfig)");
     }
     if (evidence.length > 0) {
-      linters.push({ name: signal.name, configFiles: evidence });
+      linters.push({ name: signal.name, evidence });
     }
   }
 

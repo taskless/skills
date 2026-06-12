@@ -59,7 +59,7 @@ export const detectCommand = defineCommand({
     } else {
       console.log("Linters:");
       for (const linter of result.linters) {
-        console.log(`  ${linter.name}: ${linter.configFiles.join(", ")}`);
+        console.log(`  ${linter.name}: ${linter.evidence.join(", ")}`);
       }
     }
 

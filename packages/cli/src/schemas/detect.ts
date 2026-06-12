@@ -3,9 +3,11 @@ import { z } from "zod";
 /** A linter detected from configuration on disk */
 const detectedLinterSchema = z.object({
   name: z.string().describe("Linter identifier, e.g. eslint, ruff, rubocop"),
-  configFiles: z
+  evidence: z
     .array(z.string())
-    .describe("Repo-relative config paths that evidenced this linter"),
+    .describe(
+      "On-disk evidence: config-file paths, a pyproject table marker, or a package.json dependency marker (not all entries are file paths)"
+    ),
 });
 
 /** A surfaced style of the repo's own existing rules */
@@ -35,8 +37,6 @@ export const outputSchema = z.object({
     .describe("Styles of the repo's own existing rules"),
 });
 
-/** Error schema for `taskless detect --json` on failure */
-export const errorSchema = z.object({
-  success: z.literal(false),
-  error: z.string().describe("Error message"),
-});
+// On the (internal-only) error path `detect` emits the standard
+// `{ ok: false, code, message }` envelope via makeErrorEnvelope — there is no
+// command-specific error schema to keep in sync.
