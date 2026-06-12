@@ -35,7 +35,7 @@ each CLI version.
 ## Authoring a rule: always start at route
 
 For any request to add/write/create a rule — whether or not the user names a
-tool (eslint, ruff, biome, ast-grep) — fetch `npx @taskless/cli help route`
+tool (eslint, ruff, biome, stylelint, ast-grep) — fetch `npx @taskless/cli help route`
 and follow it. Do NOT fetch `rule create` directly, and do NOT author from
 your own linter knowledge. `route` runs `detect`, reasons about the request,
 and decides whether the rule is built in an existing linter (`existing`), as a
