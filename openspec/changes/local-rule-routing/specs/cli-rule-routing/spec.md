@@ -49,11 +49,14 @@ only after this rationale, and SHALL follow from it.
 
 The `route` recipe SHALL determine the destination upfront from `detect` signals
 and the user's intent, committing to the path it believes is correct. The bar to
-commit to a local path SHALL be **reasonable confidence**, not certainty. When
-`route` is not reasonably confident a request is locally solvable, it SHALL select
-`remote` directly, without first attempting a local rule. The recipe SHALL NOT use
-a deliberate local attempt-and-fail with no genuine belief of success as the
-mechanism for choosing `remote`.
+commit to a local path SHALL be **reasonable confidence**, not certainty. Routing
+distinguishes three states: reasonable confidence the request IS locally solvable
+selects a local path; reasonable belief the request is NOT locally solvable selects
+`remote` directly, without first attempting a local rule; genuine inability to
+judge either way is uncertainty, which SHALL be resolved by asking the user (see
+the clarifying-question scenario) and SHALL NOT by itself select `remote`. The
+recipe SHALL NOT use a deliberate local attempt-and-fail with no genuine belief of
+success as the mechanism for choosing `remote`.
 
 #### Scenario: Reasonably-confident-local commits locally without a justification probe
 
@@ -63,9 +66,10 @@ mechanism for choosing `remote`.
 - **AND** it SHALL NOT run a throwaway local attempt whose only purpose is to
   justify the choice
 
-#### Scenario: Not-reasonably-confident routes remote upfront
+#### Scenario: Believed-not-local routes remote upfront
 
-- **WHEN** `route` is not reasonably confident the request is locally solvable
+- **WHEN** `route` reasonably believes the request cannot be solved locally — a
+  positive judgment, not mere inability to tell
 - **THEN** it SHALL select `remote` directly
 - **AND** it SHALL NOT manufacture a deliberate local failure to reach that
   decision

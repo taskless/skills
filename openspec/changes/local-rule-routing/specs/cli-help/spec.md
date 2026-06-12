@@ -9,8 +9,8 @@ requirements.
 
 #### Scenario: Routing topics resolve
 
-- **WHEN** `taskless help route`, `taskless help existing`, `taskless help
-static`, or `taskless help remote` is run
+- **WHEN** `taskless help route`, `taskless help existing`,
+  `taskless help static`, or `taskless help remote` is run
 - **THEN** the corresponding recipe text SHALL be returned
 - **AND** an unknown-topic error SHALL NOT be raised for any of the four
 
