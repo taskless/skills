@@ -57,13 +57,15 @@ failed and the user confirms.
      pattern** → fetch `taskless help static`. Reasonable confidence is
      enough here; you do not need certainty, because step 4 backstops a
      wrong-but-reasonable bet.
-   - **You are NOT reasonably confident it is locally solvable** → fetch
-     `taskless help remote`. Do not manufacture a deliberate local
-     failure to reach this; route here directly.
+   - **You reasonably believe it CANNOT be solved locally** (a positive
+     judgment — e.g. it needs cross-file or semantic checks ast-grep can't
+     express) → fetch `taskless help remote`. Do not manufacture a
+     deliberate local failure to reach this; route here directly.
 
-   If you cannot reasonably place the request as local or remote, ASK the
-   user a clarifying question. Uncertainty is a reason to ask, never a
-   reason to spend a generation on `remote`.
+   These are three distinct states. If you genuinely cannot tell whether
+   the request is local or remote — mere uncertainty, not a belief that it
+   needs the service — ASK the user a clarifying question. Uncertainty is a
+   reason to ask, never a reason to spend a generation on `remote`.
 
 4. **Failure fallback (try-verify-escalate).** If you committed to a
    local `static` rule on reasonable confidence and it then FAILS
