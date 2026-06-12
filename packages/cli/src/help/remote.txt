@@ -1,12 +1,12 @@
 # Topic: remote     (CLI v%(CLI_VERSION)s / topic v1)
 
 ## Goal
-Generate a rule using the Taskless service. The service runs the heavy
-classifier and returns either a **static** ast-grep rule or a **runtime**
-rule, depending on the request — you do NOT decide static vs runtime
-here; that is the service's job. This path consumes a generation and
-requires login. Reach it when a rule is not reasonably solvable locally,
-or when a believed-local attempt failed and the user confirmed.
+Generate a rule using the Taskless service. Your job on this path is to
+gather the inputs and hand off to `rule create`; the service generates
+the rule and writes the standard rule files. This path consumes a
+generation and requires login. Reach it when a rule is not reasonably
+solvable locally, or when a believed-local attempt failed and the user
+confirmed.
 
 ## Preconditions
 - `.taskless/` directory exists.
@@ -31,8 +31,8 @@ or when a believed-local attempt failed and the user confirmed.
 
 3. **Gather the request.** Collect the rule description plus concrete
    success and failure cases. If you arrived here from `static`, reuse
-   the cases you already gathered. The service uses these both to
-   classify (static vs runtime) and to generate.
+   the cases you already gathered. The service uses these to generate the
+   rule.
 
 4. **Delegate to the generation backend.** Fetch `taskless help rule
    create` and follow it. That recipe builds the request payload and
@@ -46,10 +46,11 @@ or when a believed-local attempt failed and the user confirmed.
 
 ## Important Notes
 
-- Do NOT classify static vs runtime yourself — submit the request and
-  let the service decide.
-- This is the only path that can produce a runtime rule (the service
-  generates the `check.ts`); the local `static` path cannot.
+- Do NOT pre-build the rule yourself on this path — submit the request
+  and let the service generate it.
+- The service owns rule-type selection. Today it generates ast-grep
+  rules written under `.taskless/rules/`, the same shape the local
+  `static` path produces.
 
 ## See Also
 

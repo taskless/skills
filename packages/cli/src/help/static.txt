@@ -28,9 +28,11 @@ writes, so `check`, `improve`, and `verify` treat them identically.
    `.taskless/rules/<id>.yml` with at minimum `id` (kebab-case),
    `language`, `severity` (`error`/`warning`/`info`/`hint`), `message`,
    and the `rule` object. Write tests to
-   `.taskless/rule-tests/<id>-YYYYMMDD-test.yml` with `valid` and
-   `invalid` arrays (at least two of each). These paths and shape are the
-   same ones the service writes — do not invent a different layout.
+   `.taskless/rule-tests/<id>-YYYYMMDD-test.yml` with the matching `id`
+   field plus `valid` and `invalid` arrays (at least two of each). The
+   `id` must match the rule's `id` so ast-grep test filtering pairs them.
+   These paths and shape are the same ones the service writes — do not
+   invent a different layout.
 
 4. **Run the verify feedback loop.** Run:
    ```

@@ -1,5 +1,5 @@
 ---
-"@taskless/skills": minor
+"@taskless/cli": minor
 ---
 
 Add a local-first rule-routing layer. A new deterministic `taskless detect`
