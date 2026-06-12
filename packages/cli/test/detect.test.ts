@@ -21,6 +21,14 @@ async function runCli(
   try {
     const { stdout, stderr } = await execFileAsync("node", [binPath, ...args], {
       cwd,
+      // Keep detect hermetic: telemetry is best-effort and would otherwise
+      // write an anonymous-id file and attempt network I/O on shutdown, which
+      // must never be part of detect's offline scan path.
+      env: {
+        ...process.env,
+        DO_NOT_TRACK: "1",
+        TASKLESS_TELEMETRY_DISABLED: "1",
+      },
     });
     return { stdout, stderr, exitCode: 0 };
   } catch (error) {
@@ -35,7 +43,7 @@ async function runCli(
 
 interface DetectJson {
   success: boolean;
-  linters: { name: string; configFiles: string[] }[];
+  linters: { name: string; evidence: string[] }[];
   languages: string[];
   frameworks: string[];
   ruleStyles: { source: string; description: string }[];
@@ -138,12 +146,45 @@ describe("taskless detect", () => {
     expect(Object.keys(result).toSorted()).toEqual(
       ["frameworks", "languages", "linters", "ruleStyles", "success"].toSorted()
     );
-    // A linter entry exposes only name + config evidence, never a rule-name claim.
+    // A linter entry exposes only name + evidence, never a rule-name claim.
     for (const linter of result.linters) {
       expect(Object.keys(linter).toSorted()).toEqual(
-        ["configFiles", "name"].toSorted()
+        ["evidence", "name"].toSorted()
       );
     }
+  });
+
+  it("does not false-positive a pyproject table on a similarly-prefixed sibling", async () => {
+    // `[tool.ruff-lsp]` must NOT be read as the `ruff` tool table.
+    await writeFile(
+      join(cwd, "pyproject.toml"),
+      "[tool.ruff-lsp]\nfoo = 1\n",
+      "utf8"
+    );
+    const result = await detect(cwd);
+    expect(linterNames(result)).not.toContain("ruff");
+  });
+
+  it("detects ruff from a nested pyproject table ([tool.ruff.lint])", async () => {
+    await writeFile(
+      join(cwd, "pyproject.toml"),
+      '[tool.ruff.lint]\nselect = ["E"]\n',
+      "utf8"
+    );
+    const result = await detect(cwd);
+    expect(linterNames(result)).toContain("ruff");
+  });
+
+  it("ignores a malformed package.json dependency field without crashing", async () => {
+    // `dependencies` as an array (not an object) must not yield bogus deps.
+    await writeFile(
+      join(cwd, "package.json"),
+      JSON.stringify({ dependencies: ["react"], devDependencies: null }),
+      "utf8"
+    );
+    const result = await detect(cwd);
+    expect(result.success).toBe(true);
+    expect(result.frameworks).toEqual([]);
   });
 
   it("runs successfully with no linters, no network, and no auth", async () => {
