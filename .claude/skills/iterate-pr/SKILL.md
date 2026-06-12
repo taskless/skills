@@ -143,6 +143,46 @@ Run `${CLAUDE_SKILL_ROOT}/scripts/fetch_pr_checks.py` to get structured failure 
 
 **Wait if pending:** If review bot checks (sentry, warden, cursor, bugbot, seer, codeql) are still running, wait before proceeding—they post actionable feedback that must be evaluated. Informational bots (codecov) are not worth waiting for.
 
+#### Stacked PRs: ignore the OpenSpec Archive Check unless this is the last PR in the chain
+
+The `PR OpenSpec Archive Check` (workflow `pr-check-openspec.yml`) fails whenever
+any unarchived directory exists under `openspec/changes/`. A change is archived
+exactly once, at the END of the work — so a PR that still carries an in-progress
+change directory will fail this check. Archiving on an intermediate PR is wrong:
+it would remove the change docs before the implementation PRs above it merge.
+
+Note the workflow's trigger is currently `pull_request.branches: [main]`, so it
+only RUNS on PRs whose base is `main`. A stacked PR based on another feature
+branch won't run (or fail) this check at all — so there is nothing to ignore
+there. The check matters for PRs that target `main`: typically the bottom of a
+stack, plus any PR later retargeted to `main` as the stack merges down.
+
+When the archive check does run and fail, decide ONE thing before treating it as
+actionable: **is this PR the last in the chain (the tip)?** A PR is the tip when
+no other OPEN PR targets its head branch as a base:
+
+```bash
+HEAD=$(gh pr view --json headRefName --jq '.headRefName')
+gh pr list --state open --base "$HEAD" --json number
+```
+
+An empty list → nothing is stacked on top → this PR is the tip.
+
+Then:
+
+- **Not the tip** (some open PR is stacked on this one) → IGNORE the
+  `PR OpenSpec Archive Check` failure. Do NOT archive the change on this PR.
+  Treat the check as expected-red and do not let it block the iterate loop
+  (still address every other failing check and all feedback normally).
+- **The tip** (nothing stacked on top — including an ordinary standalone PR) →
+  the change MUST be archived before merge. Archive it via the OpenSpec archive
+  flow, which moves `openspec/changes/<name>/` to the dated archive directory
+  `openspec/changes/archive/YYYY-MM-DD-<name>/` (do not invent a different
+  location), then commit and push so the check goes green.
+
+This rule applies ONLY to the OpenSpec Archive Check. Every other check is
+handled normally regardless of stack position.
+
 ### 5. Fix CI Failures
 
 For each failure in the script output:
