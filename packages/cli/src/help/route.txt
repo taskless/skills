@@ -23,7 +23,18 @@ failed and the user confirms.
    ```
    This returns the configured linters, languages/frameworks, and the
    repo's own rule styles. It is deterministic and offline — use it as
-   ground truth instead of guessing the repo's tooling.
+   ground truth instead of guessing the repo's tooling. The output shape:
+   ```json
+   {
+     "success": true,
+     "linters": [{ "name": "eslint", "configFiles": [".eslintrc.json"] }],
+     "languages": ["JavaScript", "TypeScript"],
+     "frameworks": ["React"],
+     "ruleStyles": [
+       { "source": ".taskless/rules", "description": "Existing Taskless ast-grep rules." }
+     ]
+   }
+   ```
 
 2. **Write your reasoning BEFORE naming a destination.** Do not pick a
    route first and justify it after. Write a short rationale covering:
