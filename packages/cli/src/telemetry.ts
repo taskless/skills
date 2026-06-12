@@ -21,6 +21,8 @@ const ANONYMOUS_ID_FILE = "anonymous_id";
 export interface TelemetryClient {
   capture(event: string, properties?: Record<string, unknown>): void;
   shutdown(): Promise<void>;
+  /** Resolved identity state, exposed so the runner can stamp cli_run. */
+  readonly identity: { anonymous: boolean };
 }
 
 function isTelemetryDisabled(): boolean {
@@ -33,6 +35,7 @@ function isTelemetryDisabled(): boolean {
 const noopClient: TelemetryClient = {
   capture() {},
   async shutdown() {},
+  identity: { anonymous: true },
 };
 
 async function getOrCreateAnonymousId(): Promise<string> {
@@ -168,6 +171,7 @@ export async function getTelemetry(cwd?: string): Promise<TelemetryClient> {
 
     const ph = posthog;
     instance = {
+      identity: { anonymous },
       capture(event: string, properties?: Record<string, unknown>) {
         try {
           ph.capture({

@@ -7,7 +7,8 @@ import { infoCommand } from "./commands/info";
 import { createHelpCommand } from "./commands/help";
 import { onboardCommand } from "./commands/onboard";
 import { ruleCommand } from "./commands/rules";
-import { shutdownTelemetry } from "./telemetry";
+import { getTelemetry, shutdownTelemetry } from "./telemetry";
+import { emitRunEvents, resolveCommandName, resolveCwd } from "./telemetry-run";
 import { CliError } from "./util/cli-error";
 
 const subCommands = {
@@ -97,15 +98,36 @@ const main = defineCommand({
 });
 
 // main loop to run cli and make every attempt to shut down gracefully
+const rawArguments = process.argv.slice(2);
+const startedAt = Date.now();
+let thrown: unknown;
 try {
-  await runCommand(main, { rawArgs: process.argv.slice(2) });
+  await runCommand(main, { rawArgs: rawArguments });
 } catch (error) {
   // CliError = expected failure (already printed output, exitCode already set)
+  thrown = error;
   if (!(error instanceof CliError)) {
     process.exitCode = 1;
     console.error(error instanceof Error ? error.message : String(error));
   }
 } finally {
+  // cli_run is the per-invocation denominator: emitted exactly once here, on
+  // both success and failure, so no command has to remember to. Telemetry is
+  // best-effort and never affects the exit.
+  try {
+    const telemetry = await getTelemetry(resolveCwd(rawArguments));
+    const success =
+      thrown === undefined &&
+      (process.exitCode === undefined || process.exitCode === 0);
+    emitRunEvents(telemetry, {
+      command: resolveCommandName(rawArguments),
+      success,
+      durationMs: Date.now() - startedAt,
+      error: thrown,
+    });
+  } catch {
+    // Telemetry failures are silent
+  }
   try {
     await shutdownTelemetry();
   } catch {
