@@ -27,7 +27,7 @@ keeps the suite green on its own.
 
 - [x] 1.1 In `packages/cli/src/index.ts`, wrap command execution so exactly one `cli_run` is emitted per invocation from a `finally`-equivalent path, with `{ command, cli_version, success, durationMs, anonymous, loggedIn }`
 - [x] 1.2 Resolve `command` from the matched citty subcommand (e.g. `"rule create"`, `"help"`); derive `success` from a thrown error / non-zero `process.exitCode`; measure `durationMs` from a start timestamp — extracted to a testable `telemetry-run.ts` (resolveCommandName/resolveCwd/emitRunEvents) so the entry module's side-effecting top level stays untested
-- [x] 1.3 Emit `cli_error { command, code }` from the runner's catch path when the failure carries a stable `CliErrorCode` — added an optional `code` to `CliError`; falls back to `INTERNAL_ERROR`
+- [x] 1.3 Emit `cli_error { command, code }` from the runner's catch path when the failure carries a stable `CLIErrorCode` — added an optional `code` to `CLIError`; falls back to `INTERNAL_ERROR`
 - [x] 1.4 Tests: one `cli_run` per invocation (success and failure), and `cli_error` on a known-code failure — `test/cli-run.test.ts`
 - [x] 1.5 typecheck + lint + suite green; commit; open PR 1
 

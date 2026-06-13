@@ -149,7 +149,7 @@ CLI events SHALL use the `cli_` prefix, with the taxonomy organized as a
   - `cli_check_completed` — error/warning counts only (e.g. `errorCount`,
     `warningCount`, `findings`)
   - `cli_error` — a single failure event with `command` and `code` (a stable
-    `CliErrorCode`)
+    `CLIErrorCode`)
 - `cli_help` — fired when the help command serves a request, with a `topic`
   property (the served topic; the exact literal `"(index)"` when invoked with no
   topic; the attempted topic for an unknown request). This replaces the previous
@@ -182,7 +182,7 @@ Commands that carry no concrete state beyond the invocation (e.g. `info`,
 
 #### Scenario: A command failure emits cli_error
 
-- **WHEN** a command fails with a known `CliErrorCode`
+- **WHEN** a command fails with a known `CLIErrorCode`
 - **THEN** PostHog SHALL receive a `cli_error` event with `command` and `code`
 
 #### Scenario: Old event names are not emitted

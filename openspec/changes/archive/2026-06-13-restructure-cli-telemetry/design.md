@@ -70,7 +70,7 @@ carries no concrete state beyond the invocation, so those are covered by
 ### D3 — `cli_error` is the single failure event
 
 Instead of `success:false` spread across each `_completed` event, failures emit
-one `cli_error { command, code }` (code from the stable `CliErrorCode` set), and
+one `cli_error { command, code }` (code from the stable `CLIErrorCode` set), and
 `cli_run` also records `success:false`. The runner emits `cli_error` from its
 catch path so no command has to remember to.
 
@@ -86,7 +86,7 @@ Dashboards are rebuilt against the new names (the proposal calls this out).
 - **[Centralized `cli_run` can't see command-specific context]** → By design
   (D-non-goal). `loggedIn` covers the only cross-cutting dimension we need now.
 - **[`success` detection in the runner is imperfect]** → Derive from thrown
-  error and `process.exitCode`; commands already use `CliError` + exit codes
+  error and `process.exitCode`; commands already use `CLIError` + exit codes
   consistently, so this is reliable.
 
 ## Open Questions
