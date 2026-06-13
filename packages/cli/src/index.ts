@@ -7,7 +7,11 @@ import { infoCommand } from "./commands/info";
 import { createHelpCommand } from "./commands/help";
 import { onboardCommand } from "./commands/onboard";
 import { ruleCommand } from "./commands/rules";
-import { getTelemetry, shutdownTelemetry } from "./telemetry";
+import {
+  getTelemetry,
+  resolveRunIdentity,
+  shutdownTelemetry,
+} from "./telemetry";
 import { emitRunEvents, resolveCommandName, resolveCwd } from "./telemetry-run";
 import { CliError } from "./util/cli-error";
 
@@ -99,7 +103,12 @@ const main = defineCommand({
 
 // main loop to run cli and make every attempt to shut down gracefully
 const rawArguments = process.argv.slice(2);
+const runCwd = resolveCwd(rawArguments);
 const startedAt = Date.now();
+// Resolve identity at invocation START so cli_run reports who *initiated* the
+// run, not the post-command state — e.g. `auth login` run by a logged-out user
+// reports loggedIn:false (the login was performed as a logged-out user).
+const startIdentity = await resolveRunIdentity(runCwd);
 let thrown: unknown;
 try {
   await runCommand(main, { rawArgs: rawArguments });
@@ -115,7 +124,7 @@ try {
   // both success and failure, so no command has to remember to. Telemetry is
   // best-effort and never affects the exit.
   try {
-    const telemetry = await getTelemetry(resolveCwd(rawArguments));
+    const telemetry = await getTelemetry(runCwd);
     const success =
       thrown === undefined &&
       (process.exitCode === undefined || process.exitCode === 0);
@@ -123,6 +132,8 @@ try {
       command: resolveCommandName(rawArguments),
       success,
       durationMs: Date.now() - startedAt,
+      anonymous: startIdentity.anonymous,
+      loggedIn: startIdentity.loggedIn,
       error: thrown,
     });
   } catch {

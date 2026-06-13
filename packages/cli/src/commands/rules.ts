@@ -245,7 +245,7 @@ const createCommand = defineCommand({
                 console.log(`  ${filePath}`);
               }
             }
-            createdRuleCount = rules.length;
+            if (rules.length > 0) createdRuleCount = rules.length;
             return;
           }
           case "pr":
@@ -478,7 +478,7 @@ const improveCommand = defineCommand({
                 console.log(`  ${filePath}`);
               }
             }
-            improvedRuleCount = rules.length;
+            if (rules.length > 0) improvedRuleCount = rules.length;
             return;
           }
           case "pr":

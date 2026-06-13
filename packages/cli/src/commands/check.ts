@@ -163,12 +163,14 @@ export const checkCommand = defineCommand({
       try {
         await generateSgConfig(cwd);
         const { results } = await runAstGrepScan(cwd, existingPaths);
-        const hasErrors = results.some((r) => r.severity === "error");
-        scanCounts = {
-          errorCount: results.filter((r) => r.severity === "error").length,
-          warningCount: results.filter((r) => r.severity === "warning").length,
-          findings: results.length,
-        };
+        let errorCount = 0;
+        let warningCount = 0;
+        for (const result of results) {
+          if (result.severity === "error") errorCount++;
+          else if (result.severity === "warning") warningCount++;
+        }
+        const hasErrors = errorCount > 0;
+        scanCounts = { errorCount, warningCount, findings: results.length };
 
         // Format output
         if (args.json) {

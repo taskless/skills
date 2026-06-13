@@ -1,3 +1,6 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Spy on telemetry by mocking the module the help command imports. The factory
@@ -47,18 +50,39 @@ describe("help emits cli_help { topic }", () => {
     expect(capture).toHaveBeenCalledWith("cli_help", { topic: "rule create" });
   });
 
-  it("captures an index marker when invoked with no topic", async () => {
+  it("captures the index marker for no topic", async () => {
     await runHelp(["help"]);
     expect(capture).toHaveBeenCalledWith("cli_help", { topic: "(index)" });
   });
 
-  it("captures the attempted topic for an unknown topic, and no legacy help_* event", async () => {
+  it("captures the attempted topic for an unknown topic", async () => {
     await runHelp(["help", "nope"]);
     expect(capture).toHaveBeenCalledWith("cli_help", { topic: "nope" });
+  });
+});
 
-    const events = capture.mock.calls.map((call) => call[0] as string);
-    expect(events).not.toContain("help_index");
-    expect(events).not.toContain("help_unknown");
-    expect(events.every((event) => !event.startsWith("help_"))).toBe(true);
+// Rather than asserting "no help_* event" inside every behavioral test above,
+// prove it once at the source: after this change lands, no legacy help_* event
+// name is emitted anywhere in the CLI.
+function collectSourceFiles(directory: string): string[] {
+  const files: string[] = [];
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const full = join(directory, entry.name);
+    if (entry.isDirectory()) files.push(...collectSourceFiles(full));
+    else if (entry.name.endsWith(".ts")) files.push(full);
+  }
+  return files;
+}
+
+describe("no legacy help_* event remains in the CLI source", () => {
+  it("emits no help_* event-name literal under src/", () => {
+    const sourceDirectory = resolve(import.meta.dirname, "../src");
+    // Match a string/template literal that begins with help_ (e.g. "help_index",
+    // "help_unknown", or a `help_${...}` topic event).
+    const legacyHelpEvent = /["`]help_/;
+    const offenders = collectSourceFiles(sourceDirectory).filter((file) =>
+      legacyHelpEvent.test(readFileSync(file, "utf8"))
+    );
+    expect(offenders).toEqual([]);
   });
 });

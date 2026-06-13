@@ -12,9 +12,10 @@ events for concrete state transitions worth analyzing as funnels.
 ## What Changes
 
 - **NEW `cli_run`** — emitted exactly once per invocation, centrally in the CLI
-  runner, with properties `command`, `cli_version`, `success`, `durationMs`,
-  `anonymous`, and `loggedIn`. This is the universal denominator; no command
-  emits its own "started/ran" event anymore.
+  runner, with properties `command`, `success`, `durationMs`, `anonymous`, and
+  `loggedIn` (the CLI version rides on the standard `cliVersion` property already
+  attached to every event — `cli_run` adds no second version field). This is the
+  universal denominator; no command emits its own "started/ran" event anymore.
 - **`cli_*` reserved for concrete state transitions** — replace the per-command
   start/`_completed` pairs with events that represent real outcomes:
   `cli_rule_created`, `cli_rule_improved`, `cli_rule_deleted`,
@@ -26,9 +27,11 @@ events for concrete state transitions worth analyzing as funnels.
   `cli_run`'s `command`), so help intent is one event filtered by topic.
 - **BREAKING (analytics only)** — the previous taxonomy is a hard cut, no
   dual-emit window. Dashboards/funnels built on the old names must be rebuilt.
-- **No per-command enrichment context** — auth state is already on `cli_run`
-  (`loggedIn`), which implies `--anonymous` behavior; commands do not thread
-  extra run-context properties in this change.
+- **No per-command enrichment context** — `cli_run` already carries the two
+  cross-cutting dimensions we need: `loggedIn` (a valid token is present) and
+  `anonymous` (no authenticated identity resolved). These are distinct from the
+  `--anonymous` flag, which is an independent per-command invocation choice;
+  commands do not thread extra run-context properties in this change.
 
 ## Capabilities
 
