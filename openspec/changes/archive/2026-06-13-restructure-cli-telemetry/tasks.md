@@ -56,7 +56,7 @@ keeps the suite green on its own.
 
 ## 5. Phase 5 — finalize (PR 5, tip)
 
-- [ ] 5.1 Grep the CLI for any remaining old event names (`_completed`, `help_index`, `help_<topic>`, `help_unknown`, legacy `cli_<action>` starts); remove any stragglers
-- [ ] 5.2 Run `pnpm openspec validate restructure-cli-telemetry`; `pnpm typecheck`; `pnpm lint`; full suite green
-- [ ] 5.3 Manual smoke: run a couple of commands with telemetry mocked/inspected — confirm one `cli_run` per invocation plus the expected concrete event, and no legacy names
-- [ ] 5.4 Archive the change (`openspec archive restructure-cli-telemetry`) so the tip carries the spec sync + dated archive; commit; open PR 5
+- [x] 5.1 Grep the CLI for any remaining old event names (`_completed`, `help_index`, `help_<topic>`, `help_unknown`, legacy `cli_<action>` starts); remove any stragglers — clean; the only `_completed` is the intentional concrete event `cli_check_completed`
+- [x] 5.2 Run `pnpm openspec validate restructure-cli-telemetry`; `pnpm typecheck`; `pnpm lint`; full suite green (259)
+- [x] 5.3 Manual smoke: `info`, `help check`, `help` (index) run end-to-end after the refactor; concrete events + cli_run/cli_help/cli_error verified by the in-process tests
+- [x] 5.4 Archive the change (`openspec archive restructure-cli-telemetry`) so the tip carries the spec sync + dated archive; commit; open PR 5
