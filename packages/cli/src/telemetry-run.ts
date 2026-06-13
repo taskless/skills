@@ -49,21 +49,29 @@ export interface RunContext {
   command: string;
   success: boolean;
   durationMs: number;
+  /** Resolved fresh at emission time (see resolveRunIdentity) so auth-changing
+   * commands report post-invocation state. */
+  anonymous: boolean;
+  loggedIn: boolean;
+  /** The thrown error, if the command threw. */
   error?: unknown;
 }
 
 /**
  * Emit the per-invocation telemetry: a single `cli_run` denominator event
- * (always), preceded by `cli_error` when the invocation failed. The CLI
- * version rides along via the telemetry client's standard `cliVersion`
- * property; `cli_version` is included here in the snake_case form the run
- * taxonomy uses.
+ * (always), preceded by `cli_error` only when the command threw. The CLI
+ * version is NOT added here — it rides on the standard `cliVersion` property
+ * the telemetry client attaches to every event.
  */
 export function emitRunEvents(
-  telemetry: Pick<TelemetryClient, "capture" | "identity">,
+  telemetry: Pick<TelemetryClient, "capture">,
   context: RunContext
 ): void {
-  if (!context.success) {
+  // cli_error fires only for a thrown failure (with a known CliErrorCode when
+  // available). A failure signalled purely via process.exitCode (the command
+  // printed its own error) is captured by cli_run's success:false — emitting
+  // cli_error there would mislabel it INTERNAL_ERROR.
+  if (context.error !== undefined) {
     const code =
       context.error instanceof CliError && context.error.code
         ? context.error.code
@@ -73,10 +81,9 @@ export function emitRunEvents(
 
   telemetry.capture("cli_run", {
     command: context.command,
-    cli_version: __VERSION__,
     success: context.success,
     durationMs: context.durationMs,
-    anonymous: telemetry.identity.anonymous,
-    loggedIn: !telemetry.identity.anonymous,
+    anonymous: context.anonymous,
+    loggedIn: context.loggedIn,
   });
 }

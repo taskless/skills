@@ -2,7 +2,7 @@
 
 ## Phasing — stacked PRs
 
-This change is cut into commitable phases, each of which leaves the build and
+This change is cut into committable phases, each of which leaves the build and
 tests green and maps to one stacked PR (Git Town). Tests travel with the phase
 that introduces the behavior — there is no trailing "tests" phase. Phases are
 ordered so the stack reads bottom → top:
