@@ -55,7 +55,7 @@ auth login success   → cli_authenticated  { }
 auth logout success  → cli_logged_out     { }
 init/install success → cli_installed      { targets? }
 onboard complete     → cli_onboarded      { }
-check finishes       → cli_check_completed{ errorCount, warningCount, filesScanned }
+check finishes       → cli_check_completed{ errorCount, warningCount, findings }
 any command fails    → cli_error          { command, code }
 help served          → cli_help           { topic }   (topic = "(index)" for no-arg,
                                                         the attempted topic otherwise)

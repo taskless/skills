@@ -147,13 +147,13 @@ CLI events SHALL use the `cli_` prefix, with the taxonomy organized as a
   - `cli_authenticated`, `cli_logged_out`
   - `cli_installed`, `cli_onboarded`
   - `cli_check_completed` — error/warning counts only (e.g. `errorCount`,
-    `warningCount`, `filesScanned`)
+    `warningCount`, `findings`)
   - `cli_error` — a single failure event with `command` and `code` (a stable
     `CliErrorCode`)
 - `cli_help` — fired when the help command serves a request, with a `topic`
-  property (the served topic, or an index marker when invoked with no topic).
-  This replaces the previous `help_index`, `help_<topic>`, and `help_unknown`
-  events.
+  property (the served topic; the exact literal `"(index)"` when invoked with no
+  topic; the attempted topic for an unknown request). This replaces the previous
+  `help_index`, `help_<topic>`, and `help_unknown` events.
 
 Commands that carry no concrete state beyond the invocation (e.g. `info`,
 `detect`, `update`, `auth status`, `rule verify`, `rule meta`) SHALL rely on
@@ -174,11 +174,10 @@ Commands that carry no concrete state beyond the invocation (e.g. `info`,
 - **THEN** PostHog SHALL receive a `cli_help` event with `topic: "rule create"`
 - **AND** SHALL NOT receive a `help_rule_create` event
 
-#### Scenario: Help with no topic emits cli_help with an index marker
+#### Scenario: Help with no topic emits cli_help with the index marker
 
 - **WHEN** an agent runs `taskless help`
-- **THEN** PostHog SHALL receive a `cli_help` event whose `topic` marks the index
-  (no-argument) invocation
+- **THEN** PostHog SHALL receive a `cli_help` event with `topic: "(index)"`
 - **AND** SHALL NOT receive a `help_index` event
 
 #### Scenario: A command failure emits cli_error
