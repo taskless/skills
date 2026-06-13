@@ -287,7 +287,7 @@ describe("capture", () => {
       await writeTokenFile(cwd, jwt);
 
       const telemetry = await getTelemetry(cwd);
-      telemetry.capture("cli_rule_create");
+      telemetry.capture("cli_rule_created");
 
       expect(mockCapture).toHaveBeenCalledWith(
         expect.objectContaining({

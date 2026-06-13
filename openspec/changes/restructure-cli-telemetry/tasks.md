@@ -33,10 +33,10 @@ keeps the suite green on its own.
 
 ## 2. Phase 2 — rule concrete-state events (PR 2, on PR 1)
 
-- [ ] 2.1 `commands/rules.ts`: remove `cli_rule_create(_completed)`, `cli_rule_improve(_completed)`, `cli_rule_delete(_completed)`, `cli_rule_meta(_completed)`, `cli_rule_verify(_completed)`
-- [ ] 2.2 Emit `cli_rule_created`, `cli_rule_improved`, `cli_rule_deleted` at the point each state changes (counts/ids/booleans only); `verify`/`meta` are covered by `cli_run` alone
-- [ ] 2.3 Update rule command tests to the new events; assert no `cli_rule_*_completed`
-- [ ] 2.4 typecheck + lint + suite green; commit; open PR 2
+- [x] 2.1 `commands/rules.ts`: remove `cli_rule_create(_completed)`, `cli_rule_improve(_completed)`, `cli_rule_delete(_completed)`, `cli_rule_meta(_completed)`, `cli_rule_verify(_completed)`
+- [x] 2.2 Emit `cli_rule_created`, `cli_rule_improved`, `cli_rule_deleted` at the point each state changes (counts/ids/booleans only); `verify`/`meta` are covered by `cli_run` alone (their command-level telemetry was removed entirely)
+- [x] 2.3 Update rule command tests to the new events; assert no `cli_rule_*_completed` — only `telemetry.test.ts` referenced an old rule name (a sample), updated to `cli_rule_created`; rule-from/verify tests assert behavior, not events
+- [x] 2.4 typecheck + lint + suite green; commit; open PR 2
 
 ## 3. Phase 3 — auth + lifecycle events (PR 3, on PR 2)
 
