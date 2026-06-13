@@ -131,8 +131,10 @@ describe("runWizard end-to-end", () => {
     expect(await exists(join(cwd, ".taskless", "taskless.json"))).toBe(false);
 
     // A cancelled wizard installs nothing, so it emits no cli_installed event;
-    // the invocation itself is captured by cli_run at the runner level.
-    expect(captureSpy).not.toHaveBeenCalledWith("cli_installed");
+    // the invocation itself is captured by cli_run at the runner level. Assert
+    // on the event name across all calls so extra properties can't slip past.
+    const events = captureSpy.mock.calls.map((call) => call[0] as string);
+    expect(events).not.toContain("cli_installed");
   });
 
   it("cancelling the summary confirm writes nothing", async () => {
