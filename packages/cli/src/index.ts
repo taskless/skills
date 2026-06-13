@@ -103,7 +103,12 @@ const main = defineCommand({
 
 // main loop to run cli and make every attempt to shut down gracefully
 const rawArguments = process.argv.slice(2);
+const runCwd = resolveCwd(rawArguments);
 const startedAt = Date.now();
+// Resolve identity at invocation START so cli_run reports who *initiated* the
+// run, not the post-command state — e.g. `auth login` run by a logged-out user
+// reports loggedIn:false (the login was performed as a logged-out user).
+const startIdentity = await resolveRunIdentity(runCwd);
 let thrown: unknown;
 try {
   await runCommand(main, { rawArgs: rawArguments });
@@ -119,11 +124,7 @@ try {
   // both success and failure, so no command has to remember to. Telemetry is
   // best-effort and never affects the exit.
   try {
-    const cwd = resolveCwd(rawArguments);
-    const telemetry = await getTelemetry(cwd);
-    // Resolve identity fresh here (not from the cached client identity) so
-    // auth-changing commands report their post-invocation auth state.
-    const identity = await resolveRunIdentity(cwd);
+    const telemetry = await getTelemetry(runCwd);
     const success =
       thrown === undefined &&
       (process.exitCode === undefined || process.exitCode === 0);
@@ -131,8 +132,8 @@ try {
       command: resolveCommandName(rawArguments),
       success,
       durationMs: Date.now() - startedAt,
-      anonymous: identity.anonymous,
-      loggedIn: identity.loggedIn,
+      anonymous: startIdentity.anonymous,
+      loggedIn: startIdentity.loggedIn,
       error: thrown,
     });
   } catch {
