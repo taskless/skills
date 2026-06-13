@@ -7,7 +7,11 @@ import { infoCommand } from "./commands/info";
 import { createHelpCommand } from "./commands/help";
 import { onboardCommand } from "./commands/onboard";
 import { ruleCommand } from "./commands/rules";
-import { getTelemetry, shutdownTelemetry } from "./telemetry";
+import {
+  getTelemetry,
+  resolveRunIdentity,
+  shutdownTelemetry,
+} from "./telemetry";
 import { emitRunEvents, resolveCommandName, resolveCwd } from "./telemetry-run";
 import { CliError } from "./util/cli-error";
 
@@ -115,7 +119,11 @@ try {
   // both success and failure, so no command has to remember to. Telemetry is
   // best-effort and never affects the exit.
   try {
-    const telemetry = await getTelemetry(resolveCwd(rawArguments));
+    const cwd = resolveCwd(rawArguments);
+    const telemetry = await getTelemetry(cwd);
+    // Resolve identity fresh here (not from the cached client identity) so
+    // auth-changing commands report their post-invocation auth state.
+    const identity = await resolveRunIdentity(cwd);
     const success =
       thrown === undefined &&
       (process.exitCode === undefined || process.exitCode === 0);
@@ -123,6 +131,8 @@ try {
       command: resolveCommandName(rawArguments),
       success,
       durationMs: Date.now() - startedAt,
+      anonymous: identity.anonymous,
+      loggedIn: identity.loggedIn,
       error: thrown,
     });
   } catch {
