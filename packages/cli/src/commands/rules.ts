@@ -25,8 +25,8 @@ import {
 import { outputSchema as metaOutputSchema } from "../schemas/rules-meta";
 import { verifyOutputSchema } from "../schemas/rules-verify";
 import { getTelemetry } from "../telemetry";
-import { CliError } from "../util/cli-error";
-import { type CliErrorCode, makeErrorEnvelope } from "../types/errors";
+import { CLIError } from "../util/cli-error";
+import { type CLIErrorCode, makeErrorEnvelope } from "../types/errors";
 
 /** Format today's date as YYYYMMDD */
 function getTimestamp(): string {
@@ -75,7 +75,7 @@ const createCommand = defineCommand({
     /** Emit an error and exit, respecting --json mode */
     function fail(
       message: string,
-      code: CliErrorCode = "INTERNAL_ERROR"
+      code: CLIErrorCode = "INTERNAL_ERROR"
     ): never {
       if (args.json) {
         console.log(JSON.stringify(makeErrorEnvelope(code, message)));
@@ -83,7 +83,7 @@ const createCommand = defineCommand({
         console.error(`Error: ${message}`);
       }
       process.exitCode = 1;
-      throw new CliError(message);
+      throw new CLIError(message);
     }
 
     if (args.anonymous) {
@@ -153,7 +153,7 @@ const createCommand = defineCommand({
         // resolveIdentity throws on missing auth or missing git remote;
         // surface the original message but pick a best-guess code.
         const message = error instanceof Error ? error.message : String(error);
-        const code: CliErrorCode = /git remote|origin/i.test(message)
+        const code: CLIErrorCode = /git remote|origin/i.test(message)
           ? "NO_GITHUB_REMOTE"
           : "AUTH_REQUIRED";
         fail(message, code);
@@ -312,7 +312,7 @@ const improveCommand = defineCommand({
     /** Emit an error and exit, respecting --json mode */
     function fail(
       message: string,
-      code: CliErrorCode = "INTERNAL_ERROR"
+      code: CLIErrorCode = "INTERNAL_ERROR"
     ): never {
       if (args.json) {
         console.log(JSON.stringify(makeErrorEnvelope(code, message)));
@@ -320,7 +320,7 @@ const improveCommand = defineCommand({
         console.error(`Error: ${message}`);
       }
       process.exitCode = 1;
-      throw new CliError(message);
+      throw new CLIError(message);
     }
 
     if (args.anonymous) {
@@ -386,7 +386,7 @@ const improveCommand = defineCommand({
         identity = await resolveIdentity(cwd);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        const code: CliErrorCode = /git remote|origin/i.test(message)
+        const code: CLIErrorCode = /git remote|origin/i.test(message)
           ? "NO_GITHUB_REMOTE"
           : "AUTH_REQUIRED";
         fail(message, code);
@@ -544,7 +544,7 @@ const metaCommand = defineCommand({
 
     function fail(
       message: string,
-      code: CliErrorCode = "INTERNAL_ERROR"
+      code: CLIErrorCode = "INTERNAL_ERROR"
     ): never {
       if (args.json) {
         console.log(JSON.stringify(makeErrorEnvelope(code, message)));
@@ -552,7 +552,7 @@ const metaCommand = defineCommand({
         console.error(`Error: ${message}`);
       }
       process.exitCode = 1;
-      throw new CliError(message);
+      throw new CLIError(message);
     }
 
     const meta = await readRuleMetaFile(cwd, args.id);

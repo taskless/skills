@@ -13,7 +13,7 @@ import {
   shutdownTelemetry,
 } from "./telemetry";
 import { emitRunEvents, resolveCommandName, resolveCwd } from "./telemetry-run";
-import { CliError } from "./util/cli-error";
+import { CLIError } from "./util/cli-error";
 
 const subCommands = {
   init: initCommand,
@@ -113,9 +113,9 @@ let thrown: unknown;
 try {
   await runCommand(main, { rawArgs: rawArguments });
 } catch (error) {
-  // CliError = expected failure (already printed output, exitCode already set)
+  // CLIError = expected failure (already printed output, exitCode already set)
   thrown = error;
-  if (!(error instanceof CliError)) {
+  if (!(error instanceof CLIError)) {
     process.exitCode = 1;
     console.error(error instanceof Error ? error.message : String(error));
   }
