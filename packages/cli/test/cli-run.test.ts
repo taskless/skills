@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { emitRunEvents, resolveCommandName } from "../src/telemetry-run";
-import { CliError } from "../src/util/cli-error";
+import { CLIError } from "../src/util/cli-error";
 
 describe("resolveCommandName", () => {
   it.each([
@@ -60,7 +60,7 @@ describe("emitRunEvents", () => {
       success: false,
       durationMs: 9,
       ...anon,
-      error: new CliError("nope", "AUTH_REQUIRED"),
+      error: new CLIError("nope", "AUTH_REQUIRED"),
     });
 
     expect(telemetry.capture).toHaveBeenCalledTimes(2);
@@ -75,7 +75,7 @@ describe("emitRunEvents", () => {
     );
   });
 
-  it("falls back to INTERNAL_ERROR for a thrown non-CliError", () => {
+  it("falls back to INTERNAL_ERROR for a thrown non-CLIError", () => {
     const telemetry = fakeTelemetry();
     emitRunEvents(telemetry, {
       command: "info",
