@@ -40,12 +40,12 @@ keeps the suite green on its own.
 
 ## 3. Phase 3 — auth + lifecycle events (PR 3, on PR 2)
 
-- [ ] 3.1 `commands/auth.ts`: remove `cli_auth_login(_completed)`, `cli_auth_logout(_completed)`, `cli_auth_status(_completed)`; emit `cli_authenticated` and `cli_logged_out` on success (status → `cli_run` only)
-- [ ] 3.2 `commands/init.ts` + `wizard/index.ts`: remove `cli_init(_completed)`, `cli_init_cancelled`, `cli_update(_completed)`; emit `cli_installed` on a successful install
-- [ ] 3.3 `commands/onboard.ts`: remove `cli_onboard_recipe` / `cli_onboard_already_done`; emit `cli_onboarded` when onboarding is marked complete
-- [ ] 3.4 `commands/check.ts`: remove `cli_check(_completed)`; emit `cli_check_completed { errorCount, warningCount, filesScanned }` (counts only — no matched code)
-- [ ] 3.5 Update auth/init/onboard/check tests to the new events
-- [ ] 3.6 typecheck + lint + suite green; commit; open PR 3
+- [x] 3.1 `commands/auth.ts`: remove `cli_auth_login(_completed)`, `cli_auth_logout(_completed)`, `cli_auth_status(_completed)`; emit `cli_authenticated` (fresh login only) and `cli_logged_out` (token actually removed); status → `cli_run` only
+- [x] 3.2 `commands/init.ts` + `wizard/index.ts`: remove `cli_init(_completed)`, `cli_init_cancelled`, `cli_update(_completed)`; emit `cli_installed` on a successful install (interactive + non-interactive + update)
+- [x] 3.3 `commands/onboard.ts`: remove `cli_onboard_recipe` / `cli_onboard_already_done`; emit `cli_onboarded` when onboarding is marked complete
+- [x] 3.4 `commands/check.ts`: remove `cli_check(_completed)`; emit `cli_check_completed { errorCount, warningCount, findings }` only when a scan actually runs (counts only — no matched code; `findings` replaces the unavailable `filesScanned`)
+- [x] 3.5 Update auth/init/onboard/check tests to the new events — wizard-integration assertions updated to `cli_installed` / no-event-on-cancel; telemetry.test sample names → `cli_run`
+- [x] 3.6 typecheck + lint + suite green; commit; open PR 3
 
 ## 4. Phase 4 — cli_help { topic } + drop bespoke info/detect events (PR 4, on PR 3)
 
