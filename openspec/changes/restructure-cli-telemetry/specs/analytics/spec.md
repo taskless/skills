@@ -5,17 +5,19 @@
 The CLI SHALL emit exactly one `cli_run` event per invocation, from the top-level
 runner rather than from individual commands. The event SHALL carry the properties
 `command` (the resolved subcommand name, e.g. `"rule create"` or `"help"`),
-`cli_version`, `success` (boolean), `durationMs` (number), `anonymous` (boolean),
-and `loggedIn` (boolean). The event SHALL be emitted on both success and failure
-(from a `finally`-equivalent path), and no command SHALL emit its own
-"started" or "ran" event.
+`success` (boolean), `durationMs` (number), `anonymous` (boolean), and `loggedIn`
+(boolean). The CLI version is provided by the standard `cliVersion` property
+attached to every event (see the standard-properties requirement); `cli_run`
+SHALL NOT introduce a second version field. The event SHALL be emitted on both
+success and failure (from a `finally`-equivalent path), and no command SHALL emit
+its own "started" or "ran" event.
 
 #### Scenario: A successful command emits one cli_run
 
 - **WHEN** a user runs `taskless info`
 - **THEN** PostHog SHALL receive exactly one `cli_run` event with
   `command: "info"`, `success: true`, a numeric `durationMs`, and the
-  `cli_version`, `anonymous`, and `loggedIn` properties
+  `anonymous` and `loggedIn` properties (plus the standard `cliVersion`)
 - **AND** SHALL NOT receive a separate `cli_info` or `cli_info_completed` event
 
 #### Scenario: A failing command still emits cli_run
@@ -40,13 +42,14 @@ CLI events SHALL use the `cli_` prefix, with the taxonomy organized as a
   - `cli_authenticated`, `cli_logged_out`
   - `cli_installed`, `cli_onboarded`
   - `cli_check_completed` — error/warning counts only (e.g. `errorCount`,
-    `warningCount`, `filesScanned`)
+    `warningCount`, `findings`)
   - `cli_error` — a single failure event with `command` and `code` (a stable
     `CliErrorCode`)
 - `cli_help` — fired when the help command serves a request, with a `topic`
-  property (the served topic, or an index marker when invoked with no topic).
-  This replaces the previous `help_index`, `help_<topic>`, and `help_unknown`
-  events.
+  property. The `topic` SHALL be: the served topic for a known topic (e.g.
+  `"rule create"`); the exact literal `"(index)"` when invoked with no topic;
+  and the attempted topic string when the topic is unknown. This single event
+  replaces the previous `help_index`, `help_<topic>`, and `help_unknown` events.
 
 Commands that carry no concrete state beyond the invocation (e.g. `info`,
 `detect`, `update`, `auth status`, `rule verify`, `rule meta`) SHALL rely on
@@ -67,12 +70,17 @@ Commands that carry no concrete state beyond the invocation (e.g. `info`,
 - **THEN** PostHog SHALL receive a `cli_help` event with `topic: "rule create"`
 - **AND** SHALL NOT receive a `help_rule_create` event
 
-#### Scenario: Help with no topic emits cli_help with an index marker
+#### Scenario: Help with no topic emits cli_help with the index marker
 
 - **WHEN** an agent runs `taskless help`
-- **THEN** PostHog SHALL receive a `cli_help` event whose `topic` marks the index
-  (no-argument) invocation
+- **THEN** PostHog SHALL receive a `cli_help` event with `topic: "(index)"`
 - **AND** SHALL NOT receive a `help_index` event
+
+#### Scenario: Help with an unknown topic emits cli_help with the attempted topic
+
+- **WHEN** an agent runs `taskless help nope`
+- **THEN** PostHog SHALL receive a `cli_help` event with `topic: "nope"`
+- **AND** SHALL NOT receive a `help_unknown` event
 
 #### Scenario: A command failure emits cli_error
 
@@ -131,8 +139,8 @@ Every `capture()` call SHALL include the `cli` property (anonymous UUID), the `c
 - **WHEN** `getTelemetry(cwd)` is initialized in a directory with no `.taskless/taskless.json`
 - **THEN** every `capture()` call from the returned client SHALL include `scaffoldVersion: 0`
 
-#### Scenario: CLI version is resolved from package.json
+#### Scenario: CLI version is embedded at build time
 
 - **WHEN** `getTelemetry()` is initialized
-- **THEN** `cliVersion` SHALL be read from `packages/cli/package.json` (bundled at build time or read at runtime)
+- **THEN** `cliVersion` SHALL be the `@taskless/cli` version embedded at build time (no runtime file read), consistent with the CLI spec's build-time version requirement
 - **AND** SHALL be attached to every event emitted through the returned client
