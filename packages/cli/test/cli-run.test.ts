@@ -18,17 +18,21 @@ describe("resolveCommandName", () => {
   });
 });
 
-function fakeTelemetry(anonymous = true) {
-  return {
-    capture: vi.fn(),
-    identity: { anonymous },
-  };
+function fakeTelemetry() {
+  return { capture: vi.fn() };
 }
 
+const anon = { anonymous: true, loggedIn: false };
+
 describe("emitRunEvents", () => {
-  it("emits exactly one cli_run on success, with no cli_error", () => {
+  it("emits exactly one cli_run on success, with no cli_error and no cli_version", () => {
     const telemetry = fakeTelemetry();
-    emitRunEvents(telemetry, { command: "info", success: true, durationMs: 5 });
+    emitRunEvents(telemetry, {
+      command: "info",
+      success: true,
+      durationMs: 5,
+      ...anon,
+    });
 
     expect(telemetry.capture).toHaveBeenCalledTimes(1);
     expect(telemetry.capture).toHaveBeenCalledWith(
@@ -41,33 +45,43 @@ describe("emitRunEvents", () => {
         loggedIn: false,
       })
     );
+    // Version rides on the standard cliVersion property, not a cli_version field.
+    const properties = telemetry.capture.mock.calls[0]![1] as Record<
+      string,
+      unknown
+    >;
+    expect(properties).not.toHaveProperty("cli_version");
   });
 
-  it("emits cli_error (with the CliError code) then cli_run on failure", () => {
+  it("emits cli_error then cli_run, in that order and exactly twice", () => {
     const telemetry = fakeTelemetry();
     emitRunEvents(telemetry, {
       command: "rule create",
       success: false,
       durationMs: 9,
+      ...anon,
       error: new CliError("nope", "AUTH_REQUIRED"),
     });
 
-    expect(telemetry.capture).toHaveBeenCalledWith("cli_error", {
+    expect(telemetry.capture).toHaveBeenCalledTimes(2);
+    expect(telemetry.capture).toHaveBeenNthCalledWith(1, "cli_error", {
       command: "rule create",
       code: "AUTH_REQUIRED",
     });
-    expect(telemetry.capture).toHaveBeenCalledWith(
+    expect(telemetry.capture).toHaveBeenNthCalledWith(
+      2,
       "cli_run",
       expect.objectContaining({ command: "rule create", success: false })
     );
   });
 
-  it("falls back to INTERNAL_ERROR for non-CliError failures", () => {
+  it("falls back to INTERNAL_ERROR for a thrown non-CliError", () => {
     const telemetry = fakeTelemetry();
     emitRunEvents(telemetry, {
       command: "info",
       success: false,
       durationMs: 1,
+      ...anon,
       error: new Error("boom"),
     });
 
@@ -77,9 +91,36 @@ describe("emitRunEvents", () => {
     });
   });
 
+  it("does NOT emit cli_error for an exitCode-only failure (no thrown error)", () => {
+    const telemetry = fakeTelemetry();
+    emitRunEvents(telemetry, {
+      command: "check",
+      success: false,
+      durationMs: 3,
+      ...anon,
+      // no error — failure signalled via process.exitCode
+    });
+
+    expect(telemetry.capture).toHaveBeenCalledTimes(1);
+    expect(telemetry.capture).toHaveBeenCalledWith(
+      "cli_run",
+      expect.objectContaining({ success: false })
+    );
+    const events = telemetry.capture.mock.calls.map(
+      (call) => call[0] as string
+    );
+    expect(events).not.toContain("cli_error");
+  });
+
   it("reflects an authenticated identity as loggedIn", () => {
-    const telemetry = fakeTelemetry(false);
-    emitRunEvents(telemetry, { command: "info", success: true, durationMs: 2 });
+    const telemetry = fakeTelemetry();
+    emitRunEvents(telemetry, {
+      command: "info",
+      success: true,
+      durationMs: 2,
+      anonymous: false,
+      loggedIn: true,
+    });
 
     expect(telemetry.capture).toHaveBeenCalledWith(
       "cli_run",

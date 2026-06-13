@@ -31,8 +31,9 @@ are unchanged; only the event taxonomy changes.
 
 The CLI's top-level runner (`index.ts`, around `runCommand`) wraps execution: it
 resolves the matched subcommand name, runs the command, and emits a single
-`cli_run` with `{ command, cli_version, success, durationMs, anonymous,
-loggedIn }` — on both success and failure (in a `finally`).
+`cli_run` with `{ command, success, durationMs, anonymous, loggedIn }` — on both
+success and failure (in a `finally`). The CLI version is not added here; it rides
+on the standard `cliVersion` property already attached to every event.
 
 _Why:_ Centralizing makes the denominator impossible to forget and removes ~20
 per-command start/`_completed` captures. The command name comes from the

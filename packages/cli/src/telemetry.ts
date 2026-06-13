@@ -21,8 +21,26 @@ const ANONYMOUS_ID_FILE = "anonymous_id";
 export interface TelemetryClient {
   capture(event: string, properties?: Record<string, unknown>): void;
   shutdown(): Promise<void>;
-  /** Resolved identity state, exposed so the runner can stamp cli_run. */
-  readonly identity: { anonymous: boolean };
+}
+
+/**
+ * Resolve the current auth identity by reading the token fresh. Unlike the
+ * telemetry client's cached identity (fixed at init), this reflects the state
+ * AT CALL TIME — so the runner can stamp cli_run with the post-invocation
+ * identity even for commands that change auth state mid-run (auth login/logout).
+ */
+export async function resolveRunIdentity(
+  cwd?: string
+): Promise<{ anonymous: boolean; loggedIn: boolean }> {
+  try {
+    const token = await getToken(cwd, { silent: true });
+    if (!token) return { anonymous: true, loggedIn: false };
+    // A token is present → logged in. anonymous tracks whether a subject
+    // (authenticated identity) decoded from it.
+    return { anonymous: decodeSubject(token) === undefined, loggedIn: true };
+  } catch {
+    return { anonymous: true, loggedIn: false };
+  }
 }
 
 function isTelemetryDisabled(): boolean {
@@ -35,7 +53,6 @@ function isTelemetryDisabled(): boolean {
 const noopClient: TelemetryClient = {
   capture() {},
   async shutdown() {},
-  identity: { anonymous: true },
 };
 
 async function getOrCreateAnonymousId(): Promise<string> {
@@ -171,7 +188,6 @@ export async function getTelemetry(cwd?: string): Promise<TelemetryClient> {
 
     const ph = posthog;
     instance = {
-      identity: { anonymous },
       capture(event: string, properties?: Record<string, unknown>) {
         try {
           ph.capture({
