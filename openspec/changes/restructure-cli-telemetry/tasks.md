@@ -49,10 +49,10 @@ keeps the suite green on its own.
 
 ## 4. Phase 4 — cli_help { topic } + drop bespoke info/detect events (PR 4, on PR 3)
 
-- [ ] 4.1 `commands/help.ts`: replace `help_index`, `help_<topic>`, `help_unknown` with one `cli_help { topic }` (served topic, an index marker for no-arg, the attempted topic for unknown)
-- [ ] 4.2 `commands/info.ts`, `commands/detect.ts`: remove their bespoke `cli_info(_completed)` / `cli_detect` events — covered by `cli_run`
-- [ ] 4.3 Update `test/help-extensions.test.ts` / `test/help-routing-telemetry.test.ts` and info/detect tests; assert `cli_help` carries `topic` and no `help_*` event is emitted
-- [ ] 4.4 typecheck + lint + suite green; commit; open PR 4
+- [x] 4.1 `commands/help.ts`: replace `help_index`, `help_<topic>`, `help_unknown` with one `cli_help { topic }` (served topic, `"(index)"` marker for no-arg, the attempted topic for unknown)
+- [x] 4.2 `commands/info.ts`: remove bespoke `cli_info(_completed)` (covered by `cli_run`); also drop its now-unused `getTelemetry` import. NOTE: `detect.ts`/`cli_detect` is NOT on this branch's lineage (it lives in the unmerged local-rule-routing stack) — no change needed here; it will be reconciled when that stack and this one both land
+- [x] 4.3 Assert `cli_help` carries `topic` and no `help_*` event — added `test/help-telemetry.test.ts` (served topic, index marker, unknown topic, and no legacy `help_*`)
+- [x] 4.4 typecheck + lint + suite green; commit; open PR 4
 
 ## 5. Phase 5 — finalize (PR 5, tip)
 
