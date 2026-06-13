@@ -6,7 +6,7 @@
  * Add new codes by extending the union; do not rename existing codes
  * without a major version bump.
  */
-export type CliErrorCode =
+export type CLIErrorCode =
   | "AUTH_REQUIRED"
   | "NO_GITHUB_REMOTE"
   | "RULE_GENERATION_FAILED"
@@ -22,17 +22,17 @@ export type CliErrorCode =
  */
 export interface CliErrorEnvelope {
   ok: false;
-  code: CliErrorCode;
+  code: CLIErrorCode;
   message: string;
 }
 
 export function makeErrorEnvelope(
-  code: CliErrorCode,
+  code: CLIErrorCode,
   message: string
 ): CliErrorEnvelope {
   return { ok: false, code, message };
 }
 
-export function writeJsonError(code: CliErrorCode, message: string): void {
+export function writeJsonError(code: CLIErrorCode, message: string): void {
   console.log(JSON.stringify(makeErrorEnvelope(code, message)));
 }

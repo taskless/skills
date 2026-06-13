@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 
 import type { TelemetryClient } from "./telemetry";
-import { CliError } from "./util/cli-error";
+import { CLIError } from "./util/cli-error";
 
 /**
  * Derive the cli_run `command` property from the raw argv. Flags (and the
@@ -67,13 +67,13 @@ export function emitRunEvents(
   telemetry: Pick<TelemetryClient, "capture">,
   context: RunContext
 ): void {
-  // cli_error fires only for a thrown failure (with a known CliErrorCode when
+  // cli_error fires only for a thrown failure (with a known CLIErrorCode when
   // available). A failure signalled purely via process.exitCode (the command
   // printed its own error) is captured by cli_run's success:false — emitting
   // cli_error there would mislabel it INTERNAL_ERROR.
   if (context.error !== undefined) {
     const code =
-      context.error instanceof CliError && context.error.code
+      context.error instanceof CLIError && context.error.code
         ? context.error.code
         : "INTERNAL_ERROR";
     telemetry.capture("cli_error", { command: context.command, code });

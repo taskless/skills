@@ -5,7 +5,7 @@ import { loginInteractive } from "../auth/login-interactive";
 import { getToken, removeToken } from "../auth/token";
 import { fetchWhoami } from "../auth/whoami";
 import { getTelemetry } from "../telemetry";
-import { type CliErrorCode, writeJsonError } from "../types/errors";
+import { type CLIErrorCode, writeJsonError } from "../types/errors";
 
 const loginCommand = defineCommand({
   meta: {
@@ -37,10 +37,10 @@ const loginCommand = defineCommand({
     telemetry.capture("cli_auth_login");
 
     /** Tracks the last emitted error code so the completion event can include it. */
-    let lastErrorCode: CliErrorCode | undefined;
+    let lastErrorCode: CLIErrorCode | undefined;
 
     /** Emit an error in the right channel and set exit code. */
-    const fail = (code: CliErrorCode, message: string): void => {
+    const fail = (code: CLIErrorCode, message: string): void => {
       lastErrorCode = code;
       if (args.json) {
         writeJsonError(code, message);
@@ -83,7 +83,7 @@ const loginCommand = defineCommand({
           return;
         }
         case "cancelled": {
-          const code: CliErrorCode =
+          const code: CLIErrorCode =
             result.reason === "denied" ? "AUTH_REQUIRED" : "NETWORK_ERROR";
           const message =
             result.message ??
