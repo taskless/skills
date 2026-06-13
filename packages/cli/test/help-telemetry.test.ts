@@ -42,14 +42,21 @@ describe("help emits cli_help { topic }", () => {
     errorSpy.mockRestore();
   });
 
-  it("captures the served topic", async () => {
+  it("captures the served topic and no legacy help_* event", async () => {
     await runHelp(["help", "rule", "create"]);
     expect(capture).toHaveBeenCalledWith("cli_help", { topic: "rule create" });
+
+    const events = capture.mock.calls.map((call) => call[0] as string);
+    expect(events.every((event) => !event.startsWith("help_"))).toBe(true);
   });
 
-  it("captures an index marker when invoked with no topic", async () => {
+  it("captures the index marker for no topic and no legacy help_index event", async () => {
     await runHelp(["help"]);
     expect(capture).toHaveBeenCalledWith("cli_help", { topic: "(index)" });
+
+    const events = capture.mock.calls.map((call) => call[0] as string);
+    expect(events).not.toContain("help_index");
+    expect(events.every((event) => !event.startsWith("help_"))).toBe(true);
   });
 
   it("captures the attempted topic for an unknown topic, and no legacy help_* event", async () => {
