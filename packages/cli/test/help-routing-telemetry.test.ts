@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// TODO(telemetry-taxonomy): once the restructure-cli-telemetry change lands on
-// main, the per-topic `help_<topic>` events collapse into a single
+// TODO(#39): once the restructure-cli-telemetry change lands on main, the
+// per-topic `help_<topic>` events collapse into a single
 // `cli_help { topic }`. These assertions then move to `cli_help` with a topic
 // property, and the help command stops emitting bespoke per-topic names. This
 // half is self-surfacing: against the new help command this suite fails, so the

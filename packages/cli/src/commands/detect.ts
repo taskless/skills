@@ -28,8 +28,8 @@ export const detectCommand = defineCommand({
   async run({ args }) {
     const cwd = resolve(args.dir ?? process.cwd());
     const telemetry = await getTelemetry(cwd);
-    // TODO(telemetry-taxonomy): once the restructure-cli-telemetry change lands
-    // on main, drop this bespoke cli_detect capture. detect is a read-only
+    // TODO(#39): once the restructure-cli-telemetry change lands on main, drop
+    // this bespoke cli_detect capture. detect is a read-only
     // command with no state transition, so it rides on the cli_run denominator
     // alone (the new taxonomy lists info/detect among cli_run-only commands).
     // This emit is silent under the new taxonomy — nothing fails if it lingers —
