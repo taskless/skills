@@ -97,6 +97,30 @@ describe("taskless detect", () => {
     expect(result.languages).toContain("Ruby");
   });
 
+  it("detects golangci-lint for a Go repo", async () => {
+    await writeFile(join(cwd, "go.mod"), "module example.com/x\n", "utf8");
+    await writeFile(join(cwd, ".golangci.yml"), "", "utf8");
+    const result = await detect(cwd);
+    expect(linterNames(result)).toContain("golangci-lint");
+    expect(result.languages).toContain("Go");
+  });
+
+  it("detects phpstan for a PHP repo", async () => {
+    await writeFile(join(cwd, "composer.json"), "{}", "utf8");
+    await writeFile(join(cwd, "phpstan.neon"), "", "utf8");
+    const result = await detect(cwd);
+    expect(linterNames(result)).toContain("phpstan");
+    expect(result.languages).toContain("PHP");
+  });
+
+  it("detects clippy for a Rust repo", async () => {
+    await writeFile(join(cwd, "Cargo.toml"), '[package]\nname = "x"\n', "utf8");
+    await writeFile(join(cwd, "clippy.toml"), "", "utf8");
+    const result = await detect(cwd);
+    expect(linterNames(result)).toContain("clippy");
+    expect(result.languages).toContain("Rust");
+  });
+
   it("detects biome from biome.json", async () => {
     await writeFile(join(cwd, "biome.json"), "{}", "utf8");
     const result = await detect(cwd);
