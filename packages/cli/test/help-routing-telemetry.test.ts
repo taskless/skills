@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+// TODO(telemetry-taxonomy): once the restructure-cli-telemetry change lands on
+// main, the per-topic `help_<topic>` events collapse into a single
+// `cli_help { topic }`. These assertions then move to `cli_help` with a topic
+// property, and the help command stops emitting bespoke per-topic names. This
+// half is self-surfacing: against the new help command this suite fails, so the
+// rebase can't silently skip it. See the telemetry stack's analytics spec.
+//
 // Spy on the telemetry capture by mocking the telemetry module the help
 // command imports. The factory is invoked lazily at import time, so the
 // closure over `capture` resolves after initialization (same pattern as
