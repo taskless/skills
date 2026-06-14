@@ -102,19 +102,8 @@ export async function runWizard(
   function finish(args: { status: "completed" | "cancelled" }): WizardResult {
     const durationMs = Date.now() - start;
     if (args.status === "completed") {
-      telemetry.capture("cli_init_completed", {
-        locations,
-        optionalSkills,
-        authPromptShown,
-        authCompleted,
-        nonInteractive: false,
-        durationMs,
-      });
-    } else {
-      telemetry.capture("cli_init_cancelled", {
-        atStep: cancelledStep ?? "unknown",
-        durationMs,
-      });
+      // Concrete state event: skills/commands were installed (interactive).
+      telemetry.capture("cli_installed");
     }
     return {
       status: args.status,
