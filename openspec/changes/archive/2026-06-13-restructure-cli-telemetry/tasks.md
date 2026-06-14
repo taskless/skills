@@ -27,7 +27,7 @@ keeps the suite green on its own.
 
 - [x] 1.1 In `packages/cli/src/index.ts`, wrap command execution so exactly one `cli_run` is emitted per invocation from a `finally`-equivalent path, with `{ command, cli_version, success, durationMs, anonymous, loggedIn }`
 - [x] 1.2 Resolve `command` from the matched citty subcommand (e.g. `"rule create"`, `"help"`); derive `success` from a thrown error / non-zero `process.exitCode`; measure `durationMs` from a start timestamp — extracted to a testable `telemetry-run.ts` (resolveCommandName/resolveCwd/emitRunEvents) so the entry module's side-effecting top level stays untested
-- [x] 1.3 Emit `cli_error { command, code }` from the runner's catch path when the failure carries a stable `CliErrorCode` — added an optional `code` to `CliError`; falls back to `INTERNAL_ERROR`
+- [x] 1.3 Emit `cli_error { command, code }` from the runner's catch path when the failure carries a stable `CLIErrorCode` — added an optional `code` to `CLIError`; falls back to `INTERNAL_ERROR`
 - [x] 1.4 Tests: one `cli_run` per invocation (success and failure), and `cli_error` on a known-code failure — `test/cli-run.test.ts`
 - [x] 1.5 typecheck + lint + suite green; commit; open PR 1
 
@@ -56,7 +56,7 @@ keeps the suite green on its own.
 
 ## 5. Phase 5 — finalize (PR 5, tip)
 
-- [ ] 5.1 Grep the CLI for any remaining old event names (`_completed`, `help_index`, `help_<topic>`, `help_unknown`, legacy `cli_<action>` starts); remove any stragglers
-- [ ] 5.2 Run `pnpm openspec validate restructure-cli-telemetry`; `pnpm typecheck`; `pnpm lint`; full suite green
-- [ ] 5.3 Manual smoke: run a couple of commands with telemetry mocked/inspected — confirm one `cli_run` per invocation plus the expected concrete event, and no legacy names
-- [ ] 5.4 Archive the change (`openspec archive restructure-cli-telemetry`) so the tip carries the spec sync + dated archive; commit; open PR 5
+- [x] 5.1 Grep the CLI for any remaining old event names (`_completed`, `help_index`, `help_<topic>`, `help_unknown`, legacy `cli_<action>` starts); remove any stragglers — clean; the only `_completed` is the intentional concrete event `cli_check_completed`
+- [x] 5.2 Run `pnpm openspec validate restructure-cli-telemetry`; `pnpm typecheck`; `pnpm lint`; full suite green (259)
+- [x] 5.3 Manual smoke: `info`, `help check`, `help` (index) run end-to-end after the refactor; concrete events + cli_run/cli_help/cli_error verified by the in-process tests
+- [x] 5.4 Archive the change (`openspec archive restructure-cli-telemetry`) so the tip carries the spec sync + dated archive; commit; open PR 5
