@@ -24,7 +24,7 @@ interface RunnableCommand {
   }) => Promise<void>;
 }
 
-describe("help routing topics emit help_<topic> intent telemetry", () => {
+describe("help routing topics emit cli_help intent telemetry", () => {
   let logSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
@@ -38,7 +38,7 @@ describe("help routing topics emit help_<topic> intent telemetry", () => {
   });
 
   it.each(["route", "existing", "static", "remote"])(
-    "captures help_%s",
+    "captures cli_help for %s",
     async (topic) => {
       const command = createHelpCommand({}) as unknown as RunnableCommand;
       await command.run({
@@ -47,7 +47,7 @@ describe("help routing topics emit help_<topic> intent telemetry", () => {
       });
 
       expect(capture).toHaveBeenCalledWith(
-        `help_${topic}`,
+        "cli_help",
         expect.objectContaining({ topic })
       );
     }
