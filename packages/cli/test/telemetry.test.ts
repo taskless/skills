@@ -81,7 +81,7 @@ describe("telemetry disabled", () => {
     vi.stubEnv("TASKLESS_TELEMETRY_DISABLED", "1");
     const telemetry = await getTelemetry();
 
-    telemetry.capture("cli_check");
+    telemetry.capture("cli_run");
     await telemetry.shutdown();
 
     expect(mockCapture).not.toHaveBeenCalled();
@@ -93,7 +93,7 @@ describe("telemetry disabled", () => {
     vi.stubEnv("DO_NOT_TRACK", "1");
     const telemetry = await getTelemetry();
 
-    telemetry.capture("cli_check");
+    telemetry.capture("cli_run");
     await telemetry.shutdown();
 
     expect(mockCapture).not.toHaveBeenCalled();
@@ -166,7 +166,7 @@ describe("authenticated identity", () => {
       await writeTokenFile(cwd, jwt);
 
       const telemetry = await getTelemetry(cwd);
-      telemetry.capture("cli_check");
+      telemetry.capture("cli_run");
 
       expect(mockIdentify).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -203,7 +203,7 @@ describe("authenticated identity", () => {
 
   it("falls back to anonymous UUID when no JWT is available", async () => {
     const telemetry = await getTelemetry();
-    telemetry.capture("cli_check");
+    telemetry.capture("cli_run");
 
     // distinctId should be the anonymous UUID, not a JWT sub
     const captureArgument = mockCapture.mock.calls[0]![0] as {
@@ -219,7 +219,7 @@ describe("authenticated identity", () => {
 describe("capture", () => {
   it("includes cli property on every event", async () => {
     const telemetry = await getTelemetry();
-    telemetry.capture("cli_check");
+    telemetry.capture("cli_run");
 
     expect(mockCapture).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -234,11 +234,11 @@ describe("capture", () => {
 
   it("merges custom properties with standard properties", async () => {
     const telemetry = await getTelemetry();
-    telemetry.capture("cli_check", { foo: "bar" });
+    telemetry.capture("cli_run", { foo: "bar" });
 
     expect(mockCapture).toHaveBeenCalledWith(
       expect.objectContaining({
-        event: "cli_check",
+        event: "cli_run",
         properties: expect.objectContaining({
           cli: expect.any(String) as string,
           foo: "bar",
@@ -249,7 +249,7 @@ describe("capture", () => {
 
   it("does not include groups when unauthenticated", async () => {
     const telemetry = await getTelemetry();
-    telemetry.capture("cli_check");
+    telemetry.capture("cli_run");
 
     const captureArgument = mockCapture.mock.calls[0]![0] as Record<
       string,
@@ -260,7 +260,7 @@ describe("capture", () => {
 
   it("includes cliVersion and scaffoldVersion on every anonymous capture", async () => {
     const telemetry = await getTelemetry();
-    telemetry.capture("cli_check");
+    telemetry.capture("cli_run");
 
     expect(mockCapture).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -287,7 +287,7 @@ describe("capture", () => {
       await writeTokenFile(cwd, jwt);
 
       const telemetry = await getTelemetry(cwd);
-      telemetry.capture("cli_rule_create");
+      telemetry.capture("cli_rule_created");
 
       expect(mockCapture).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -307,7 +307,7 @@ describe("capture", () => {
     const cwd = await mkdtemp(join(tmpdir(), "taskless-no-manifest-"));
     try {
       const telemetry = await getTelemetry(cwd);
-      telemetry.capture("cli_check");
+      telemetry.capture("cli_run");
 
       expect(mockCapture).toHaveBeenCalledWith(
         expect.objectContaining({
