@@ -181,6 +181,41 @@ const LINTER_SIGNALS: readonly LinterSignal[] = [
     languages: ["Ruby"],
     configFiles: [".rubocop.yml", ".rubocop.yaml"],
   },
+  {
+    name: "golangci-lint",
+    languages: ["Go"],
+    configFiles: [
+      ".golangci.yml",
+      ".golangci.yaml",
+      ".golangci.toml",
+      ".golangci.json",
+    ],
+  },
+  {
+    name: "clippy",
+    languages: ["Rust"],
+    configFiles: ["clippy.toml", ".clippy.toml"],
+  },
+  {
+    name: "phpstan",
+    languages: ["PHP"],
+    configFiles: ["phpstan.neon", "phpstan.neon.dist", "phpstan.dist.neon"],
+  },
+  {
+    name: "php_codesniffer",
+    languages: ["PHP"],
+    configFiles: [
+      "phpcs.xml",
+      "phpcs.xml.dist",
+      ".phpcs.xml",
+      ".phpcs.xml.dist",
+    ],
+  },
+  {
+    name: "psalm",
+    languages: ["PHP"],
+    configFiles: ["psalm.xml", "psalm.xml.dist"],
+  },
   { name: "clang-tidy", languages: ["C", "C++"], configFiles: [".clang-tidy"] },
   {
     name: "swiftlint",
