@@ -5,7 +5,7 @@ import { loginInteractive } from "../auth/login-interactive";
 import { getToken, removeToken } from "../auth/token";
 import { fetchWhoami } from "../auth/whoami";
 import { getTelemetry } from "../telemetry";
-import { type CliErrorCode, writeJsonError } from "../types/errors";
+import { type CLIErrorCode, writeJsonError } from "../types/errors";
 
 const loginCommand = defineCommand({
   meta: {
@@ -35,7 +35,7 @@ const loginCommand = defineCommand({
     const telemetry = await getTelemetry(cwd);
 
     /** Emit an error in the right channel and set exit code. */
-    const fail = (code: CliErrorCode, message: string): void => {
+    const fail = (code: CLIErrorCode, message: string): void => {
       if (args.json) {
         writeJsonError(code, message);
       } else {
@@ -73,7 +73,7 @@ const loginCommand = defineCommand({
           return;
         }
         case "cancelled": {
-          const code: CliErrorCode =
+          const code: CLIErrorCode =
             result.reason === "denied" ? "AUTH_REQUIRED" : "NETWORK_ERROR";
           const message =
             result.message ??
