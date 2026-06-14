@@ -1,0 +1,95 @@
+# Topic: route     (CLI v%(CLI_VERSION)s / topic v1)
+
+## Goal
+Decide where a rule-authoring request should be built: in a linter the
+repo ALREADY uses (`existing`), as a local ast-grep rule on this machine
+(`static`), or by the Taskless service (`remote`). This is the front
+door for "author/write/create a rule" requests. You stay local whenever
+you can reasonably build the rule on-device; you only send the user to
+the login-gated service when you are not reasonably confident the rule
+is locally solvable — or when a believed-local attempt has genuinely
+failed and the user confirms.
+
+## Preconditions
+- A working repository the agent can read.
+- No auth required to route. (The `remote` destination requires login;
+  the `existing` and `static` destinations do not.)
+
+## Steps
+
+1. **Scan the repo.** Run:
+   ```
+   npx @taskless/cli detect --json
+   ```
+   This returns the configured linters, languages, and the repo's own
+   rule styles. It is deterministic and offline — use it as ground truth
+   instead of guessing the repo's tooling. The scan is monorepo-aware, so
+   evidence may carry a sub-package path. The output shape:
+   ```json
+   {
+     "success": true,
+     "linters": [{ "name": "eslint", "evidence": ["packages/api/.eslintrc.json"] }],
+     "languages": ["JavaScript", "TypeScript"],
+     "ruleStyles": [
+       { "source": ".taskless/rules", "description": "Existing Taskless ast-grep rules." }
+     ]
+   }
+   ```
+
+2. **Write your reasoning BEFORE naming a destination.** Do not pick a
+   route first and justify it after. Write a short rationale covering:
+   - what the `detect` signals show (linters, languages, repo rule styles);
+   - whether an existing linter plausibly already covers this request;
+   - whether the pattern is expressible as a simple static ast-grep rule;
+   - your resulting confidence that the request is locally solvable.
+   The destination you choose in step 3 MUST follow from this rationale.
+
+3. **Choose the destination as a conclusion of the rationale:**
+
+   - **Both an existing linter AND a local static rule fit** → do NOT
+     silently pick one. Present both to the user with trade-offs and let
+     them choose. Note that `remote` consumes a Taskless generation and
+     requires login, so it is for what cannot be solved locally — not a
+     default.
+   - **An existing linter clearly fits** (the repo uses it and it can
+     express this) → fetch `taskless help existing`.
+   - **You are reasonably confident it is a simple static ast-grep
+     pattern** → fetch `taskless help static`. Reasonable confidence is
+     enough here; you do not need certainty, because step 4 backstops a
+     wrong-but-reasonable bet.
+   - **You reasonably believe it CANNOT be solved locally** (a positive
+     judgment — e.g. it needs cross-file or semantic checks ast-grep can't
+     express) → fetch `taskless help remote`. Do not manufacture a
+     deliberate local failure to reach this; route here directly.
+
+   These are three distinct states. If you genuinely cannot tell whether
+   the request is local or remote — mere uncertainty, not a belief that it
+   needs the service — ASK the user a clarifying question. Uncertainty is a
+   reason to ask, never a reason to spend a generation on `remote`.
+
+4. **Failure fallback (try-verify-escalate).** If you committed to a
+   local `static` rule on reasonable confidence and it then FAILS
+   verification against the user's success/failure cases:
+   - Tell the user the local rule could not capture the cases.
+   - State that generating via the Taskless service uses a generation
+     and requires login.
+   - Call the service only after the user confirms. On yes, fetch
+     `taskless help remote`.
+   Never silently fall through from a failed local attempt to a service
+   call — the confirmation step is required.
+
+## Important Notes
+
+- Reason first, route second. Do not name a destination before the
+  rationale is written.
+- Stay local when you reasonably can. `remote` is the path for what
+  cannot be solved on-device, and it costs a generation plus login.
+- A developer who watches a local attempt fail reads it as a Taskless
+  failure. Only attempt local when you reasonably believe it will work;
+  otherwise route `remote` upfront.
+
+## See Also
+
+- `taskless help existing` — author in a linter the repo already uses
+- `taskless help static` — author a local ast-grep rule (no login)
+- `taskless help remote` — generate via the Taskless service (login)
