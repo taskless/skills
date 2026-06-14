@@ -28,7 +28,7 @@ tools (`check`, `improve`, `verify`) see a single dialect regardless of origin.
 **Goals:**
 
 - A deterministic, offline `taskless detect --json` that reports repo signals
-  (linters configured, languages/frameworks, the repo's own rule styles).
+  (linters configured, languages, the repo's own rule styles).
 - A local routing recipe (`route`) that reasons first, then commits to the
   believed-correct destination (`existing | static | remote`) on reasonable
   confidence, biased to stay local.
@@ -135,14 +135,31 @@ failure) drives the choice.
 
 ### D3 — `detect` emits pure repo signals only; no rule-pattern detection
 
-`detect` reports linters present, languages/frameworks, and the repo's own
-rule-authoring styles. It does **not** try to match a request against known
-packaged rules (e.g. "this is `no-console`").
+`detect` reports linters present, languages, and the repo's own rule-authoring
+styles. It does **not** try to match a request against known packaged rules
+(e.g. "this is `no-console`").
 
 _Why:_ The space of packaged-rule detections is effectively infinite and changes
 constantly across ecosystems — a poor determinism target that would drag a
 maintained catalog back into the CLI. That judgment is cheap for the LLM in the
 `existing` recipe (repo + WebFetch) and expensive to keep correct in code.
+
+_Why no `frameworks` signal:_ An earlier cut also reported detected frameworks
+(React, Django, …). It was dropped: the sole consumer is `route`, whose rationale
+(D2 step 0) reads linters, languages, and repo rule styles — never frameworks.
+Framework presence does not change which authoring destination fits, so emitting
+it was unused surface. Dropping it aligns the contract with its consumer.
+
+_Detection shape (languages → linters):_ languages are inferred first (manifest
+and marker files), then each linter is probed. A linter is tagged with the
+language(s) it serves, so its dependency evidence is read from that language's
+own manifest — a node dependency from `package.json`, a Python dependency from
+`pyproject.toml`/`requirements.txt` — instead of conflating ecosystems. Config
+files are parsed with real parsers (`smol-toml` for `pyproject.toml`, alongside
+the existing `yaml`); a malformed manifest drops only its own derived signal and
+never fails the scan, because other files in the repo are independent tells. A
+config file present on disk is honored regardless of inferred language, per the
+"Linter configs are detected from disk" requirement.
 
 ### D4 — Knowledge is sourced at author time, not maintained by Taskless
 
