@@ -53,7 +53,6 @@ export const initCommand = defineCommand({
   async run({ args }) {
     const cwd = resolve(args.dir ?? process.cwd());
     const telemetry = await getTelemetry(cwd);
-    telemetry.capture("cli_init");
 
     const interactive = shouldRunInteractively(args["no-interactive"]);
 
@@ -71,19 +70,12 @@ export const initCommand = defineCommand({
       );
     }
 
-    const start = Date.now();
     const result = await runNonInteractive(cwd);
     console.log(
       getOnboardTrailer({ commandsInstalled: result.commandsInstalled })
     );
-    telemetry.capture("cli_init_completed", {
-      locations: await detectedLocationDirectories(cwd),
-      optionalSkills: [],
-      authPromptShown: false,
-      authCompleted: false,
-      nonInteractive: true,
-      durationMs: Date.now() - start,
-    });
+    // Concrete state event: skills/commands were installed (non-interactive).
+    telemetry.capture("cli_installed");
   },
 });
 
@@ -108,19 +100,16 @@ export const updateCommand = defineCommand({
   async run({ args }) {
     const cwd = resolve(args.dir ?? process.cwd());
     const telemetry = await getTelemetry(cwd);
-    const startedAt = Date.now();
-    telemetry.capture("cli_update");
 
     let success = false;
     try {
       await runNonInteractive(cwd);
       success = true;
     } finally {
-      telemetry.capture("cli_update_completed", {
-        locations: await detectedLocationDirectories(cwd),
-        success,
-        durationMs: Date.now() - startedAt,
-      });
+      // Concrete state event: skills/commands were installed/updated.
+      if (success) {
+        telemetry.capture("cli_installed");
+      }
     }
   },
 });
@@ -232,8 +221,4 @@ function groupValuesByTarget(
     map.set(target, list);
   }
   return map;
-}
-
-async function detectedLocationDirectories(cwd: string): Promise<string[]> {
-  return detectSelectedDirectories(cwd);
 }
