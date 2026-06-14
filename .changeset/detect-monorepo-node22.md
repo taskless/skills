@@ -18,3 +18,6 @@ Require Node.js 22+ and make `taskless detect` monorepo-aware.
   own signal.
 - **Dropped the `frameworks` field** from `detect` output. The routing recipe
   never consumed it; the contract now matches its sole consumer.
+- **Filled obvious linter gaps** for languages detect already recognizes:
+  golangci-lint (Go), Clippy (Rust), and PHPStan / PHP_CodeSniffer / Psalm
+  (PHP).
