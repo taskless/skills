@@ -20,7 +20,7 @@ export type CLIErrorCode =
  * Standardized JSON error envelope written to stdout when an action
  * command exits with an error AND `--json` was set.
  */
-export interface CliErrorEnvelope {
+export interface CLIErrorEnvelope {
   ok: false;
   code: CLIErrorCode;
   message: string;
@@ -29,7 +29,7 @@ export interface CliErrorEnvelope {
 export function makeErrorEnvelope(
   code: CLIErrorCode,
   message: string
-): CliErrorEnvelope {
+): CLIErrorEnvelope {
   return { ok: false, code, message };
 }
 
