@@ -6,15 +6,15 @@ import { getConfigDirectory } from "../auth/token";
 const DEFAULT_BASE_URL = "https://app.taskless.io/cli";
 const CONFIG_FILE = "config.json";
 
-interface CliConfig {
+interface CLIConfig {
   apiUrl?: string;
 }
 
-function readConfigFile(): CliConfig | undefined {
+function readConfigFile(): CLIConfig | undefined {
   try {
     const filePath = join(getConfigDirectory(), CONFIG_FILE);
     const raw = readFileSync(filePath, "utf8");
-    return JSON.parse(raw) as CliConfig;
+    return JSON.parse(raw) as CLIConfig;
   } catch {
     return undefined;
   }

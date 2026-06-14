@@ -108,10 +108,12 @@ export const checkCommand = defineCommand({
   async run({ args, rawArgs }) {
     const cwd = resolve(args.dir ?? process.cwd());
     const telemetry = await getTelemetry(cwd);
-    const startedAt = Date.now();
-    telemetry.capture("cli_check");
 
-    let success = false;
+    // Set when a scan actually runs; drives cli_check_completed with counts
+    // only (never matched code).
+    let scanCounts:
+      | { errorCount: number; warningCount: number; findings: number }
+      | undefined;
     try {
       const positionalPaths = extractPositionalPaths(rawArgs);
       const hadExplicitPaths = positionalPaths.length > 0;
@@ -129,7 +131,6 @@ export const checkCommand = defineCommand({
             )
           );
         }
-        success = true;
         return;
       }
 
@@ -155,7 +156,6 @@ export const checkCommand = defineCommand({
             "No rules configured. Create one with `taskless rule create`."
           );
         }
-        success = true;
         return;
       }
 
@@ -163,7 +163,14 @@ export const checkCommand = defineCommand({
       try {
         await generateSgConfig(cwd);
         const { results } = await runAstGrepScan(cwd, existingPaths);
-        const hasErrors = results.some((r) => r.severity === "error");
+        let errorCount = 0;
+        let warningCount = 0;
+        for (const result of results) {
+          if (result.severity === "error") errorCount++;
+          else if (result.severity === "warning") warningCount++;
+        }
+        const hasErrors = errorCount > 0;
+        scanCounts = { errorCount, warningCount, findings: results.length };
 
         // Format output
         if (args.json) {
@@ -180,7 +187,6 @@ export const checkCommand = defineCommand({
         if (hasErrors) {
           process.exitCode = 1;
         }
-        success = !hasErrors;
       } catch (error) {
         const message = `Error: ${error instanceof Error ? error.message : String(error)}`;
         if (args.json) {
@@ -193,10 +199,10 @@ export const checkCommand = defineCommand({
         process.exitCode = 1;
       }
     } finally {
-      telemetry.capture("cli_check_completed", {
-        success,
-        durationMs: Date.now() - startedAt,
-      });
+      // Concrete state event: a scan completed; counts only, no matched code.
+      if (scanCounts) {
+        telemetry.capture("cli_check_completed", scanCounts);
+      }
     }
   },
 });

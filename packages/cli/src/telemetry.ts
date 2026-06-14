@@ -23,6 +23,26 @@ export interface TelemetryClient {
   shutdown(): Promise<void>;
 }
 
+/**
+ * Resolve the current auth identity by reading the token fresh. Unlike the
+ * telemetry client's cached identity (fixed at init), this reflects the state
+ * AT CALL TIME — so the runner can stamp cli_run with the post-invocation
+ * identity even for commands that change auth state mid-run (auth login/logout).
+ */
+export async function resolveRunIdentity(
+  cwd?: string
+): Promise<{ anonymous: boolean; loggedIn: boolean }> {
+  try {
+    const token = await getToken(cwd, { silent: true });
+    if (!token) return { anonymous: true, loggedIn: false };
+    // A token is present → logged in. anonymous tracks whether a subject
+    // (authenticated identity) decoded from it.
+    return { anonymous: decodeSubject(token) === undefined, loggedIn: true };
+  } catch {
+    return { anonymous: true, loggedIn: false };
+  }
+}
+
 function isTelemetryDisabled(): boolean {
   return (
     process.env.TASKLESS_TELEMETRY_DISABLED === "1" ||

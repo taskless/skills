@@ -5,7 +5,7 @@ import { loginInteractive } from "../auth/login-interactive";
 import { getToken, removeToken } from "../auth/token";
 import { fetchWhoami } from "../auth/whoami";
 import { getTelemetry } from "../telemetry";
-import { type CliErrorCode, writeJsonError } from "../types/errors";
+import { type CLIErrorCode, writeJsonError } from "../types/errors";
 
 const loginCommand = defineCommand({
   meta: {
@@ -33,15 +33,9 @@ const loginCommand = defineCommand({
   async run({ args }) {
     const cwd = resolve(args.dir ?? process.cwd());
     const telemetry = await getTelemetry(cwd);
-    const startedAt = Date.now();
-    telemetry.capture("cli_auth_login");
-
-    /** Tracks the last emitted error code so the completion event can include it. */
-    let lastErrorCode: CliErrorCode | undefined;
 
     /** Emit an error in the right channel and set exit code. */
-    const fail = (code: CliErrorCode, message: string): void => {
-      lastErrorCode = code;
+    const fail = (code: CLIErrorCode, message: string): void => {
       if (args.json) {
         writeJsonError(code, message);
       } else {
@@ -52,15 +46,12 @@ const loginCommand = defineCommand({
 
     if (args.anonymous) {
       fail("INVALID_INPUT", "auth commands cannot be anonymous.");
-      telemetry.capture("cli_auth_login_completed", {
-        success: false,
-        durationMs: Date.now() - startedAt,
-        errorCode: lastErrorCode,
-      });
       return;
     }
 
-    let success = false;
+    // Set true only when a fresh authentication completes; drives the
+    // cli_authenticated event in the finally.
+    let authenticated = false;
     try {
       // In --json mode the user is an agent / pipe; suppress the device-flow
       // chatter and only emit a single structured line on error.
@@ -71,7 +62,7 @@ const loginCommand = defineCommand({
 
       switch (result.status) {
         case "ok": {
-          success = true;
+          authenticated = true;
           return;
         }
         case "already_logged_in": {
@@ -79,11 +70,10 @@ const loginCommand = defineCommand({
             console.log("You are already logged in.");
             console.log("Run `taskless auth logout` first to re-authenticate.");
           }
-          success = true;
           return;
         }
         case "cancelled": {
-          const code: CliErrorCode =
+          const code: CLIErrorCode =
             result.reason === "denied" ? "AUTH_REQUIRED" : "NETWORK_ERROR";
           const message =
             result.message ??
@@ -97,11 +87,10 @@ const loginCommand = defineCommand({
         }
       }
     } finally {
-      telemetry.capture("cli_auth_login_completed", {
-        success,
-        durationMs: Date.now() - startedAt,
-        ...(success ? {} : { errorCode: lastErrorCode }),
-      });
+      // Concrete state event: a fresh authentication succeeded.
+      if (authenticated) {
+        telemetry.capture("cli_authenticated");
+      }
     }
   },
 });
@@ -132,21 +121,18 @@ const logoutCommand = defineCommand({
   async run({ args }) {
     const cwd = resolve(args.dir ?? process.cwd());
     const telemetry = await getTelemetry(cwd);
-    const startedAt = Date.now();
-    telemetry.capture("cli_auth_logout");
 
-    let success = false;
+    let removed = false;
     try {
-      const removed = await removeToken(cwd);
+      removed = await removeToken(cwd);
       if (!args.json) {
         console.log(removed ? "Logged out." : "Not logged in.");
       }
-      success = true;
     } finally {
-      telemetry.capture("cli_auth_logout_completed", {
-        success,
-        durationMs: Date.now() - startedAt,
-      });
+      // Concrete state event: a saved token was actually removed.
+      if (removed) {
+        telemetry.capture("cli_logged_out");
+      }
     }
   },
 });
@@ -181,39 +167,25 @@ export const authCommand = defineCommand({
     }
 
     const cwd = resolve(args.dir ?? process.cwd());
-    const telemetry = await getTelemetry(cwd);
-    const startedAt = Date.now();
-    telemetry.capture("cli_auth_status");
 
-    let success = false;
-    try {
-      const token = await getToken(cwd);
-      if (!token) {
-        console.log("Not logged in.");
-        console.log("Run `taskless auth login` to authenticate.");
-        success = true;
-        return;
-      }
-
-      const whoami = await fetchWhoami(token);
-      if (!whoami) {
-        console.log("Logged in, but unable to verify identity.");
-        console.log(
-          "Your token may be invalid or expired. Run `taskless auth login` to re-authenticate."
-        );
-        success = true;
-        return;
-      }
-
-      const orgs = whoami.orgs.map((o) => o.name);
-      const orgSuffix = orgs.length > 0 ? ` (${orgs.join(", ")})` : "";
-      console.log(`Logged in as ${whoami.user}${orgSuffix}.`);
-      success = true;
-    } finally {
-      telemetry.capture("cli_auth_status_completed", {
-        success,
-        durationMs: Date.now() - startedAt,
-      });
+    const token = await getToken(cwd);
+    if (!token) {
+      console.log("Not logged in.");
+      console.log("Run `taskless auth login` to authenticate.");
+      return;
     }
+
+    const whoami = await fetchWhoami(token);
+    if (!whoami) {
+      console.log("Logged in, but unable to verify identity.");
+      console.log(
+        "Your token may be invalid or expired. Run `taskless auth login` to re-authenticate."
+      );
+      return;
+    }
+
+    const orgs = whoami.orgs.map((o) => o.name);
+    const orgSuffix = orgs.length > 0 ? ` (${orgs.join(", ")})` : "";
+    console.log(`Logged in as ${whoami.user}${orgSuffix}.`);
   },
 });
