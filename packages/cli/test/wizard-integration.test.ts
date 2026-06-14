@@ -96,14 +96,7 @@ describe("runWizard end-to-end", () => {
     };
     expect(manifest.install.targets[".claude"]?.skills).toContain("taskless");
 
-    expect(captureSpy).toHaveBeenCalledWith(
-      "cli_init_completed",
-      expect.objectContaining({
-        locations: [".claude"],
-        optionalSkills: [],
-        nonInteractive: false,
-      })
-    );
+    expect(captureSpy).toHaveBeenCalledWith("cli_installed");
   });
 
   it("re-running with the same location is idempotent", async () => {
@@ -123,7 +116,7 @@ describe("runWizard end-to-end", () => {
     ).toBe(true);
   });
 
-  it("cancelling at locations step writes nothing and emits cli_init_cancelled", async () => {
+  it("cancelling at locations step writes nothing and emits no install event", async () => {
     clackResponses.locations = fakeCancelSymbol;
 
     const { runWizard } = await import("../src/wizard");
@@ -137,10 +130,11 @@ describe("runWizard end-to-end", () => {
     );
     expect(await exists(join(cwd, ".taskless", "taskless.json"))).toBe(false);
 
-    expect(captureSpy).toHaveBeenCalledWith(
-      "cli_init_cancelled",
-      expect.objectContaining({ atStep: "locations" })
-    );
+    // A cancelled wizard installs nothing, so it emits no cli_installed event;
+    // the invocation itself is captured by cli_run at the runner level. Assert
+    // on the event name across all calls so extra properties can't slip past.
+    const events = captureSpy.mock.calls.map((call) => call[0] as string);
+    expect(events).not.toContain("cli_installed");
   });
 
   it("cancelling the summary confirm writes nothing", async () => {
