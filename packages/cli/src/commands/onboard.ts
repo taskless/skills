@@ -5,7 +5,7 @@ import { defineCommand } from "citty";
 import { ensureTasklessDirectory } from "../filesystem/directory";
 import { readManifest, writeManifest } from "../filesystem/migrate";
 import { getTelemetry } from "../telemetry";
-import { CliError } from "../util/cli-error";
+import { CLIError } from "../util/cli-error";
 
 import { getRecipe } from "./help";
 
@@ -67,7 +67,7 @@ export const onboardCommand = defineCommand({
         "  --force re-runs the discovery recipe; --mark-complete records completion."
       );
       process.exitCode = 1;
-      throw new CliError("conflicting flags");
+      throw new CLIError("conflicting flags");
     }
 
     await ensureTasklessDirectory(cwd);
@@ -80,7 +80,8 @@ export const onboardCommand = defineCommand({
       manifest.install = install;
       await writeManifest(tasklessDirectory, manifest, raw);
       console.log("Marked Taskless onboarding as complete.");
-      telemetry.capture("cli_onboard_marked_complete");
+      // Concrete state event: onboarding reached completion.
+      telemetry.capture("cli_onboarded");
       return;
     }
 
@@ -92,7 +93,6 @@ export const onboardCommand = defineCommand({
       console.log(
         "Run `taskless onboard --force` to re-run the discovery recipe."
       );
-      telemetry.capture("cli_onboard_already_done");
       return;
     }
 
@@ -101,9 +101,8 @@ export const onboardCommand = defineCommand({
       // Should not happen — onboard.txt is embedded at build time.
       console.error("Internal error: onboard recipe is not available.");
       process.exitCode = 1;
-      throw new CliError("recipe missing");
+      throw new CLIError("recipe missing");
     }
     console.log(recipe.trimEnd());
-    telemetry.capture("cli_onboard_recipe", { forced: args.force });
   },
 });
