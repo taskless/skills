@@ -21,15 +21,15 @@ failed and the user confirms.
    ```
    npx @taskless/cli detect --json
    ```
-   This returns the configured linters, languages/frameworks, and the
-   repo's own rule styles. It is deterministic and offline — use it as
-   ground truth instead of guessing the repo's tooling. The output shape:
+   This returns the configured linters, languages, and the repo's own
+   rule styles. It is deterministic and offline — use it as ground truth
+   instead of guessing the repo's tooling. The scan is monorepo-aware, so
+   evidence may carry a sub-package path. The output shape:
    ```json
    {
      "success": true,
-     "linters": [{ "name": "eslint", "evidence": [".eslintrc.json"] }],
+     "linters": [{ "name": "eslint", "evidence": ["packages/api/.eslintrc.json"] }],
      "languages": ["JavaScript", "TypeScript"],
-     "frameworks": ["React"],
      "ruleStyles": [
        { "source": ".taskless/rules", "description": "Existing Taskless ast-grep rules." }
      ]
