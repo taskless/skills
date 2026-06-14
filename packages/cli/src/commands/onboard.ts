@@ -80,7 +80,8 @@ export const onboardCommand = defineCommand({
       manifest.install = install;
       await writeManifest(tasklessDirectory, manifest, raw);
       console.log("Marked Taskless onboarding as complete.");
-      telemetry.capture("cli_onboard_marked_complete");
+      // Concrete state event: onboarding reached completion.
+      telemetry.capture("cli_onboarded");
       return;
     }
 
@@ -92,7 +93,6 @@ export const onboardCommand = defineCommand({
       console.log(
         "Run `taskless onboard --force` to re-run the discovery recipe."
       );
-      telemetry.capture("cli_onboard_already_done");
       return;
     }
 
@@ -104,6 +104,5 @@ export const onboardCommand = defineCommand({
       throw new CLIError("recipe missing");
     }
     console.log(recipe.trimEnd());
-    telemetry.capture("cli_onboard_recipe", { forced: args.force });
   },
 });

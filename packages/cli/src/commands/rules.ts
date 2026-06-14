@@ -71,8 +71,6 @@ const createCommand = defineCommand({
   async run({ args }) {
     const cwd = resolve(args.dir ?? process.cwd());
     const telemetry = await getTelemetry(cwd);
-    const startedAt = Date.now();
-    telemetry.capture("cli_rule_create");
 
     /** Emit an error and exit, respecting --json mode */
     function fail(
@@ -101,14 +99,12 @@ const createCommand = defineCommand({
         console.error(message);
       }
       process.exitCode = 1;
-      telemetry.capture("cli_rule_create_completed", {
-        success: false,
-        durationMs: Date.now() - startedAt,
-      });
       return;
     }
 
-    let success = false;
+    // Set to the number of rules written when generation succeeds; drives the
+    // cli_rule_created event in the finally.
+    let createdRuleCount: number | undefined;
     try {
       // 1. Read and validate --from file
       if (!args.from) {
@@ -249,7 +245,7 @@ const createCommand = defineCommand({
                 console.log(`  ${filePath}`);
               }
             }
-            success = true;
+            if (rules.length > 0) createdRuleCount = rules.length;
             return;
           }
           case "pr":
@@ -267,16 +263,15 @@ const createCommand = defineCommand({
             } else {
               console.log(`Rule ${ruleId} is in state "${status.status}".`);
             }
-            success = true;
             return;
           }
         }
       }
     } finally {
-      telemetry.capture("cli_rule_create_completed", {
-        success,
-        durationMs: Date.now() - startedAt,
-      });
+      // Concrete state event: a rule was actually generated and written.
+      if (createdRuleCount !== undefined) {
+        telemetry.capture("cli_rule_created", { ruleCount: createdRuleCount });
+      }
     }
   },
 });
@@ -313,8 +308,6 @@ const improveCommand = defineCommand({
   async run({ args }) {
     const cwd = resolve(args.dir ?? process.cwd());
     const telemetry = await getTelemetry(cwd);
-    const startedAt = Date.now();
-    telemetry.capture("cli_rule_improve");
 
     /** Emit an error and exit, respecting --json mode */
     function fail(
@@ -341,14 +334,12 @@ const improveCommand = defineCommand({
         console.error(message);
       }
       process.exitCode = 1;
-      telemetry.capture("cli_rule_improve_completed", {
-        success: false,
-        durationMs: Date.now() - startedAt,
-      });
       return;
     }
 
-    let success = false;
+    // Set to the number of rules written when iteration succeeds; drives the
+    // cli_rule_improved event in the finally.
+    let improvedRuleCount: number | undefined;
     try {
       // 1. Read and validate --from file
       if (!args.from) {
@@ -487,7 +478,7 @@ const improveCommand = defineCommand({
                 console.log(`  ${filePath}`);
               }
             }
-            success = true;
+            if (rules.length > 0) improvedRuleCount = rules.length;
             return;
           }
           case "pr":
@@ -506,16 +497,17 @@ const improveCommand = defineCommand({
                 `Request ${requestId} is in state "${status.status}".`
               );
             }
-            success = true;
             return;
           }
         }
       }
     } finally {
-      telemetry.capture("cli_rule_improve_completed", {
-        success,
-        durationMs: Date.now() - startedAt,
-      });
+      // Concrete state event: a rule was actually iterated and rewritten.
+      if (improvedRuleCount !== undefined) {
+        telemetry.capture("cli_rule_improved", {
+          ruleCount: improvedRuleCount,
+        });
+      }
     }
   },
 });
@@ -549,9 +541,6 @@ const metaCommand = defineCommand({
   },
   async run({ args }) {
     const cwd = resolve(args.dir ?? process.cwd());
-    const telemetry = await getTelemetry(cwd);
-    const startedAt = Date.now();
-    telemetry.capture("cli_rule_meta");
 
     function fail(
       message: string,
@@ -566,42 +555,33 @@ const metaCommand = defineCommand({
       throw new CLIError(message);
     }
 
-    let success = false;
-    try {
-      const meta = await readRuleMetaFile(cwd, args.id);
-      if (!meta) {
-        fail(
-          `No metadata found for rule "${args.id}". Expected .taskless/rule-metadata/${args.id}.yml`,
-          "RULE_NOT_FOUND"
-        );
-      }
+    const meta = await readRuleMetaFile(cwd, args.id);
+    if (!meta) {
+      fail(
+        `No metadata found for rule "${args.id}". Expected .taskless/rule-metadata/${args.id}.yml`,
+        "RULE_NOT_FOUND"
+      );
+    }
 
-      if (args.json) {
-        let output;
-        try {
-          output = metaOutputSchema.parse({ id: args.id, ...meta });
-        } catch (error) {
-          if (error instanceof ZodError) {
-            fail(
-              `Invalid metadata for rule "${args.id}": ${error.issues.map((issue) => issue.message).join(", ")}`,
-              "INVALID_INPUT"
-            );
-          }
-          fail(error instanceof Error ? error.message : String(error));
+    if (args.json) {
+      let output;
+      try {
+        output = metaOutputSchema.parse({ id: args.id, ...meta });
+      } catch (error) {
+        if (error instanceof ZodError) {
+          fail(
+            `Invalid metadata for rule "${args.id}": ${error.issues.map((issue) => issue.message).join(", ")}`,
+            "INVALID_INPUT"
+          );
         }
-        console.log(JSON.stringify(output));
-      } else {
-        console.log(`Metadata for rule "${args.id}":\n`);
-        for (const [key, value] of Object.entries(meta)) {
-          console.log(`  ${key}: ${String(value)}`);
-        }
+        fail(error instanceof Error ? error.message : String(error));
       }
-      success = true;
-    } finally {
-      telemetry.capture("cli_rule_meta_completed", {
-        success,
-        durationMs: Date.now() - startedAt,
-      });
+      console.log(JSON.stringify(output));
+    } else {
+      console.log(`Metadata for rule "${args.id}":\n`);
+      for (const [key, value] of Object.entries(meta)) {
+        console.log(`  ${key}: ${String(value)}`);
+      }
     }
   },
 });
@@ -637,8 +617,6 @@ const deleteCommand = defineCommand({
   async run({ args }) {
     const cwd = resolve(args.dir ?? process.cwd());
     const telemetry = await getTelemetry(cwd);
-    const startedAt = Date.now();
-    telemetry.capture("cli_rule_delete");
     const id = args.id;
 
     let success = false;
@@ -661,10 +639,10 @@ const deleteCommand = defineCommand({
         process.exitCode = 1;
       }
     } finally {
-      telemetry.capture("cli_rule_delete_completed", {
-        success,
-        durationMs: Date.now() - startedAt,
-      });
+      // Concrete state event: a rule and its tests were actually removed.
+      if (success) {
+        telemetry.capture("cli_rule_deleted");
+      }
     }
   },
 });
@@ -698,73 +676,61 @@ const verifyCommand = defineCommand({
   },
   async run({ args }) {
     const cwd = resolve(args.dir ?? process.cwd());
-    const telemetry = await getTelemetry(cwd);
-    const startedAt = Date.now();
-    telemetry.capture("cli_rule_verify");
 
-    let success = false;
-    try {
-      if (!args.id) {
-        if (args.json) {
-          console.log(
-            JSON.stringify(
-              makeErrorEnvelope("INVALID_INPUT", "Rule ID is required.")
-            )
-          );
-        } else {
-          console.error(
-            "Error: Rule ID is required.\n  Usage: taskless rule verify <id>"
-          );
-        }
-        process.exitCode = 1;
-        return;
-      }
-
-      const result = await verifyRule(cwd, args.id);
-
+    if (!args.id) {
       if (args.json) {
-        console.log(JSON.stringify(verifyOutputSchema.parse(result)));
+        console.log(
+          JSON.stringify(
+            makeErrorEnvelope("INVALID_INPUT", "Rule ID is required.")
+          )
+        );
       } else {
-        console.log(`Verifying rule: ${result.ruleId}\n`);
-
-        // Layer 1
-        console.log(
-          `Schema:       ${result.schema.valid ? "✓ valid" : "✗ invalid"}`
-        );
-        for (const error of result.schema.errors) {
-          console.log(`  - ${error}`);
-        }
-
-        // Layer 2
-        console.log(
-          `Requirements: ${result.requirements.valid ? "✓ valid" : "✗ invalid"}`
-        );
-        for (const error of result.requirements.errors) {
-          console.log(`  - ${error}`);
-        }
-
-        // Layer 3
-        console.log(
-          `Tests:        ${result.tests.valid ? "✓ passed" : "✗ failed"} (${String(result.tests.passed)} passed, ${String(result.tests.failed)} failed)`
-        );
-        for (const error of result.tests.errors) {
-          console.log(`  - ${error}`);
-        }
-
-        console.log(
-          `\nResult: ${result.success ? "✓ All checks passed" : "✗ Verification failed"}`
+        console.error(
+          "Error: Rule ID is required.\n  Usage: taskless rule verify <id>"
         );
       }
+      process.exitCode = 1;
+      return;
+    }
 
-      if (!result.success) {
-        process.exitCode = 1;
+    const result = await verifyRule(cwd, args.id);
+
+    if (args.json) {
+      console.log(JSON.stringify(verifyOutputSchema.parse(result)));
+    } else {
+      console.log(`Verifying rule: ${result.ruleId}\n`);
+
+      // Layer 1
+      console.log(
+        `Schema:       ${result.schema.valid ? "✓ valid" : "✗ invalid"}`
+      );
+      for (const error of result.schema.errors) {
+        console.log(`  - ${error}`);
       }
-      success = result.success;
-    } finally {
-      telemetry.capture("cli_rule_verify_completed", {
-        success,
-        durationMs: Date.now() - startedAt,
-      });
+
+      // Layer 2
+      console.log(
+        `Requirements: ${result.requirements.valid ? "✓ valid" : "✗ invalid"}`
+      );
+      for (const error of result.requirements.errors) {
+        console.log(`  - ${error}`);
+      }
+
+      // Layer 3
+      console.log(
+        `Tests:        ${result.tests.valid ? "✓ passed" : "✗ failed"} (${String(result.tests.passed)} passed, ${String(result.tests.failed)} failed)`
+      );
+      for (const error of result.tests.errors) {
+        console.log(`  - ${error}`);
+      }
+
+      console.log(
+        `\nResult: ${result.success ? "✓ All checks passed" : "✗ Verification failed"}`
+      );
+    }
+
+    if (!result.success) {
+      process.exitCode = 1;
     }
   },
 });

@@ -111,13 +111,13 @@ Every `capture()` call SHALL include the `cli` property (anonymous UUID), the `c
 
 #### Scenario: Anonymous capture includes standard properties
 
-- **WHEN** `capture("cli_check")` is called without authentication
+- **WHEN** `capture("cli_run")` is called without authentication
 - **THEN** the event SHALL include `{ cli: anonymousUuid, cliVersion: <string>, scaffoldVersion: <number> }`
 - **AND** the event SHALL NOT include a `groups` parameter
 
 #### Scenario: Authenticated capture includes standard properties and group
 
-- **WHEN** `capture("cli_rule_create")` is called with authentication
+- **WHEN** `capture("cli_rule_created")` is called with authentication
 - **THEN** the event SHALL include `{ cli: anonymousUuid, cliVersion: <string>, scaffoldVersion: <number> }`
 - **AND** the `groups` parameter SHALL include `{ organization: String(orgId) }`
 
@@ -134,56 +134,87 @@ Every `capture()` call SHALL include the `cli` property (anonymous UUID), the `c
 
 ### Requirement: CLI events use cli\_ prefix
 
-CLI action events SHALL continue to use the `cli_` prefix, but the event taxonomy SHALL be reorganized as follows:
+CLI events SHALL use the `cli_` prefix, with the taxonomy organized as a
+`cli_run` denominator plus concrete state-transition events:
 
-- `cli_<action>` — fired when an action command begins execution (e.g. `cli_rule_create`, `cli_rule_improve`, `cli_rule_delete`, `cli_check`, `cli_info`, `cli_init`, `cli_auth_login`, `cli_auth_logout`)
-- `cli_<action>_completed` — fired when an action command finishes execution; event properties SHALL include `success: boolean`, `durationMs: number`, and `errorCode?: string` (when failure)
-- `help_<topic>` — fired when the help command serves a specific topic (e.g. `help_rule_create`, `help_check`, `help_auth`); replaces previous `cli_help_<topic>` events
-- `help_index` — fired when the help command is invoked with no arguments (probable agent confusion / routing failure)
-- `help_unknown` — fired when the help command receives an unknown topic; event properties SHALL include `topic: string` (the attempted topic)
+- `cli_run` — exactly one per invocation (see the dedicated requirement). This
+  replaces every previous `cli_<action>` start event and `cli_<action>_completed`
+  event; the `success`/`durationMs`/`command` signal lives here.
+- Concrete state-transition events, each fired at the point the state actually
+  changes, carrying counts/ids/booleans only (never rule content, prompts, or
+  matched source):
+  - `cli_rule_created`, `cli_rule_improved`, `cli_rule_deleted`
+  - `cli_authenticated`, `cli_logged_out`
+  - `cli_installed`, `cli_onboarded`
+  - `cli_check_completed` — error/warning counts only (e.g. `errorCount`,
+    `warningCount`, `findings`)
+  - `cli_error` — a single failure event with `command` and `code` (a stable
+    `CLIErrorCode`)
+- `cli_help` — fired when the help command serves a request, with a `topic`
+  property (the served topic; the exact literal `"(index)"` when invoked with no
+  topic; the attempted topic for an unknown request). This replaces the previous
+  `help_index`, `help_<topic>`, and `help_unknown` events.
 
-The previous event names `cli_help`, `cli_help_auth`, `cli_help_check`, `cli_help_info`, `cli_help_init`, `cli_help_rule` SHALL be removed in this release. There is no dual-emit window — the rename is a hard cut.
+Commands that carry no concrete state beyond the invocation (e.g. `info`,
+`detect`, `update`, `auth status`, `rule verify`, `rule meta`) SHALL rely on
+`cli_run` alone and SHALL NOT emit a bespoke event. The previous taxonomy
+(`cli_<action>`, `cli_<action>_completed`, `help_index`, `help_<topic>`,
+`help_unknown`) SHALL be removed in this release; there is no dual-emit window.
 
-#### Scenario: Action command emits start and completion events
+#### Scenario: Rule creation emits a concrete state event plus cli_run
 
-- **WHEN** a user runs `taskless rule create --from req.json`
-- **THEN** PostHog SHALL receive a `cli_rule_create` event when execution begins
-- **AND** SHALL receive a `cli_rule_create_completed` event when execution finishes, with properties including `success`, `durationMs`, and (on failure) `errorCode`
+- **WHEN** a user runs `taskless rule create --from req.json` and a rule is written
+- **THEN** PostHog SHALL receive one `cli_run` event with `command: "rule create"`
+- **AND** SHALL receive a `cli_rule_created` event
+- **AND** SHALL NOT receive `cli_rule_create` or `cli_rule_create_completed`
 
-#### Scenario: Help fetch emits topic intent
+#### Scenario: Help fetch emits cli_help with a topic
 
 - **WHEN** an agent runs `taskless help rule create`
-- **THEN** PostHog SHALL receive a `help_rule_create` event
+- **THEN** PostHog SHALL receive a `cli_help` event with `topic: "rule create"`
+- **AND** SHALL NOT receive a `help_rule_create` event
 
-#### Scenario: Help no-args emits index event
+#### Scenario: Help with no topic emits cli_help with the index marker
 
 - **WHEN** an agent runs `taskless help`
-- **THEN** PostHog SHALL receive a `help_index` event
+- **THEN** PostHog SHALL receive a `cli_help` event with `topic: "(index)"`
+- **AND** SHALL NOT receive a `help_index` event
 
-#### Scenario: Help unknown topic emits help_unknown
+#### Scenario: A command failure emits cli_error
 
-- **WHEN** an agent runs `taskless help nonexistent`
-- **THEN** PostHog SHALL receive a `help_unknown` event with property `topic: "nonexistent"`
+- **WHEN** a command fails with a known `CLIErrorCode`
+- **THEN** PostHog SHALL receive a `cli_error` event with `command` and `code`
 
 #### Scenario: Old event names are not emitted
 
-- **WHEN** any CLI command runs in v0.7.0
-- **THEN** PostHog SHALL NOT receive any event named `cli_help`, `cli_help_<topic>`, or any other event under the previous taxonomy
+- **WHEN** any CLI command runs in this release
+- **THEN** PostHog SHALL NOT receive any event named `cli_<action>_completed`,
+  `help_index`, `help_<topic>`, or `help_unknown`
 
 ### Requirement: Wrong-topic re-routing is observable as a derivable funnel
 
-The new event taxonomy is structured so that wrong-topic re-routing is a derivable funnel signal:
+The taxonomy SHALL keep wrong-topic re-routing derivable as a funnel signal from
+the new events:
 
-- A `help_<topic_a>` event followed by no `cli_<action_a>` event AND a subsequent `help_<topic_b>` event indicates the agent fetched the recipe for topic A, did not act on it, and re-routed to topic B
-- A `help_index` event followed by a `help_<topic>` event indicates the agent consulted the index before picking a topic (expected behavior; baseline)
-- A `help_<topic>` event with no subsequent `cli_<action>` event AND no further `help_*` event indicates the agent abandoned the action
+- A `cli_help { topic: A }` event not followed by the concrete event for topic A
+  (or by `cli_run` with the corresponding `command`), and then a subsequent
+  `cli_help { topic: B }`, indicates the agent fetched recipe A, did not act on
+  it, and re-routed to topic B.
+- A `cli_help` index-marker event followed by a `cli_help { topic }` event
+  indicates the agent consulted the index before picking a topic (baseline).
+- A `cli_help { topic }` event with no subsequent acting `cli_run` and no further
+  `cli_help` event indicates the agent abandoned the action.
 
-No additional events SHALL be added to capture this signal directly — the funnel is derivable from the event sequence in PostHog. Dashboards SHOULD be created to surface re-routing rates per topic so wrong-topic confusion can be measured.
+No additional events SHALL be added to capture this signal directly — it is
+derivable from the `cli_help` / `cli_run` sequence. Dashboards SHOULD surface
+re-routing rates per topic.
 
 #### Scenario: Funnel data supports wrong-topic detection
 
 - **WHEN** dashboards are constructed in PostHog
-- **THEN** the events SHALL be sufficient to compute "rate of `help_<topic>` events not followed by a corresponding `cli_<action>` event within N minutes"
+- **THEN** the `cli_help` (with `topic`) and `cli_run` (with `command`) events
+  SHALL be sufficient to compute "rate of `cli_help { topic }` not followed by a
+  corresponding acting `cli_run` within N minutes"
 
 ### Requirement: Telemetry failures are silent
 
@@ -218,3 +249,26 @@ Each command handler SHALL call `getTelemetry(cwd)` to lazily initialize the sin
 
 - **WHEN** the CLI exits without running a command (e.g. showing top-level help)
 - **THEN** `shutdownTelemetry()` SHALL be a no-op and no PostHog client SHALL be created
+
+### Requirement: Every invocation emits exactly one cli_run event
+
+The CLI SHALL emit exactly one `cli_run` event per invocation, from the top-level
+runner rather than from individual commands. The event SHALL carry the properties
+`command` (the resolved subcommand name, e.g. `"rule create"` or `"help"`),
+`cli_version`, `success` (boolean), `durationMs` (number), `anonymous` (boolean),
+and `loggedIn` (boolean). The event SHALL be emitted on both success and failure
+(from a `finally`-equivalent path), and no command SHALL emit its own
+"started" or "ran" event.
+
+#### Scenario: A successful command emits one cli_run
+
+- **WHEN** a user runs `taskless info`
+- **THEN** PostHog SHALL receive exactly one `cli_run` event with
+  `command: "info"`, `success: true`, a numeric `durationMs`, and the
+  `cli_version`, `anonymous`, and `loggedIn` properties
+- **AND** SHALL NOT receive a separate `cli_info` or `cli_info_completed` event
+
+#### Scenario: A failing command still emits cli_run
+
+- **WHEN** a command exits with an error
+- **THEN** PostHog SHALL receive one `cli_run` event with `success: false`
