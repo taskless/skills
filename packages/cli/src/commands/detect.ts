@@ -11,7 +11,7 @@ export const detectCommand = defineCommand({
   meta: {
     name: "detect",
     description:
-      "Scan the repo for configured linters, languages/frameworks, and existing rule styles (offline, deterministic)",
+      "Scan the repo for configured linters, languages, and existing rule styles (offline, deterministic)",
   },
   args: {
     dir: {
@@ -65,9 +65,6 @@ export const detectCommand = defineCommand({
 
     console.log(
       `\nLanguages: ${result.languages.length > 0 ? result.languages.join(", ") : "none detected"}`
-    );
-    console.log(
-      `Frameworks: ${result.frameworks.length > 0 ? result.frameworks.join(", ") : "none detected"}`
     );
 
     if (result.ruleStyles.length > 0) {

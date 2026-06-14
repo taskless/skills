@@ -45,7 +45,6 @@ interface DetectJson {
   success: boolean;
   linters: { name: string; evidence: string[] }[];
   languages: string[];
-  frameworks: string[];
   ruleStyles: { source: string; description: string }[];
 }
 
@@ -114,7 +113,7 @@ describe("taskless detect", () => {
     expect(linterNames(result)).toContain("stylelint");
   });
 
-  it("infers languages and frameworks from package.json", async () => {
+  it("infers languages from package.json", async () => {
     await writeFile(
       join(cwd, "package.json"),
       JSON.stringify({
@@ -127,9 +126,79 @@ describe("taskless detect", () => {
     expect(result.languages).toEqual(
       expect.arrayContaining(["JavaScript", "TypeScript"])
     );
-    expect(result.frameworks).toEqual(
-      expect.arrayContaining(["React", "Next.js"])
+  });
+
+  it("detects ruff from a pyproject [project] dependency", async () => {
+    await writeFile(
+      join(cwd, "pyproject.toml"),
+      '[project]\nname = "x"\ndependencies = ["ruff>=0.4", "requests"]\n',
+      "utf8"
     );
+    const result = await detect(cwd);
+    expect(linterNames(result)).toContain("ruff");
+    expect(result.languages).toContain("Python");
+  });
+
+  it("detects flake8 from a requirements.txt entry", async () => {
+    await writeFile(
+      join(cwd, "requirements.txt"),
+      "# linting\nflake8==7.0.0\nrequests>=2\n",
+      "utf8"
+    );
+    const result = await detect(cwd);
+    expect(linterNames(result)).toContain("flake8");
+    expect(result.languages).toContain("Python");
+  });
+
+  it("does not look up a Python linter dependency in package.json", async () => {
+    // A node manifest naming `ruff` must not register the Python linter — deps
+    // are sourced from the language's own manifest, never conflated.
+    await writeFile(
+      join(cwd, "package.json"),
+      JSON.stringify({ dependencies: { ruff: "^1.0.0" } }),
+      "utf8"
+    );
+    const result = await detect(cwd);
+    expect(linterNames(result)).not.toContain("ruff");
+  });
+
+  it("degrades gracefully on a malformed pyproject.toml", async () => {
+    // A TOML parse failure drops only the pyproject-derived signal; the file's
+    // presence still marks Python and a config file is an independent tell.
+    await writeFile(
+      join(cwd, "pyproject.toml"),
+      "this is = = not valid toml [[[\n",
+      "utf8"
+    );
+    await writeFile(join(cwd, "ruff.toml"), "line-length = 88\n", "utf8");
+    const result = await detect(cwd);
+    expect(result.success).toBe(true);
+    expect(result.languages).toContain("Python");
+    expect(linterNames(result)).toContain("ruff");
+  });
+
+  it("detects a linter configured in a sub-package (monorepo)", async () => {
+    await mkdir(join(cwd, "packages", "api"), { recursive: true });
+    await writeFile(
+      join(cwd, "packages", "api", ".eslintrc.json"),
+      "{}",
+      "utf8"
+    );
+    const result = await detect(cwd);
+    expect(linterNames(result)).toContain("eslint");
+    const eslint = result.linters.find((l) => l.name === "eslint");
+    expect(eslint?.evidence).toContain("packages/api/.eslintrc.json");
+  });
+
+  it("ignores linter configs inside node_modules", async () => {
+    await mkdir(join(cwd, "node_modules", "some-dep"), { recursive: true });
+    await writeFile(
+      join(cwd, "node_modules", "some-dep", ".eslintrc.json"),
+      "{}",
+      "utf8"
+    );
+    const result = await detect(cwd);
+    expect(linterNames(result)).not.toContain("eslint");
   });
 
   it("surfaces the repo's own Taskless rule styles", async () => {
@@ -144,7 +213,7 @@ describe("taskless detect", () => {
     await writeFile(join(cwd, ".eslintrc.json"), "{}", "utf8");
     const result = await detect(cwd);
     expect(Object.keys(result).toSorted()).toEqual(
-      ["frameworks", "languages", "linters", "ruleStyles", "success"].toSorted()
+      ["languages", "linters", "ruleStyles", "success"].toSorted()
     );
     // A linter entry exposes only name + evidence, never a rule-name claim.
     for (const linter of result.linters) {
@@ -179,12 +248,13 @@ describe("taskless detect", () => {
     // `dependencies` as an array (not an object) must not yield bogus deps.
     await writeFile(
       join(cwd, "package.json"),
-      JSON.stringify({ dependencies: ["react"], devDependencies: null }),
+      JSON.stringify({ dependencies: ["eslint"], devDependencies: null }),
       "utf8"
     );
     const result = await detect(cwd);
     expect(result.success).toBe(true);
-    expect(result.frameworks).toEqual([]);
+    // The array form yields no dependency names, so no dep-based linter.
+    expect(linterNames(result)).not.toContain("eslint");
   });
 
   it("runs successfully with no linters, no network, and no auth", async () => {
