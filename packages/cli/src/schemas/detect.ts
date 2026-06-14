@@ -6,7 +6,7 @@ const detectedLinterSchema = z.object({
   evidence: z
     .array(z.string())
     .describe(
-      "On-disk evidence: config-file paths, a pyproject table marker, or a package.json dependency marker (not all entries are file paths)"
+      "On-disk evidence: config-file paths, a pyproject table marker, or a dependency marker from the language's package file (not all entries are file paths)"
     ),
 });
 
@@ -28,10 +28,7 @@ export const outputSchema = z.object({
     .describe("Linters configured in the working directory"),
   languages: z
     .array(z.string())
-    .describe("Languages inferred from manifests and source signals"),
-  frameworks: z
-    .array(z.string())
-    .describe("Frameworks inferred from dependency manifests"),
+    .describe("Languages inferred from manifests and detected linters"),
   ruleStyles: z
     .array(ruleStyleSchema)
     .describe("Styles of the repo's own existing rules"),

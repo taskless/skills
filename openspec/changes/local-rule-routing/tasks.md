@@ -1,10 +1,10 @@
 ## 1. Detect command (cli-detect)
 
-- [x] 1.1 Add a `detect` output schema under `packages/cli/src/schemas/` (linters, languages/frameworks, existing rule styles)
-- [x] 1.2 Implement `packages/cli/src/commands/detect.ts`: deterministic, offline scan of linter configs, languages/frameworks, and the repo's own rule styles — no LLM, no network, no auth
+- [x] 1.1 Add a `detect` output schema under `packages/cli/src/schemas/` (linters, languages, existing rule styles)
+- [x] 1.2 Implement `packages/cli/src/commands/detect.ts`: deterministic, offline scan of linter configs, languages, and the repo's own rule styles — no LLM, no network, no auth; languages → linters flow with dependency evidence read from each linter's own manifest (`smol-toml` for `pyproject.toml`)
 - [x] 1.3 Register `detect` in `packages/cli/src/index.ts` subCommands with `--json` and `--dir`/`-d`
 - [x] 1.4 Emit `cli_detect` telemetry consistent with other commands
-- [x] 1.5 Add unit tests covering: eslint/ruff/rubocop/biome/stylelint config detection, language/framework inference, repo-rule-style surfacing, and JSON-shape validation against the schema
+- [x] 1.5 Add unit tests covering: eslint/ruff/rubocop/biome/stylelint config detection, language inference, per-language dependency sourcing, graceful malformed-manifest handling, repo-rule-style surfacing, and JSON-shape validation against the schema
 - [x] 1.6 Add a test asserting `detect` produces no packaged-rule-catalog claims and runs without network/auth
 
 ## 2. Routing recipes (cli-rule-routing)

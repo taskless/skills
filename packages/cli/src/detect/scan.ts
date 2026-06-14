@@ -1,13 +1,17 @@
-import { existsSync } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { existsSync, globSync } from "node:fs";
+import { readFile as readFileNode } from "node:fs/promises";
 import { resolve } from "node:path";
+
+import { parse as parseToml } from "smol-toml";
 
 export interface DetectedLinter {
   name: string;
   /**
-   * On-disk evidence for this linter: config-file paths, a `pyproject.toml`
-   * table marker, or a `package.json` dependency marker. Not all entries are
-   * file paths.
+   * On-disk evidence for this linter: a config-file path, a `pyproject.toml`
+   * table marker, or a dependency marker from the language's package file. Each
+   * entry carries the path it was found at, so monorepo evidence
+   * (`packages/api/.eslintrc.json`) is attributable. Not all entries are file
+   * paths.
    */
   evidence: string[];
 }
@@ -20,30 +24,79 @@ export interface RuleStyle {
 export interface DetectResult {
   linters: DetectedLinter[];
   languages: string[];
-  frameworks: string[];
   ruleStyles: RuleStyle[];
 }
 
 /**
- * A linter is evidenced by any of:
- * - a fixed config filename present on disk
- * - a `[tool.<x>]` table in pyproject.toml
- * - a dependency name in package.json (dev/prod/peer)
+ * Directory names pruned from the repo walk. Held as a curated list so the scan
+ * never descends into dependency trees, build output, or VCS metadata — the
+ * places a real linter config never lives and where traversal cost explodes.
+ * Recursive `fs.glob` does not honor `.gitignore`, so we prune explicitly; an
+ * explicit list is also more deterministic than whatever each repo ignores.
+ */
+const IGNORED_DIRECTORIES: ReadonlySet<string> = new Set([
+  "node_modules",
+  ".git",
+  ".hg",
+  ".svn",
+  "dist",
+  "build",
+  "out",
+  "coverage",
+  "vendor",
+  "target",
+  ".next",
+  ".nuxt",
+  ".svelte-kit",
+  ".turbo",
+  ".cache",
+  ".parcel-cache",
+  ".venv",
+  "venv",
+  "__pycache__",
+  ".mypy_cache",
+  ".pytest_cache",
+  ".tox",
+  ".gradle",
+]);
+
+/**
+ * Maximum directory depth (levels below the scan root) the walk descends.
+ * Bounds traversal on pathological trees; monorepo manifests live well within
+ * this — root → workspace group → package → nested package is four.
+ */
+const MAX_DIRECTORY_DEPTH = 8;
+
+/**
+ * A linter is curated, deterministic signal — never inference. detect never
+ * matches a request against a catalog of packaged rules; that judgment lives in
+ * the `existing` recipe.
  *
- * The list is curated to well-known tools. New entries are deterministic
- * signal additions, not inference — detect never matches a request against a
- * catalog of packaged rules; that judgment lives in the `existing` recipe.
+ * Each linter is tagged with the language(s) it serves so dependency evidence
+ * is read from the right package file: a node dependency lives in
+ * `package.json`, a Python dependency in `pyproject.toml`/`requirements.txt`.
+ * Tagging by language lets the scan look for a linter's dependency only in its
+ * own ecosystem's manifest instead of conflating the two. Config-file presence
+ * is honored unconditionally, per the detect spec ("a recognized linter config
+ * ... SHALL report each configured linter it found"), so a lone `.eslintrc.json`
+ * still detects eslint.
  */
 interface LinterSignal {
   name: string;
+  /** Languages this linter serves; a detected linter contributes these. */
+  languages: string[];
+  /** Fixed config filenames; presence on disk is direct evidence. */
   configFiles?: string[];
+  /** `[tool.<x>]` tables in `pyproject.toml` (Python linters). */
   pyprojectTables?: string[];
-  packageDeps?: string[];
+  /** Dependency names, matched against the manifest of this linter's language. */
+  deps?: string[];
 }
 
 const LINTER_SIGNALS: readonly LinterSignal[] = [
   {
     name: "eslint",
+    languages: ["JavaScript", "TypeScript"],
     configFiles: [
       ".eslintrc",
       ".eslintrc.js",
@@ -57,15 +110,17 @@ const LINTER_SIGNALS: readonly LinterSignal[] = [
       "eslint.config.cjs",
       "eslint.config.ts",
     ],
-    packageDeps: ["eslint"],
+    deps: ["eslint"],
   },
   {
     name: "biome",
+    languages: ["JavaScript", "TypeScript"],
     configFiles: ["biome.json", "biome.jsonc"],
-    packageDeps: ["@biomejs/biome"],
+    deps: ["@biomejs/biome"],
   },
   {
     name: "stylelint",
+    languages: ["JavaScript", "TypeScript"],
     configFiles: [
       ".stylelintrc",
       ".stylelintrc.js",
@@ -77,10 +132,11 @@ const LINTER_SIGNALS: readonly LinterSignal[] = [
       "stylelint.config.cjs",
       "stylelint.config.mjs",
     ],
-    packageDeps: ["stylelint"],
+    deps: ["stylelint"],
   },
   {
     name: "prettier",
+    languages: ["JavaScript", "TypeScript"],
     configFiles: [
       ".prettierrc",
       ".prettierrc.js",
@@ -92,27 +148,53 @@ const LINTER_SIGNALS: readonly LinterSignal[] = [
       "prettier.config.cjs",
       "prettier.config.mjs",
     ],
-    packageDeps: ["prettier"],
+    deps: ["prettier"],
   },
   {
     name: "ruff",
+    languages: ["Python"],
     configFiles: ["ruff.toml", ".ruff.toml"],
     pyprojectTables: ["ruff"],
+    deps: ["ruff"],
   },
-  { name: "flake8", configFiles: [".flake8"] },
+  {
+    name: "flake8",
+    languages: ["Python"],
+    configFiles: [".flake8"],
+    deps: ["flake8"],
+  },
   {
     name: "pylint",
+    languages: ["Python"],
     configFiles: [".pylintrc", "pylintrc"],
     pyprojectTables: ["pylint"],
+    deps: ["pylint"],
   },
-  { name: "black", pyprojectTables: ["black"] },
-  { name: "rubocop", configFiles: [".rubocop.yml", ".rubocop.yaml"] },
-  { name: "clang-tidy", configFiles: [".clang-tidy"] },
-  { name: "swiftlint", configFiles: [".swiftlint.yml", ".swiftlint.yaml"] },
-  { name: "checkstyle", configFiles: ["checkstyle.xml"] },
+  {
+    name: "black",
+    languages: ["Python"],
+    pyprojectTables: ["black"],
+    deps: ["black"],
+  },
+  {
+    name: "rubocop",
+    languages: ["Ruby"],
+    configFiles: [".rubocop.yml", ".rubocop.yaml"],
+  },
+  { name: "clang-tidy", languages: ["C", "C++"], configFiles: [".clang-tidy"] },
+  {
+    name: "swiftlint",
+    languages: ["Swift"],
+    configFiles: [".swiftlint.yml", ".swiftlint.yaml"],
+  },
+  { name: "checkstyle", languages: ["Java"], configFiles: ["checkstyle.xml"] },
 ];
 
-/** Languages inferred from the presence of a manifest or marker file. */
+/**
+ * Languages inferred from the presence of a manifest or marker file anywhere in
+ * the tree. JavaScript and TypeScript are resolved separately (they share
+ * `package.json`).
+ */
 const LANGUAGE_MARKERS: ReadonlyArray<{ language: string; files: string[] }> = [
   {
     language: "Python",
@@ -132,30 +214,19 @@ const LANGUAGE_MARKERS: ReadonlyArray<{ language: string; files: string[] }> = [
   { language: "Swift", files: ["Package.swift"] },
 ];
 
-/** Frameworks inferred from a package.json dependency name. */
-const JS_FRAMEWORK_DEPS: ReadonlyArray<{ framework: string; dep: string }> = [
-  { framework: "Next.js", dep: "next" },
-  { framework: "React", dep: "react" },
-  { framework: "Vue", dep: "vue" },
-  { framework: "Nuxt", dep: "nuxt" },
-  { framework: "Svelte", dep: "svelte" },
-  { framework: "Angular", dep: "@angular/core" },
-  { framework: "Express", dep: "express" },
-  { framework: "Fastify", dep: "fastify" },
-  { framework: "NestJS", dep: "@nestjs/core" },
+/** Every basename the walk needs to find, deduped for a single glob pass. */
+const DISCOVERABLE_FILES: readonly string[] = [
+  ...new Set<string>([
+    "package.json",
+    "tsconfig.json",
+    ...LANGUAGE_MARKERS.flatMap((marker) => marker.files),
+    ...LINTER_SIGNALS.flatMap((signal) => signal.configFiles ?? []),
+  ]),
 ];
-
-/** Frameworks inferred from a Python dependency token. */
-const PY_FRAMEWORK_TOKENS: ReadonlyArray<{ framework: string; token: string }> =
-  [
-    { framework: "Django", token: "django" },
-    { framework: "Flask", token: "flask" },
-    { framework: "FastAPI", token: "fastapi" },
-  ];
 
 async function readFileSafe(path: string): Promise<string | undefined> {
   try {
-    return await readFile(path, "utf8");
+    return await readFileNode(path, "utf8");
   } catch {
     return undefined;
   }
@@ -177,21 +248,8 @@ function plainObjectKeys(value: unknown): string[] {
   return Object.keys(value as Record<string, unknown>);
 }
 
-/**
- * Whether a `pyproject.toml` declares the `[tool.<table>]` table or a nested
- * table under it (`[tool.<table>.<sub>]`), without matching a similarly-named
- * sibling like `[tool.<table>-lsp]`. Matches at a line start so a value
- * containing the literal text doesn't trigger a false positive.
- */
-function hasPyprojectTable(pyproject: string, table: string): boolean {
-  const escaped = table.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
-  return new RegExp(String.raw`^\s*\[tool\.${escaped}(\]|\.)`, "m").test(
-    pyproject
-  );
-}
-
 /** Collect all declared dependency names from a parsed package.json. */
-function allDependencyNames(packageJson: PackageJson): Set<string> {
+function nodeDependencyNames(packageJson: PackageJson): Set<string> {
   return new Set([
     ...plainObjectKeys(packageJson.dependencies),
     ...plainObjectKeys(packageJson.devDependencies),
@@ -200,80 +258,137 @@ function allDependencyNames(packageJson: PackageJson): Set<string> {
 }
 
 /**
- * Deterministically scan `cwd` for linter configs, languages/frameworks, and
- * the repo's own rule styles. Pure filesystem reads — no network, no auth, no
- * LLM. Unreadable or malformed files are skipped rather than failing the scan.
+ * Parse `pyproject.toml` with a real TOML parser. A malformed file yields
+ * `undefined` rather than throwing — detect degrades gracefully, losing only
+ * the pyproject-derived signals (the file's mere presence still marks Python,
+ * and config files like `ruff.toml` are independent tells).
  */
-export async function detectRepository(cwd: string): Promise<DetectResult> {
-  const root = resolve(cwd);
-  const has = (name: string): boolean => existsSync(resolve(root, name));
+function parsePyproject(
+  raw: string | undefined
+): Record<string, unknown> | undefined {
+  if (raw === undefined) return undefined;
+  try {
+    return parseToml(raw) as Record<string, unknown>;
+  } catch {
+    return undefined;
+  }
+}
 
-  const packageRaw = await readFileSafe(resolve(root, "package.json"));
-  let packageJson: PackageJson | undefined;
-  if (packageRaw) {
-    try {
-      packageJson = JSON.parse(packageRaw) as PackageJson;
-    } catch {
-      packageJson = undefined;
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return undefined;
+  }
+  return value as Record<string, unknown>;
+}
+
+/**
+ * Whether a parsed `pyproject.toml` declares a `[tool.<table>]` table (or a
+ * nested table under it, e.g. `[tool.ruff.lint]`). A real parser makes this
+ * exact: a similarly-named sibling like `[tool.ruff-lsp]` is a distinct key and
+ * does not match.
+ */
+function pyprojectHasTable(
+  pyproject: Record<string, unknown> | undefined,
+  table: string
+): boolean {
+  const tool = asRecord(pyproject?.tool);
+  return tool !== undefined && Object.hasOwn(tool, table);
+}
+
+/** Strip a PEP 508 requirement string down to its package name. */
+function requirementName(requirement: string): string {
+  return requirement
+    .trim()
+    .split(/[\s<>=!~;[\],()]/)[0]!
+    .toLowerCase();
+}
+
+/** Python dependency names declared in a parsed `pyproject.toml` (PEP 621 + Poetry). */
+function pythonDepsFromPyproject(
+  pyproject: Record<string, unknown> | undefined
+): string[] {
+  if (pyproject === undefined) return [];
+  const names: string[] = [];
+
+  const project = asRecord(pyproject.project);
+  const projectDeps = project?.dependencies;
+  if (Array.isArray(projectDeps)) {
+    for (const entry of projectDeps) {
+      if (typeof entry === "string") names.push(requirementName(entry));
     }
   }
-  const deps = packageJson
-    ? allDependencyNames(packageJson)
-    : new Set<string>();
-
-  const pyproject = (await readFileSafe(resolve(root, "pyproject.toml"))) ?? "";
-
-  // Linters
-  const linters: DetectedLinter[] = [];
-  for (const signal of LINTER_SIGNALS) {
-    const evidence: string[] = [];
-    for (const file of signal.configFiles ?? []) {
-      if (has(file)) evidence.push(file);
-    }
-    for (const table of signal.pyprojectTables ?? []) {
-      // Match the exact table `[tool.ruff]` or a nested table
-      // `[tool.ruff.lint]`, but NOT a similarly-prefixed table like
-      // `[tool.ruff-lsp]`. The char after the table name must be `]` or `.`.
-      if (hasPyprojectTable(pyproject, table)) {
-        evidence.push(`pyproject.toml [tool.${table}]`);
-      }
-    }
-    for (const dep of signal.packageDeps ?? []) {
-      if (deps.has(dep)) evidence.push(`package.json (${dep})`);
-    }
-    // eslintConfig key in package.json is an additional eslint signal
-    if (signal.name === "eslint" && packageJson?.eslintConfig !== undefined) {
-      evidence.push("package.json (eslintConfig)");
-    }
-    if (evidence.length > 0) {
-      linters.push({ name: signal.name, evidence });
+  const optional = asRecord(project?.["optional-dependencies"]);
+  for (const group of Object.values(optional ?? {})) {
+    if (!Array.isArray(group)) continue;
+    for (const entry of group) {
+      if (typeof entry === "string") names.push(requirementName(entry));
     }
   }
 
-  // Languages
-  const languages: string[] = [];
-  if (packageJson || has("tsconfig.json")) languages.push("JavaScript");
-  if (has("tsconfig.json") || deps.has("typescript"))
-    languages.push("TypeScript");
-  for (const marker of LANGUAGE_MARKERS) {
-    if (marker.files.some((f) => has(f))) languages.push(marker.language);
+  const poetry = asRecord(asRecord(pyproject.tool)?.poetry);
+  for (const key of ["dependencies", "dev-dependencies", "group"]) {
+    const table = asRecord(poetry?.[key]);
+    if (table) {
+      names.push(...Object.keys(table).map((name) => name.toLowerCase()));
+    }
   }
 
-  // Frameworks
-  const frameworks: string[] = [];
-  for (const { framework, dep } of JS_FRAMEWORK_DEPS) {
-    if (deps.has(dep)) frameworks.push(framework);
-  }
-  const pyText = (
-    pyproject +
-    "\n" +
-    ((await readFileSafe(resolve(root, "requirements.txt"))) ?? "")
-  ).toLowerCase();
-  for (const { framework, token } of PY_FRAMEWORK_TOKENS) {
-    if (pyText.includes(token)) frameworks.push(framework);
-  }
+  return names;
+}
 
-  // Rule styles
+/** Python dependency names declared in a `requirements.txt`. */
+function pythonDepsFromRequirements(raw: string | undefined): string[] {
+  if (raw === undefined) return [];
+  const names: string[] = [];
+  for (const line of raw.split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed === "" || trimmed.startsWith("#") || trimmed.startsWith("-")) {
+      continue;
+    }
+    names.push(requirementName(trimmed));
+  }
+  return names;
+}
+
+/** The basename (last path segment) of a `/`-or-`\`-separated relative path. */
+function basenameOf(relativePath: string): string {
+  return relativePath.split(/[/\\]/).at(-1) ?? "";
+}
+
+/**
+ * Prune the walk: skip the curated ignore directories and anything past the
+ * depth cap. `fs.glob` calls this on each candidate as it descends, so a `true`
+ * here stops traversal into that directory.
+ */
+function shouldExclude(relativePath: string): boolean {
+  const segments = relativePath.split(/[/\\]/);
+  if (segments.length > MAX_DIRECTORY_DEPTH) return true;
+  return IGNORED_DIRECTORIES.has(segments.at(-1) ?? "");
+}
+
+interface NodeManifest {
+  path: string;
+  deps: Set<string>;
+  hasEslintConfigKey: boolean;
+}
+
+interface PythonManifest {
+  path: string;
+  parsed?: Record<string, unknown>;
+  deps: Set<string>;
+}
+
+/**
+ * Surface the styles of the repo's own existing rules so the authoring recipe
+ * can match house conventions. `.taskless/rules` is the repo-root, polyglot
+ * Taskless convention, so it is read at the scan root; the custom-ESLint-rule
+ * tells (house rule directories and the local-rules plugin dependency) describe
+ * how this repo already authors lint rules.
+ */
+function detectRuleStyles(
+  root: string,
+  nodeManifests: NodeManifest[]
+): RuleStyle[] {
   const ruleStyles: RuleStyle[] = [];
   if (existsSync(resolve(root, ".taskless", "rules"))) {
     ruleStyles.push({
@@ -295,13 +410,162 @@ export async function detectRepository(cwd: string): Promise<DetectResult> {
       });
     }
   }
-  if (deps.has("eslint-plugin-local") || deps.has("eslint-local-rules")) {
+  const localRulesManifest = nodeManifests.find(
+    (manifest) =>
+      manifest.deps.has("eslint-plugin-local") ||
+      manifest.deps.has("eslint-local-rules")
+  );
+  if (localRulesManifest) {
     ruleStyles.push({
-      source: "package.json",
+      source: localRulesManifest.path,
       description:
         "Local ESLint rule plugin in use — author new rules to match it.",
     });
   }
+  return ruleStyles;
+}
 
-  return { linters, languages, frameworks, ruleStyles };
+/**
+ * Deterministically scan `cwd` for the languages present, the linters
+ * configured for those languages, and the repo's own rule styles. Pure
+ * filesystem reads — no network, no auth, no LLM. Unreadable or malformed files
+ * are skipped rather than failing the scan.
+ *
+ * The scan is monorepo-aware: a single bounded `fs.glob` walk (curated ignore
+ * list + depth cap) finds manifests and configs anywhere in the tree, so a
+ * linter configured in a sub-package is detected with its path as evidence. The
+ * flow is languages → linters: a linter's dependency is looked up only in its
+ * own language's manifests.
+ */
+export async function detectRepository(cwd: string): Promise<DetectResult> {
+  const root = resolve(cwd);
+
+  const foundPaths = globSync(`**/{${DISCOVERABLE_FILES.join(",")}}`, {
+    cwd: root,
+    exclude: shouldExclude,
+  });
+
+  const pathsByBasename = new Map<string, string[]>();
+  for (const relativePath of foundPaths) {
+    const basename = basenameOf(relativePath);
+    const list = pathsByBasename.get(basename);
+    if (list) list.push(relativePath);
+    else pathsByBasename.set(basename, [relativePath]);
+  }
+  const pathsFor = (basename: string): string[] =>
+    pathsByBasename.get(basename) ?? [];
+
+  // Node manifests → JS/TS dependency names, per location.
+  const nodeManifests: NodeManifest[] = [];
+  for (const relativePath of pathsFor("package.json")) {
+    const raw = await readFileSafe(resolve(root, relativePath));
+    if (raw === undefined) continue;
+    let parsed: PackageJson;
+    try {
+      parsed = JSON.parse(raw) as PackageJson;
+    } catch {
+      continue;
+    }
+    nodeManifests.push({
+      path: relativePath,
+      deps: nodeDependencyNames(parsed),
+      hasEslintConfigKey: parsed.eslintConfig !== undefined,
+    });
+  }
+
+  // Python manifests → Python dependency names, per location.
+  const pythonManifests: PythonManifest[] = [];
+  for (const relativePath of pathsFor("pyproject.toml")) {
+    const parsed = parsePyproject(
+      await readFileSafe(resolve(root, relativePath))
+    );
+    pythonManifests.push({
+      path: relativePath,
+      parsed,
+      deps: new Set(pythonDepsFromPyproject(parsed)),
+    });
+  }
+  for (const relativePath of pathsFor("requirements.txt")) {
+    pythonManifests.push({
+      path: relativePath,
+      deps: new Set(
+        pythonDepsFromRequirements(
+          await readFileSafe(resolve(root, relativePath))
+        )
+      ),
+    });
+  }
+
+  // Languages: manifest/marker files first, then JS/TS from node manifests.
+  const languages = new Set<string>();
+  if (
+    pathsFor("package.json").length > 0 ||
+    pathsFor("tsconfig.json").length > 0
+  ) {
+    languages.add("JavaScript");
+  }
+  if (
+    pathsFor("tsconfig.json").length > 0 ||
+    nodeManifests.some((manifest) => manifest.deps.has("typescript"))
+  ) {
+    languages.add("TypeScript");
+  }
+  for (const marker of LANGUAGE_MARKERS) {
+    if (marker.files.some((file) => pathsFor(file).length > 0)) {
+      languages.add(marker.language);
+    }
+  }
+
+  // Linters: config files unconditionally; dependency evidence from the
+  // manifests of the linter's own language. A detected linter contributes its
+  // language(s).
+  const linters: DetectedLinter[] = [];
+  for (const signal of LINTER_SIGNALS) {
+    const evidence: string[] = [];
+    const servesPython = signal.languages.includes("Python");
+    const servesNode =
+      signal.languages.includes("JavaScript") ||
+      signal.languages.includes("TypeScript");
+
+    for (const configFile of signal.configFiles ?? []) {
+      evidence.push(...pathsFor(configFile));
+    }
+    for (const table of signal.pyprojectTables ?? []) {
+      for (const manifest of pythonManifests) {
+        if (pyprojectHasTable(manifest.parsed, table)) {
+          evidence.push(`${manifest.path} [tool.${table}]`);
+        }
+      }
+    }
+    for (const dep of signal.deps ?? []) {
+      const manifests = servesPython
+        ? pythonManifests
+        : servesNode
+          ? nodeManifests
+          : [];
+      for (const manifest of manifests) {
+        if (manifest.deps.has(dep)) {
+          evidence.push(`dependency ${dep} (${manifest.path})`);
+        }
+      }
+    }
+    if (signal.name === "eslint") {
+      for (const manifest of nodeManifests) {
+        if (manifest.hasEslintConfigKey) {
+          evidence.push(`${manifest.path} (eslintConfig)`);
+        }
+      }
+    }
+
+    if (evidence.length > 0) {
+      linters.push({ name: signal.name, evidence });
+      for (const language of signal.languages) languages.add(language);
+    }
+  }
+
+  return {
+    linters,
+    languages: [...languages],
+    ruleStyles: detectRuleStyles(root, nodeManifests),
+  };
 }

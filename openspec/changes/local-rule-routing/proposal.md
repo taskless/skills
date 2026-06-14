@@ -15,8 +15,8 @@ failed and the user confirms spending a generation.
 ## What Changes
 
 - **NEW `taskless detect --json`** — a deterministic, offline repo-signal scan:
-  which linters are configured, languages/frameworks present, and the styles of
-  the repo's own existing rules. No LLM, no network. Feeds the routing recipe.
+  which linters are configured, languages present, and the styles of the repo's
+  own existing rules. No LLM, no network. Feeds the routing recipe.
 - **NEW routing recipe layer** under `help`, replacing the rule-type-agnostic
   `rule create` entry as the front door for "author a rule":
   - `route` — the lightweight **local classifier**. Biased to stay local;
@@ -49,7 +49,7 @@ failed and the user confirms spending a generation.
 ### New Capabilities
 
 - `cli-detect`: A deterministic `taskless detect --json` command that scans the
-  working directory for linter configs, languages/frameworks, and the repo's own
+  working directory for linter configs, languages, and the repo's own
   rule-authoring styles, emitting structured signals for downstream routing. No
   inference, no network.
 - `cli-rule-routing`: The `route` / `existing` / `static` / `remote` recipe layer
