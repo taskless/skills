@@ -4,7 +4,6 @@ import { defineCommand } from "citty";
 
 import { detectRepository } from "../detect/scan";
 import { outputSchema as detectOutputSchema } from "../schemas/detect";
-import { getTelemetry } from "../telemetry";
 import { makeErrorEnvelope } from "../types/errors";
 
 export const detectCommand = defineCommand({
@@ -27,14 +26,9 @@ export const detectCommand = defineCommand({
   },
   async run({ args }) {
     const cwd = resolve(args.dir ?? process.cwd());
-    const telemetry = await getTelemetry(cwd);
-    // TODO(#39): once the restructure-cli-telemetry change lands on main, drop
-    // this bespoke cli_detect capture. detect is a read-only
-    // command with no state transition, so it rides on the cli_run denominator
-    // alone (the new taxonomy lists info/detect among cli_run-only commands).
-    // This emit is silent under the new taxonomy — nothing fails if it lingers —
-    // so it is the reconciliation's easy-to-miss half. See the telemetry stack.
-    telemetry.capture("cli_detect");
+    // detect is read-only with no state transition, so it emits no bespoke
+    // event — the per-invocation cli_run denominator (emitted by the runner)
+    // covers it, consistent with info under the cli_ telemetry taxonomy.
 
     const result = {
       success: true as const,
