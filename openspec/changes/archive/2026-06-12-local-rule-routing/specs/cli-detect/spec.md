@@ -15,9 +15,16 @@ flag.
 ### Requirement: Detect scans deterministic repo signals only
 
 The `detect` command SHALL emit only deterministic signals derived from files on
-disk: configured linters, detected languages/frameworks, and the styles of the
-repo's own existing rules. It SHALL NOT perform any LLM inference and SHALL NOT
-match the request against any catalog of known packaged linter rules.
+disk: configured linters, detected languages, and the styles of the repo's own
+existing rules. It SHALL NOT perform any LLM inference and SHALL NOT match the
+request against any catalog of known packaged linter rules.
+
+Detection follows a languages → linters flow: languages are inferred first, and
+a linter's dependency evidence is then read from the manifest of that linter's
+own language (a node dependency from `package.json`, a Python dependency from
+`pyproject.toml`/`requirements.txt`) rather than conflating ecosystems. A
+recognized linter config file on disk is honored regardless of the languages
+inferred.
 
 #### Scenario: Linter configs are detected from disk
 
@@ -26,11 +33,27 @@ match the request against any catalog of known packaged linter rules.
   `pyproject.toml`, `.rubocop.yml`, `biome.json`, or `stylelint` config)
 - **THEN** `detect --json` SHALL report each configured linter it found
 
-#### Scenario: Languages and frameworks are reported
+#### Scenario: Languages are reported
 
 - **WHEN** `detect --json` runs in a repository
-- **THEN** the output SHALL include the languages and frameworks inferred from
-  manifest and source signals present on disk
+- **THEN** the output SHALL include the languages inferred from manifest and
+  marker files present on disk and from the linters detected
+
+#### Scenario: A linter dependency is sourced from its own language's manifest
+
+- **WHEN** a dependency-evidenced linter (for example `ruff`) is named only in a
+  manifest belonging to a different language (for example `package.json`)
+- **THEN** `detect --json` SHALL NOT report that linter from the mismatched
+  manifest
+
+#### Scenario: Configs in monorepo sub-packages are detected
+
+- **WHEN** a linter config or language manifest lives in a sub-package rather
+  than the repository root (for example `packages/api/.eslintrc.json`)
+- **THEN** `detect --json` SHALL detect it and SHALL carry the path it was found
+  at in the linter's evidence
+- **AND** the scan SHALL prune a curated set of ignored directories (for example
+  `node_modules`, `.git`, build output) and SHALL bound traversal depth
 
 #### Scenario: The repo's own rule styles are surfaced
 
@@ -68,5 +91,4 @@ published artifact, and `detect` does not expose a `--schema` mode.
 
 - **WHEN** `detect --json` succeeds
 - **THEN** stdout SHALL be a single JSON object that the command has validated
-  against its internal output schema (linters, languages/frameworks, existing
-  rule styles)
+  against its internal output schema (linters, languages, existing rule styles)
