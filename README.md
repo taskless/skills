@@ -78,8 +78,20 @@ pnpm build              # Build CLI and generate commands
 pnpm test               # Run all tests, confirm no errors
 git add -A              # Stage all changes
 git commit -m "chore: Releases vx.y.z"  # Commit with new version number
+git push origin main    # Push the release commit
 pnpm release            # Dry run — prints publish command when ready
+pnpm release:production # Publish to npm (prompts for 2FA OTP)
 ```
+
+After publishing, tag the release commit so the published version is traceable
+in git history:
+
+```bash
+git tag -s vx.y.z -m "Release vx.y.z"  # Signed tag on the release commit
+git push origin vx.y.z
+```
+
+Tagging started at `v0.9.0`; earlier releases were not tagged.
 
 ### Adding a new topic recipe
 
