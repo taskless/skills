@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type { Migrations } from "./types";
 import init from "./migrations/0001-init";
 import installMigration from "./migrations/0002-install";
+import dropInstalledAt from "./migrations/0003-drop-installed-at";
 
 export interface TasklessInstallTarget {
   skills?: string[];
@@ -17,7 +18,6 @@ export interface TasklessInstallTarget {
 }
 
 export interface TasklessInstallManifest {
-  installedAt?: string;
   cliVersion?: string;
   targets?: Record<string, TasklessInstallTarget>;
   onboarded?: boolean;
@@ -33,6 +33,7 @@ const MANIFEST_FILE = "taskless.json";
 const migrations: Migrations = {
   "1": init,
   "2": installMigration,
+  "3": dropInstalledAt,
 };
 
 /** Sort migration keys numerically and return [version, migration] pairs */

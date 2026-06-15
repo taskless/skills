@@ -148,7 +148,6 @@ describe("applyInstallPlan", () => {
   it("never deletes the canonical store while cleaning another target", async () => {
     // Prior install recorded an obsolete skill under .claude.
     await writeInstallState(cwd, {
-      installedAt: "2026-04-01T00:00:00.000Z",
       cliVersion: "0.6.0",
       targets: {
         ".claude": {
@@ -200,7 +199,6 @@ describe("applyInstallPlan", () => {
     }
 
     await writeInstallState(cwd, {
-      installedAt: "2026-04-17T00:00:00.000Z",
       cliVersion: "0.6.0",
       targets: {
         ".claude": { skills: v6Skills, commands: v6Commands },

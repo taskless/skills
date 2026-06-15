@@ -150,7 +150,6 @@ describe("runWizard end-to-end", () => {
     await ensureTasklessDirectory(cwd);
     const { writeInstallState } = await import("../src/install/state");
     await writeInstallState(cwd, {
-      installedAt: "2026-05-10T00:00:00.000Z",
       cliVersion: "0.5.4",
       targets: {
         ".claude": {
