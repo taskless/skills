@@ -45,8 +45,10 @@ export function canonicalCommandPath(filename: string): string {
 
 /**
  * Write a skill's full content to the canonical store at
- * `.taskless/skills/<name>/SKILL.md`. Content is written verbatim — the
- * canonical store is the single source of truth.
+ * `.taskless/skills/<name>/SKILL.md`. The canonical store is the single source
+ * of truth; content is emitted as-is for prod builds. For `dev`/`self` builds
+ * the CLI invocation is rewritten and a build notice prepended (see
+ * {@link applyCliInvocation} / {@link withCliBuildNotice}); prod is unchanged.
  */
 export async function writeCanonicalSkill(
   cwd: string,
@@ -66,7 +68,9 @@ export async function writeCanonicalSkill(
 
 /**
  * Write a command's full content to the canonical store at
- * `.taskless/commands/tskl/<filename>`. Content is written verbatim.
+ * `.taskless/commands/tskl/<filename>`. Emitted as-is for prod builds; for
+ * `dev`/`self` builds the CLI invocation is rewritten and a build notice
+ * prepended (see {@link applyCliInvocation} / {@link withCliBuildNotice}).
  */
 export async function writeCanonicalCommand(
   cwd: string,

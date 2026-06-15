@@ -291,6 +291,39 @@ describe("applyInstallPlan", () => {
     expect(await readFile(sourceSkill, "utf8")).toBe(skill.content);
   });
 
+  it("does not write through a symlinked command directory (no source clobber)", async () => {
+    // The command-namespace counterpart of the skill-directory case: a leftover
+    // `.claude/commands/tskl` symlink to source must not be written through.
+    const command = getEmbeddedCommands().find((c) => c.filename === "tskl.md");
+    if (!command) throw new Error("embedded tskl command missing");
+    const sourceDirectory = join(cwd, "source", "tskl");
+    await mkdir(sourceDirectory, { recursive: true });
+    const sourceCommand = join(sourceDirectory, "tskl.md");
+    await writeFile(sourceCommand, command.content, "utf8");
+
+    const claudeCommandDirectory = join(cwd, ".claude", "commands", "tskl");
+    await mkdir(dirname(claudeCommandDirectory), { recursive: true });
+    await symlink(sourceDirectory, claudeCommandDirectory);
+
+    await applyInstallPlan(
+      cwd,
+      buildInstallPlan([".claude"], [tasklessSkill()], [command]),
+      { cliVersion: "0.7.0" }
+    );
+
+    // The symlinked directory was replaced by a real one holding a shim stub...
+    const directoryStats = await lstat(claudeCommandDirectory);
+    expect(directoryStats.isSymbolicLink()).toBe(false);
+    expect(directoryStats.isDirectory()).toBe(true);
+    expect(
+      isShimStub(
+        await readFile(join(claudeCommandDirectory, "tskl.md"), "utf8")
+      )
+    ).toBe(true);
+    // ...and the source file behind the former symlink is untouched.
+    expect(await readFile(sourceCommand, "utf8")).toBe(command.content);
+  });
+
   it("does not touch unknown files in a skills directory", async () => {
     const userOwned = join(cwd, ".claude", "skills", "user-tool", "SKILL.md");
     await mkdir(join(cwd, ".claude", "skills", "user-tool"), {
