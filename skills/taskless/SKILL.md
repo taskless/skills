@@ -20,7 +20,7 @@ description: |
   `taskless help route`; it does NOT suppress the skill.
 metadata:
   author: taskless
-  version: 0.8.1
+  version: 0.9.0
   commandName: tskl
 compatibility: Designed for Agents implementing the Agent Skills specification.
 ---
