@@ -12,6 +12,39 @@ const pkg = JSON.parse(
   readFileSync(resolve(import.meta.dirname, "package.json"), "utf8")
 ) as { version: string };
 
+// The CLI invocation baked into emitted skill/command/recipe content, chosen
+// by the TASKLESS_BUILD_TARGET env var (see package.json build:dev/build:self):
+//   - prod (default): the published `npx @taskless/cli`
+//   - dev:  an absolute path, for validating this build from another repo
+//   - self: a repo-root-relative path, for dogfooding inside this repo
+function resolveCliInvocation(): string {
+  switch (process.env.TASKLESS_BUILD_TARGET) {
+    case "self": {
+      return "node packages/cli/dist/index.js";
+    }
+    case "dev": {
+      return `node ${resolve(import.meta.dirname, "dist/index.js")}`;
+    }
+    default: {
+      return "npx @taskless/cli";
+    }
+  }
+}
+
+// A one-time banner prepended to canonical skill/command bodies for non-prod
+// builds, so an agent that's told to call the local CLI knows how to produce it
+// if the build artifact is missing. Empty for prod (no banner is emitted).
+function resolveCliNotice(): string {
+  const target = process.env.TASKLESS_BUILD_TARGET;
+  if (target !== "self" && target !== "dev") return "";
+  const rebuild = target === "self" ? "pnpm build:self" : "pnpm build:dev";
+  return (
+    `> **Local Taskless build.** The commands below call a locally built CLI ` +
+    `(\`${resolveCliInvocation()}\`). If that path does not exist yet, run ` +
+    `\`${rebuild}\` from the repo root first.`
+  );
+}
+
 const FRONTMATTER_REGEX = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
 
 function assertSkillVersions(): Plugin {
@@ -103,6 +136,8 @@ function shebang(): Plugin {
 export default defineConfig({
   define: {
     __VERSION__: JSON.stringify(pkg.version),
+    __TASKLESS_CLI__: JSON.stringify(resolveCliInvocation()),
+    __TASKLESS_CLI_NOTICE__: JSON.stringify(resolveCliNotice()),
   },
   plugins: [tsconfigPaths(), assertSkillVersions(), shebang()],
   build: {

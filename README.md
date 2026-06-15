@@ -14,7 +14,6 @@ commands/
 packages/
   cli/                             # @taskless/cli — recipes live in cli/src/help/
 scripts/
-  link-skills.ts                   # Symlinks skills into .claude/skills/
   sync-skill-versions.ts           # Syncs metadata.version to CLI version
 .claude-plugin/                    # Claude Code Plugin Marketplace manifest
 ```
@@ -39,6 +38,27 @@ The `@taskless/cli` package provides a CLI agent for Taskless workflows. It's re
 pnpm dlx @taskless/cli@latest info
 npx @taskless/cli@latest info
 ```
+
+## Local development
+
+The CLI bakes its own invocation string into the skill, command, and recipe
+content it installs. Three build targets pick that string, all driven by the
+`TASKLESS_BUILD_TARGET` env var via Vite `define` (same source files, no edits):
+
+| Command           | Baked invocation                        | Use for                                                                              |
+| ----------------- | --------------------------------------- | ------------------------------------------------------------------------------------ |
+| `pnpm build`      | `npx @taskless/cli`                     | Production / published builds (default).                                             |
+| `pnpm build:dev`  | `node <abs>/packages/cli/dist/index.js` | Validating this build from **another** repo (absolute path resolves anywhere).       |
+| `pnpm build:self` | `node packages/cli/dist/index.js`       | Dogfooding **in this repo** (path is repo-root-relative; run the CLI from the root). |
+
+`pnpm build:self` builds the CLI with the relative invocation and then runs
+`taskless init --no-interactive` to install into this repo — so `.claude` gets
+real reference stubs that delegate to the canonical `.taskless/` content, exactly
+like any other install. (This replaces the former raw-symlink `link-skills`
+step, so local dogfooding always matches a true install.)
+
+> The `dev`/`self` invocations are local paths and must never be published —
+> only `pnpm build` (or `pnpm package`) produces a release artifact.
 
 ## Releasing taskless/skills
 

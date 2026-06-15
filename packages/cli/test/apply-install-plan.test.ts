@@ -263,6 +263,34 @@ describe("applyInstallPlan", () => {
     expect(await readFile(linkTarget, "utf8")).toBe(skill.content);
   });
 
+  it("does not write through a symlinked skill directory (no source clobber)", async () => {
+    // Reproduces the link-skills relic: the per-skill *directory* is a symlink
+    // back to source. Writing a stub must not follow it and overwrite source.
+    const skill = tasklessSkill();
+    const sourceDirectory = join(cwd, "source", "taskless");
+    await mkdir(sourceDirectory, { recursive: true });
+    const sourceSkill = join(sourceDirectory, "SKILL.md");
+    await writeFile(sourceSkill, skill.content, "utf8");
+
+    const claudeSkillDirectory = join(cwd, ".claude", "skills", "taskless");
+    await mkdir(dirname(claudeSkillDirectory), { recursive: true });
+    await symlink(sourceDirectory, claudeSkillDirectory);
+
+    await applyInstallPlan(cwd, buildInstallPlan([".claude"], [skill], []), {
+      cliVersion: "0.7.0",
+    });
+
+    // The symlinked directory was replaced by a real one holding a shim stub...
+    const directoryStats = await lstat(claudeSkillDirectory);
+    expect(directoryStats.isSymbolicLink()).toBe(false);
+    expect(directoryStats.isDirectory()).toBe(true);
+    expect(
+      isShimStub(await readFile(join(claudeSkillDirectory, "SKILL.md"), "utf8"))
+    ).toBe(true);
+    // ...and the source file behind the former symlink is untouched.
+    expect(await readFile(sourceSkill, "utf8")).toBe(skill.content);
+  });
+
   it("does not touch unknown files in a skills directory", async () => {
     const userOwned = join(cwd, ".claude", "skills", "user-tool", "SKILL.md");
     await mkdir(join(cwd, ".claude", "skills", "user-tool"), {

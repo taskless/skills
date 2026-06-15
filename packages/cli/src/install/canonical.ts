@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 import { stringify } from "yaml";
 
+import { applyCliInvocation, withCliBuildNotice } from "../util/invocation";
 import { parseFrontmatter } from "./frontmatter";
 
 /**
@@ -55,7 +56,11 @@ export async function writeCanonicalSkill(
   const directory = join(cwd, CANONICAL_DIR, "skills", name);
   await mkdir(directory, { recursive: true });
   const path = join(directory, "SKILL.md");
-  await writeFile(path, content, "utf8");
+  await writeFile(
+    path,
+    withCliBuildNotice(applyCliInvocation(content)),
+    "utf8"
+  );
   return path;
 }
 
@@ -71,7 +76,11 @@ export async function writeCanonicalCommand(
   const directory = join(cwd, CANONICAL_DIR, "commands", "tskl");
   await mkdir(directory, { recursive: true });
   const path = join(directory, filename);
-  await writeFile(path, content, "utf8");
+  await writeFile(
+    path,
+    withCliBuildNotice(applyCliInvocation(content)),
+    "utf8"
+  );
   return path;
 }
 
