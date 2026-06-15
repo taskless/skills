@@ -25,15 +25,15 @@
 
 ## 4. Skill routing posture (skill-taskless)
 
-- [ ] 4.1 Update `skills/taskless/SKILL.md` `description`: replace the named-tool suppression clause so naming a linter engages routing via `taskless help route`; tighten (reword shorter) rather than append trigger text
-- [ ] 4.1a Measure the resulting `description` length and assert it is ≤ 1024 chars (Agent Skills ceiling); treat overflow as a blocking failure and trim trigger wording until it fits
-- [ ] 4.2 Update the skill body to route authoring requests through `taskless help route` (not `rule create` directly); remove the "quiet suggestion" suppression path; keep the skill a thin router with no linter knowledge
-- [ ] 4.3 Bump the skill `metadata.version` per the file conventions
-- [ ] 4.4 Verify the skill change against the updated `skill-taskless` scenarios (routing on named tool, no suppression wording, local-first before login)
+- [x] 4.1 Update `skills/taskless/SKILL.md` `description`: replace the named-tool suppression clause so naming a linter engages routing via `taskless help route`; tighten (reword shorter) rather than append trigger text
+- [x] 4.1a Measure the resulting `description` length and assert it is ≤ 1024 chars (Agent Skills ceiling); treat overflow as a blocking failure and trim trigger wording until it fits — measured 835 chars
+- [x] 4.2 Update the skill body to route authoring requests through `taskless help route` (not `rule create` directly); remove the "quiet suggestion" suppression path; keep the skill a thin router with no linter knowledge
+- [x] 4.3 Bump the skill `metadata.version` per the file conventions — skill version is build-locked to the `@taskless/cli` package version (assertSkillVersions), which `scripts/sync-skill-versions.ts` treats as the source of truth; added a `minor` changeset targeting `@taskless/cli` (the root `@taskless/skills` package is private/unpublished) so the release path bumps the CLI version and syncs the skill version in lockstep, rather than hand-editing a mismatch
+- [x] 4.4 Verify the skill change against the updated `skill-taskless` scenarios (routing on named tool, no suppression wording, local-first before login)
 
 ## 5. Validation + quality gate
 
-- [ ] 5.1 Run `pnpm openspec validate local-rule-routing` and resolve any issues
-- [ ] 5.2 Add/curate the honesty eval fixtures (labeled request → expected route) and assert the `route` heuristic against both failure directions: under-confident (escalating a locally-solvable request to login) and over-confident (claiming local for a request that needs the service). Use the fixtures to calibrate the "confident enough for local" threshold
-- [ ] 5.3 Run `pnpm typecheck` and `pnpm lint`; fix all failures
-- [ ] 5.4 Manual smoke: `taskless detect --json`, then `taskless help route`/`existing`/`static`/`remote` resolve and read coherently end-to-end
+- [x] 5.1 Run `pnpm openspec validate local-rule-routing` and resolve any issues
+- [x] 5.2 Add/curate the honesty eval fixtures (labeled request → expected route) and assert the `route` heuristic against both failure directions: under-confident (escalating a locally-solvable request to login) and over-confident (claiming local for a request that needs the service). Use the fixtures to calibrate the "confident enough for local" threshold — dataset at `packages/cli/test/fixtures/route-eval.json` with a coverage test (`packages/cli/test/route-eval.test.ts`); route decision is agent-made (recipe-followed), so the test guards dataset balance across routes + every declared trap rather than running a code classifier
+- [x] 5.3 Run `pnpm typecheck` and `pnpm lint`; fix all failures
+- [x] 5.4 Manual smoke: `taskless detect --json`, then `taskless help route`/`existing`/`static`/`remote` resolve and read coherently end-to-end

@@ -176,6 +176,30 @@ All commands output structured JSON to stdout by default. Parse with `JSON.parse
 
 ## Developing
 
+### Testing
+
+```bash
+pnpm --filter @taskless/cli test                  # run the suite once
+pnpm --filter @taskless/cli exec vitest           # watch mode
+```
+
+The suite runs entirely locally under vitest — no network, no auth, no agent.
+Integration tests that exercise the built binary (for example `detect`) run
+against `dist/`, so run `pnpm --filter @taskless/cli build` first (or after any
+source change) before invoking them directly.
+
+**Two kinds of test, one of which is not fully automatable.** Most tests are
+deterministic unit/integration checks. The route-honesty dataset
+(`test/fixtures/route-eval.json`) is different: the actual routing decision is
+made by an _agent_ following `help/route.txt`, so it cannot be asserted by a
+code classifier. The automated test (`test/route-eval.test.ts`) therefore only
+**guards the dataset** — that it stays structurally valid and balanced across
+every route and both failure directions (over-claim / over-escalate). Running
+the dataset _as an evaluation_ — feeding each case to an agent and scoring its
+chosen destination — is a separate, manual calibration step with more setup; it
+is not part of `pnpm test`. Keep the two distinct: the suite proves the fixtures
+are well-formed; an agent run proves the recipe routes honestly.
+
 ### API base URL
 
 The CLI resolves the API base URL in this order:
