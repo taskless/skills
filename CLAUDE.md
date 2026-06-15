@@ -38,6 +38,14 @@ Merge each PR **down** into its parent's branch, from the tip to the bottom:
 - Bring the bottom branch up to date with `main`, let `Validate` pass, then do the **single** protected merge to `main`.
 - Result: one CI cycle instead of N, and every PR gets a real **Merged** badge (not "closed/absorbed").
 
+**Merge the down-merges one at a time, not in a loop.** Merging a child immediately invalidates the parent PR's mergeability (`gh pr merge` fails with "Pull Request is not mergeable") until GitHub recomputes. In a tight loop this makes merges land **out of order**, which strands the tip's commits part-way down the stack (e.g. `skill`/`eval` never propagate past `help`). Merge each PR, wait a few seconds, confirm the next is `MERGEABLE`, then continue. After the down-merges, verify the bottom branch actually contains the tip before the final merge:
+
+```bash
+git merge-base --is-ancestor origin/<tip-branch> origin/<bottom-branch> && echo "OK" || echo "STRANDED"
+```
+
+If stranded, reconcile from the tip (a tip branch contains the entire stack): on the bottom branch, `git merge origin/main` then `git merge origin/<tip-branch>`, confirm the only diff vs. the tip is whatever landed on `main` separately, and push.
+
 ### Never `--delete-branch` mid-stack
 
 `gh pr merge <n> --delete-branch` on a stacked PR **closes the child** PR (its base branch vanishes) instead of retargeting it. Leave branches in place during the stack; clean them up only after the whole stack has landed.
