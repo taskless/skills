@@ -385,6 +385,10 @@ async function writeSkill(
   }
 
   const path = join(skillDirectory(cwd, target.dir, skill.name), "SKILL.md");
+  // A prior link-skills-style setup may have left the per-skill directory as a
+  // symlink to source; writing a stub through it would clobber the source file.
+  // Replace a symlinked target directory with a real one before writing.
+  await unlinkIfSymlink(dirname(path));
   const meta: StubFrontmatter = {
     name: skill.name,
     description: skill.description,
@@ -412,6 +416,9 @@ async function writeCommand(
   }
 
   const path = commandFile(cwd, target.dir, command.filename);
+  // As in writeSkill: a symlinked command namespace directory would otherwise
+  // route the stub write back into source. Normalize it to a real directory.
+  await unlinkIfSymlink(dirname(path));
   const meta: CommandStubFrontmatter = {
     name: command.name,
     description: command.description,

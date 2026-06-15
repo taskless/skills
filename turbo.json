@@ -2,7 +2,8 @@
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
     "build": {
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**"],
+      "env": ["TASKLESS_BUILD_TARGET"]
     },
     "test": {
       "dependsOn": ["build"]

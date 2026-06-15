@@ -10,6 +10,7 @@ import { sprintf } from "sprintf-js";
 import { z } from "zod";
 
 import { getTelemetry } from "../telemetry";
+import { applyCliInvocation } from "../util/invocation";
 import { inputSchema as ruleCreateInputSchema } from "../schemas/rules-create";
 import { inputSchema as ruleImproveInputSchema } from "../schemas/rules-improve";
 
@@ -90,7 +91,7 @@ function renderRecipe(content: string, topic: string): string {
       ? JSON.stringify(z.toJSONSchema(schema), null, 2)
       : "(no input schema for this topic)";
   }
-  return sprintf(content, variables);
+  return sprintf(applyCliInvocation(content), variables);
 }
 
 /**
