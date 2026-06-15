@@ -304,7 +304,6 @@ export function planToStateTargets(plan: InstallPlan): InstallState["targets"] {
 
 export interface ApplyInstallOptions {
   cliVersion: string;
-  now?: () => Date;
 }
 
 export interface ApplyInstallResult {
@@ -444,10 +443,8 @@ export async function applyInstallPlan(
   options: ApplyInstallOptions
 ): Promise<ApplyInstallResult> {
   const previousState = await readInstallState(cwd);
-  const now = options.now ?? (() => new Date());
 
   const nextState: InstallState = {
-    installedAt: now().toISOString(),
     cliVersion: options.cliVersion,
     targets: planToStateTargets(plan),
   };

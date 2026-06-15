@@ -27,7 +27,6 @@ export interface InstallTargetRecord {
 }
 
 export interface InstallState {
-  installedAt?: string;
   cliVersion?: string;
   targets: Record<string, InstallTargetRecord>;
 }
@@ -67,7 +66,6 @@ function toInstallState(
     }
   }
   return {
-    installedAt: install?.installedAt,
     cliVersion: install?.cliVersion,
     targets,
   };
@@ -83,7 +81,6 @@ function toInstallManifest(state: InstallState): TasklessInstallManifest {
     targets[name] = entry;
   }
   const manifest: TasklessInstallManifest = { targets };
-  if (state.installedAt) manifest.installedAt = state.installedAt;
   if (state.cliVersion) manifest.cliVersion = state.cliVersion;
   return manifest;
 }

@@ -57,7 +57,7 @@ describe("taskless onboard", () => {
     expect(stdout).toContain("## Goal");
 
     const manifest = await readJsonManifest(cwd);
-    expect(manifest.version).toBe(2);
+    expect(manifest.version).toBe(3);
     // init/onboard alone should not record onboarded
     const install = manifest.install as { onboarded?: boolean } | undefined;
     expect(install?.onboarded).toBeUndefined();
@@ -123,7 +123,6 @@ describe("taskless onboard", () => {
       JSON.stringify({
         version: 2,
         install: {
-          installedAt: "2026-04-16T00:00:00.000Z",
           cliVersion: "0.7.0",
           targets: { ".claude": { skills: ["taskless"], commands: ["tskl"] } },
         },
@@ -143,12 +142,10 @@ describe("taskless onboard", () => {
     const manifest = await readJsonManifest(cwd);
     const install = manifest.install as {
       onboarded?: boolean;
-      installedAt?: string;
       cliVersion?: string;
       targets?: Record<string, unknown>;
     };
     expect(install.onboarded).toBe(true);
-    expect(install.installedAt).toBe("2026-04-16T00:00:00.000Z");
     expect(install.cliVersion).toBe("0.7.0");
     expect(install.targets).toEqual({
       ".claude": { skills: ["taskless"], commands: ["tskl"] },

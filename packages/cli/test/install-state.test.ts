@@ -131,7 +131,6 @@ describe("readInstallState / writeInstallState", () => {
 
   it("round-trips through write then read", async () => {
     const state: InstallState = {
-      installedAt: "2026-04-16T12:00:00.000Z",
       cliVersion: "0.5.4",
       targets: {
         ".claude": {

@@ -63,7 +63,6 @@ export async function runWizard(
 
     const previousState = await readInstallState(options.cwd);
     const diff = computeInstallDiff(previousState, {
-      installedAt: previousState.installedAt,
       cliVersion: previousState.cliVersion,
       targets: planToStateTargets(plan),
     });
