@@ -10,7 +10,7 @@
     "build:dev": "pnpm --filter @taskless/cli build:dev",
     "build:self": "run-s build:self:compile build:self:install",
     "build:self:compile": "pnpm --filter @taskless/cli build:self",
-    "build:self:install": "node packages/cli/dist/index.js init --no-interactive",
+    "build:self:install": "node packages/cli/dist-self/index.js init --no-interactive",
     "bump": "run-s bump:version bump:sync",
     "bump:sync": "tsx scripts/sync-skill-versions.ts",
     "bump:version": "changeset version",

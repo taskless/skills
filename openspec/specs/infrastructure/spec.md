@@ -102,7 +102,7 @@ The repository SHALL have `turbo` as a root devDependency and a `turbo.json` con
 
 ### Requirement: Build pipeline runs across all packages
 
-The root `pnpm build` command SHALL invoke `turbo run build`, which runs the `build` script in every workspace package that defines one. Build outputs (`dist/**`) SHALL be cached.
+The root `pnpm build` command SHALL invoke `turbo run build`, which runs the `build` script in every workspace package that defines one. Build outputs (`dist/**`, `dist-dev/**`, `dist-self/**`) SHALL be cached.
 
 #### Scenario: Root build command runs CLI build
 

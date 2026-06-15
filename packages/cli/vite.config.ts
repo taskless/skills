@@ -12,18 +12,37 @@ const pkg = JSON.parse(
   readFileSync(resolve(import.meta.dirname, "package.json"), "utf8")
 ) as { version: string };
 
+// Each build target emits to its own directory so prod, dev, and self builds
+// never overwrite one another. Keyed by TASKLESS_BUILD_TARGET; anything other
+// than "dev"/"self" is treated as prod.
+const OUT_DIRS = {
+  prod: "dist",
+  dev: "dist-dev",
+  self: "dist-self",
+} as const;
+
+function resolveBuildTarget(): keyof typeof OUT_DIRS {
+  const target = process.env.TASKLESS_BUILD_TARGET;
+  return target === "dev" || target === "self" ? target : "prod";
+}
+
+function resolveOutDir(): string {
+  return OUT_DIRS[resolveBuildTarget()];
+}
+
 // The CLI invocation baked into emitted skill/command/recipe content, chosen
 // by the TASKLESS_BUILD_TARGET env var (see package.json build:dev/build:self):
 //   - prod (default): the published `npx @taskless/cli`
 //   - dev:  an absolute path, for validating this build from another repo
 //   - self: a repo-root-relative path, for dogfooding inside this repo
+// The dev/self paths point at their own output directory (dist-dev/dist-self).
 function resolveCliInvocation(): string {
-  switch (process.env.TASKLESS_BUILD_TARGET) {
+  switch (resolveBuildTarget()) {
     case "self": {
-      return "node packages/cli/dist/index.js";
+      return `node packages/cli/${OUT_DIRS.self}/index.js`;
     }
     case "dev": {
-      return `node ${resolve(import.meta.dirname, "dist/index.js")}`;
+      return `node ${resolve(import.meta.dirname, OUT_DIRS.dev, "index.js")}`;
     }
     default: {
       return "npx @taskless/cli";
@@ -125,7 +144,7 @@ function shebang(): Plugin {
     writeBundle(options, bundle) {
       for (const [fileName, chunk] of Object.entries(bundle)) {
         if (chunk.type === "chunk" && chunk.isEntry) {
-          const outPath = resolve(options.dir ?? "dist", fileName);
+          const outPath = resolve(options.dir ?? resolveOutDir(), fileName);
           chmodSync(outPath, 0o755);
         }
       }
@@ -141,6 +160,7 @@ export default defineConfig({
   },
   plugins: [tsconfigPaths(), assertSkillVersions(), shebang()],
   build: {
+    outDir: resolveOutDir(),
     lib: {
       entry: resolve(import.meta.dirname, "src/index.ts"),
       formats: ["es"],
