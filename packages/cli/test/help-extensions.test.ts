@@ -58,6 +58,37 @@ describe("taskless help (no args)", () => {
     const result = await runCli(["help", "-d", cwd]);
     expect(result.stdout).toContain("--anonymous");
   });
+
+  it("lists the routing recipe topics under Authoring recipes", async () => {
+    const result = await runCli(["help", "-d", cwd]);
+    expect(result.stdout).toContain("Authoring recipes:");
+    for (const topic of ["route", "existing", "static", "remote"]) {
+      expect(result.stdout).toContain(topic);
+    }
+  });
+});
+
+describe("taskless help <routing topic>", () => {
+  let cwd: string;
+
+  beforeEach(async () => {
+    cwd = await mkdtemp(join(tmpdir(), "taskless-help-routing-"));
+  });
+
+  afterEach(async () => {
+    await rm(cwd, { recursive: true, force: true });
+  });
+
+  it.each(["route", "existing", "static", "remote"])(
+    "resolves the %s recipe without an unknown-topic error",
+    async (topic) => {
+      const result = await runCli(["help", topic, "-d", cwd]);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain(`# Topic: ${topic}`);
+      expect(result.stdout).toContain("## Goal");
+      expect(result.stderr).not.toContain("Unknown command");
+    }
+  );
 });
 
 describe("taskless help <topic>", () => {
