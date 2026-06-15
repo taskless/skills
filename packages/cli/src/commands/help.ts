@@ -50,6 +50,16 @@ function buildHelpMaps(): {
 
 const { helpMap, anonymousMap } = buildHelpMaps();
 
+// Help-only recipe topics (no backing subcommand) that should still be
+// discoverable from the `taskless help` index. The rule-authoring front
+// door (`route`) and its destinations live here so an agent can find them.
+const RECIPE_TOPICS: ReadonlyArray<[string, string]> = [
+  ["route", "Decide where to author a rule (existing/static/remote)"],
+  ["existing", "Author a rule in a linter the repo already uses"],
+  ["static", "Author a local ast-grep rule on this machine (no login)"],
+  ["remote", "Generate a rule via the Taskless service (login)"],
+];
+
 // Topic → Zod input schema. When a recipe contains the %(INPUT_SCHEMA)s
 // placeholder, the help command substitutes the JSON Schema rendered
 // from this Zod source.
@@ -173,8 +183,18 @@ export function createHelpCommand(subCommands: SubCommandsDef) {
           entries.push([name, description]);
         }
 
-        const maxLength = Math.max(...entries.map(([name]) => name.length));
+        // Pad commands and recipe topics against a shared width so the two
+        // sections line up.
+        const maxLength = Math.max(
+          ...entries.map(([name]) => name.length),
+          ...RECIPE_TOPICS.map(([name]) => name.length)
+        );
         for (const [name, description] of entries) {
+          console.log(`  ${name.padEnd(maxLength + 2)}${description}`);
+        }
+
+        console.log("\nAuthoring recipes:");
+        for (const [name, description] of RECIPE_TOPICS) {
           console.log(`  ${name.padEnd(maxLength + 2)}${description}`);
         }
 

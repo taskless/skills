@@ -1,0 +1,57 @@
+# Topic: existing     (CLI v%(CLI_VERSION)s / topic v1)
+
+## Goal
+Author a rule in a linter the repository ALREADY uses, expressed in that
+tool's own dialect (an ESLint rule, a Ruff rule selection, a RuboCop cop,
+a Stylelint rule, etc.). Taskless does not maintain a catalog of linter
+rules — you source the knowledge from the repo first and the web second,
+then write the rule where that tool expects it.
+
+## Preconditions
+- The repo has a detected linter (confirm via `taskless detect --json`).
+- The agent can read/write files and fetch web pages.
+- No auth required.
+
+## Steps
+
+1. **Confirm the target tool.** Use `taskless detect --json` to identify
+   which linter is configured. If more than one could host this rule,
+   ask the user which tool should own it.
+
+2. **Mine the repo's own rules first.** This is the highest-signal
+   source for house style. Look at how the repo already writes rules of
+   this kind:
+   - existing config (e.g. `.eslintrc*`/`eslint.config.*`, `ruff.toml`
+     or `[tool.ruff]`, `.rubocop.yml`, `.stylelintrc*`);
+   - any custom/local rules the repo authored (the `detect` output's
+     rule styles point at these);
+   - the conventions, severity choices, and naming they use.
+   Match that style.
+
+3. **Fall back to the web only if the repo signal is thin.** If the repo
+   doesn't show how to express this rule, fetch the linter's CURRENT
+   documentation (WebFetch/WebSearch). Prefer the latest version's docs
+   and, when present, an `llms.txt` on the tool's docs site. Confirm the
+   installed version where it matters so you target the right syntax.
+
+4. **Author the rule in the tool's dialect.** Write or extend the
+   linter's config / custom-rule file the way that tool expects. Keep it
+   consistent with the repo's existing entries from step 2.
+
+5. **Report, and be explicit about who runs it.** Show the file(s) you
+   changed. Make clear that the user's OWN toolchain runs this rule —
+   `taskless check` does NOT execute external linters. Tell the user how
+   to run their linter to see it fire (e.g. their existing lint script).
+
+## Important Notes
+
+- Do not invent linter rules from memory — verify against the repo's
+  usage and the tool's current docs.
+- This path is author-only. Taskless does not aggregate or run external
+  linters; it writes the rule in the tool's dialect and hands off.
+
+## See Also
+
+- `taskless help route` — re-decide the destination if this no longer fits
+- `taskless help static` — author a local ast-grep rule instead
+- `taskless help remote` — generate via the Taskless service (login)

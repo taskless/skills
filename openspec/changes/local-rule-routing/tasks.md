@@ -9,19 +9,19 @@
 
 ## 2. Routing recipes (cli-rule-routing)
 
-- [ ] 2.1 Author `packages/cli/src/help/route.txt`: run `detect`; require the agent to WRITE its rationale first (detect signals, existing-linter coverage, ast-grep expressibility, local-solvability confidence) and name a destination only as a conclusion of that rationale; commit to the believed-correct path on REASONABLE confidence (existing/static/remote), route remote directly when not reasonably confident; when multiple paths fit, ask the user and explain trade-offs (note `remote` consumes a generation + needs login); never use a deliberate fail-first probe to select `remote`
-- [ ] 2.1a In `route.txt`, specify the try-verify-escalate FALLBACK: when a believed-local `static` path fails verification, inform the user the local rule couldn't capture the cases and PROMPT-AND-CONFIRM before calling the service — never silently fall through to `remote`
-- [ ] 2.2 Author `packages/cli/src/help/existing.txt`: author in the detected linter's dialect; repo-first knowledge sourcing then WebFetch; explicit author-only (user's toolchain runs it; `taskless check` does not run the external linter)
-- [ ] 2.3 Author `packages/cli/src/help/static.txt`: local ast-grep authoring with verification against success/failure cases; canonical on-disk shape and paths; working candidate written under `.taskless/.tmp-*` with guaranteed cleanup on BOTH success and failure (mirror the `rule create` pattern); on verification failure, hand back to the `route` prompt-and-confirm fallback rather than escalating directly
-- [ ] 2.4 Author `packages/cli/src/help/remote.txt`: collect inputs, require auth, invoke the existing `rule create` backend; service decides static vs runtime; never decide that locally
-- [ ] 2.5 Ensure all four recipes follow the embedded help-text format (header, sprintf escaping) and reference `detect`/`route` consistently
+- [x] 2.1 Author `packages/cli/src/help/route.txt`: run `detect`; require the agent to WRITE its rationale first (detect signals, existing-linter coverage, ast-grep expressibility, local-solvability confidence) and name a destination only as a conclusion of that rationale; commit to the believed-correct path on REASONABLE confidence (existing/static/remote), route remote directly when not reasonably confident; when multiple paths fit, ask the user and explain trade-offs (note `remote` consumes a generation + needs login); never use a deliberate fail-first probe to select `remote`
+- [x] 2.1a In `route.txt`, specify the try-verify-escalate FALLBACK: when a believed-local `static` path fails verification, inform the user the local rule couldn't capture the cases and PROMPT-AND-CONFIRM before calling the service — never silently fall through to `remote`
+- [x] 2.2 Author `packages/cli/src/help/existing.txt`: author in the detected linter's dialect; repo-first knowledge sourcing then WebFetch; explicit author-only (user's toolchain runs it; `taskless check` does not run the external linter)
+- [x] 2.3 Author `packages/cli/src/help/static.txt`: local ast-grep authoring with verification against success/failure cases; canonical on-disk shape and paths (`.taskless/rules/<id>.yml` + rule-tests, so `rule verify <id>` can read it); on verification failure into the escalation fallback, guarantee cleanup of the abandoned candidate rule + test files (mirrors the `rule create` cleanup intent); hand back to the `route` prompt-and-confirm fallback rather than escalating directly
+- [x] 2.4 Author `packages/cli/src/help/remote.txt`: collect inputs, require auth, invoke the existing `rule create` backend; service decides static vs runtime; never decide that locally
+- [x] 2.5 Ensure all four recipes follow the embedded help-text format (header, sprintf escaping) and reference `detect`/`route` consistently
 
 ## 3. Help registration + telemetry (cli-help)
 
-- [ ] 3.1 Confirm the four `.txt` recipes are picked up by the `import.meta.glob` embedding and resolve via `taskless help <topic>`
-- [ ] 3.2 Ensure `route`, `existing`, `static`, `remote` appear in the `taskless help` (no-arg) topic index
-- [ ] 3.3 Verify `help_<topic>` intent telemetry fires for each routing topic
-- [ ] 3.4 Add tests for topic resolution, index listing, and telemetry capture
+- [x] 3.1 Confirm the four `.txt` recipes are picked up by the `import.meta.glob` embedding and resolve via `taskless help <topic>`
+- [x] 3.2 Ensure `route`, `existing`, `static`, `remote` appear in the `taskless help` (no-arg) topic index
+- [x] 3.3 Verify `help_<topic>` intent telemetry fires for each routing topic
+- [x] 3.4 Add tests for topic resolution, index listing, and telemetry capture
 
 ## 4. Skill routing posture (skill-taskless)
 
