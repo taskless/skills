@@ -31,8 +31,14 @@ jobs:
 
           # Count OPEN PRs that target this PR's head branch as their base.
           # Any such PR means work is still stacked on top → not the tip.
-          children=$(gh pr list --repo "$REPO" --state open --base "$HEAD_REF" \
-            --json number --jq 'length' 2>/dev/null || echo 0)
+          # Do NOT guess on failure: if stack position can't be read, fail loudly
+          # rather than silently defaulting to "tip" (which runs the gate on a
+          # mid-stack PR) or "not tip" (which skips archiving on a real tip).
+          if ! children=$(gh pr list --repo "$REPO" --state open --base "$HEAD_REF" \
+            --json number --jq 'length'); then
+            echo "::error::Could not determine stack position (gh pr list failed). Re-run once the API is reachable."
+            exit 1
+          fi
           children=${children:-0}
 
           if [ "$children" -gt 0 ]; then
@@ -66,7 +72,7 @@ jobs:
             echo "::error::Unarchived OpenSpec change directories found under openspec/changes/:"
             echo "$UNARCHIVED" | sed 's|^|  - |'
             echo ""
-            echo "This PR is the tip of its stack (all work landed), so the change must be archived."
+            echo "This PR is the tip of its stack (no open PRs stacked on top), so its OpenSpec change must be archived before merge."
             echo "Move it under openspec/changes/archive/ (e.g. /openspec-archive-change <name>) and commit."
             exit 1
           fi
