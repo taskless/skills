@@ -20,8 +20,8 @@ the default safety mechanism is a server-validated signature, not a local sandbo
 ## What Changes
 
 - Add a **`cli-runtime-rule-execution`** capability: recognize a runtime-rule directory
-  (`metadata.taskless.kind: runtime`), run its capture rules as **one** `ast-grep` narrow
-  (anchor `--inline-rules --json=stream`; broad `--files-with-matches` for `kind: program`
+  (`metadata.taskless.kind: runtime`), run its capture rules as an `ast-grep` narrow (one scan
+  per mode: anchor `--json=stream`; broad `--files-with-matches` for `kind: program`
   enumerators), **gate on matches**, and only then invoke `check.ts`'s default export with
   `(root, matches)` via a CLI-bundled, pinned `tsx`. Zero matches ⇒ `check.ts` is never
   invoked. Normalize matches to `{ rule, ruleId, file, line, column, text, captures }`
