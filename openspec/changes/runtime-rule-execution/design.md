@@ -60,11 +60,16 @@ Runtime rules live under `.taskless/runtime-rules/` — each rule a directory ho
 `*.yml` and `check.ts` — with fixtures under `.taskless/runtime-rule-tests/`. Static ast-grep
 rules stay under `.taskless/rules/`. **Location is the primary rule-class split**: `check`
 scans `.taskless/rules/` for static rules and `.taskless/runtime-rules/` for runtime rules,
-and `metadata.taskless.kind: runtime` confirms the class. The CLI reads
-`metadata.taskless.check` to locate the directory's `check.ts` and `metadata.taskless.match`
-to pick the ast-grep invocation mode, and never parses rule intent beyond this metadata
-envelope and the ast-grep config it already understands. `.taskless/runtime-rule-tests/` holds
-verification fixtures and is not executed by `check`.
+and `metadata.taskless.kind: runtime` confirms the class. The check file is always `check.ts`
+in the rule directory; the CLI reads `metadata.taskless.match` to pick the ast-grep invocation
+mode, and never parses rule intent beyond this metadata envelope and the ast-grep config it
+already understands. `.taskless/runtime-rule-tests/<name>/` holds `valid/`/`invalid/` fixtures
+and is not executed by `check`.
+
+This layout is confirmed against the generator
+(`workers/generator/src/actions/add-runtime-rule.ts`), which writes
+`.taskless/runtime-rules/<slug>-<suffix>/` with `<capture-name>.yml` per capture rule and a
+`check.ts`, and hashes `check.ts` with the same `canonicalHash` envelope reconcile uses.
 
 _Alternative rejected:_ co-locating runtime rules under `.taskless/rules/` and splitting on
 directory-vs-file. The separate tree is what the generator writes, and a distinct path removes
