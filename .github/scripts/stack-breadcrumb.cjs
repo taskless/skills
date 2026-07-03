@@ -76,10 +76,19 @@ function spliceRegion(body, region) {
     if (!existing) {
       return body;
     }
-    return body
-      .replace(REGION_PATTERN, "")
-      .replace(/\n{3,}/g, "\n\n")
-      .trimEnd();
+    // Remove the region and only the blank lines hugging it, rejoining the
+    // surrounding text with a single blank line. Spacing elsewhere in the body
+    // is left exactly as-is.
+    const start = body.indexOf(existing);
+    const before = body.slice(0, start).replace(/\n+$/, "");
+    const after = body.slice(start + existing.length).replace(/^\n+/, "");
+    if (before.length === 0) {
+      return after.trimEnd();
+    }
+    if (after.length === 0) {
+      return before.trimEnd();
+    }
+    return `${before}\n\n${after}`;
   }
 
   if (existing) {

@@ -89,6 +89,16 @@ test("spliceRegion: no-op removing when no region exists", () => {
   assert.equal(spliceRegion("nothing to remove", ""), "nothing to remove");
 });
 
+test("spliceRegion: removing preserves unrelated blank runs elsewhere", () => {
+  // A 3+ newline run unrelated to the region must survive removal.
+  const body = `line1\n\n\n\nline2\n\n${REGION}`;
+  assert.equal(spliceRegion(body, ""), "line1\n\n\n\nline2");
+});
+
+test("spliceRegion: removing a middle region rejoins with one blank line", () => {
+  assert.equal(spliceRegion(`top\n\n${REGION}\n\nbottom`, ""), "top\n\nbottom");
+});
+
 test("spliceRegion: skip-when-equal is a no-op", () => {
   const body = `intro\n\n${REGION}\n\noutro`;
   assert.equal(spliceRegion(body, REGION), body);

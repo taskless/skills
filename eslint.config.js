@@ -17,8 +17,8 @@ export default tseslint.config(
       "openspec/",
       "**/test/fixtures/",
       "tmp/",
-      // Zero-dependency CommonJS workflow scripts (linted by their own node:test
-      // suite); the app's TS/ESM-oriented rules don't apply.
+      // Zero-dependency CommonJS workflow scripts (covered by their own
+      // node:test suite); the app's TS/ESM-oriented rules don't apply.
       ".github/scripts/",
     ],
   },
