@@ -59,17 +59,21 @@ _Alternative rejected:_ `node:crypto` `createHash`. Simpler locally but diverges
 web-standard reference the server pins, and risks subtle cross-repo drift the vectors exist to
 prevent.
 
-### Decision: Conformance test fetches vectors, commits a fixture, asserts exact reproduction
+### Decision: Build-wired resilient fetch with a committed cache; test asserts exact reproduction
 
-Add a script/step to fetch `GET /cli/api/rule-hash-vectors` and commit the result as
-`packages/cli/test/fixtures/rule-hash-vectors.json`, plus a vitest test
-(`test/rule-hash.test.ts`) that parses each `input` as JSON (decoding `\uXXXX`) and asserts
-`canonicalHash(input) === signature`. A mismatch fails the build. Committing the fixture (vs.
-fetching at test time) keeps tests hermetic/offline; refresh is a manual step when the algo
-version bumps, mirroring `generate:ast-grep-schema`.
+Commit the vectors as `packages/cli/test/fixtures/rule-hash.vectors.json` in the cross-repo
+source-of-truth format (a bare `[{ name, input, signature }]` array kept pure-ASCII with
+`\uXXXX` escapes, so git stays byte-stable). `scripts/fetch-rule-hash-vectors.ts` (npm
+`generate:rule-hash-vectors`) refreshes it from `GET /cli/api/rule-hash-vectors`, unwrapping
+the endpoint's `{ vectors: [...] }` and re-escaping to ASCII. It is wired as `prebuild`, so
+every build/CI run tries to refresh but falls back to the committed cache on any
+network/HTTP/shape failure (only a missing cache is fatal). A vitest test
+(`test/rule-hash.test.ts`) parses each `input` as JSON (decoding `\uXXXX`) and asserts
+`canonicalHash(input) === signature` for every entry; a mismatch fails the build. CI gets the
+freshest vectors when reachable while offline builds and the unit suite stay hermetic.
 
-_Alternative rejected:_ fetch vectors live during the test run — introduces network flakiness
-into CI and couples the unit suite to endpoint availability.
+_Alternatives rejected:_ (a) fetch live during the test run — couples the unit suite to
+endpoint availability; (b) a purely manual refresh — drifts silently from the server.
 
 ### Decision: Reconcile client via a hand-typed request over the existing fetch layer
 

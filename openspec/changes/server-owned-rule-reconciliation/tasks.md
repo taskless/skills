@@ -7,10 +7,10 @@
 
 ## 2. Conformance vectors
 
-- [ ] 2.1 Add a fetch script (mirroring `scripts/fetch-ast-grep-schema.ts`) that pulls `GET /cli/api/rule-hash-vectors` and writes `packages/cli/test/fixtures/rule-hash-vectors.json`; wire an npm script (e.g. `generate:rule-hash-vectors`).
-- [ ] 2.2 Commit the fetched vectors fixture.
-- [ ] 2.3 Add `packages/cli/test/rule-hash.test.ts` that parses each vector's `input` as JSON (decoding `\uXXXX`) and asserts `canonicalHash(input) === signature` for every entry; failure blocks the build.
-- [ ] 2.4 Add focused unit tests for each invariant: CRLF-equals-LF, trailing-newlines-collapse, BOM-stripped, content-change-differs, multibyte UTF-8, combining-mark-not-NFC-folded.
+- [x] 2.1 Add a fetch script (mirroring `scripts/fetch-ast-grep-schema.ts`) that pulls `GET /cli/api/rule-hash-vectors`, unwraps `{ vectors }`, re-escapes to pure ASCII, and writes `packages/cli/test/fixtures/rule-hash.vectors.json`; wire the `generate:rule-hash-vectors` npm script AND a `prebuild` hook that always tries the network but falls back to the committed cache (only a missing cache is fatal).
+- [x] 2.2 Commit the vectors fixture (cross-repo source-of-truth bare-array format).
+- [x] 2.3 Add `packages/cli/test/rule-hash.test.ts` that parses each vector's `input` as JSON (decoding `\uXXXX`) and asserts `canonicalHash(input) === signature` for every entry; failure blocks the build.
+- [x] 2.4 Add focused unit tests for each invariant: CRLF-equals-LF, lone-CR, trailing-newlines-collapse, empty→single-LF, BOM-stripped (leading/double/interior), content-change-differs, multibyte UTF-8, combining-mark-not-NFC-folded.
 
 ## 3. Reconcile API client
 
