@@ -51,25 +51,46 @@ jobs:
       group: stack-breadcrumb-dispatch-${{ github.event.pull_request.number }}
       cancel-in-progress: true
     steps:
+      # Check out the DEFAULT branch's copy of the script, not the PR head: this
+      # privileged job (contents: write) must run trusted, reviewed logic, never
+      # PR-supplied code.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
 
       - uses: actions/github-script@v7
         with:
           script: |
-            const stack = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/stack-breadcrumb.cjs`);
+            const scriptPath = `${process.env.GITHUB_WORKSPACE}/.github/scripts/stack-breadcrumb.cjs`;
+            let stack;
+            try {
+              stack = require(scriptPath);
+            } catch (error) {
+              // Bootstrap: before this workflow is on the default branch the
+              // script isn't there yet. Skip rather than fail.
+              if (error.code === "MODULE_NOT_FOUND") {
+                core.info("stack-breadcrumb script not on the default branch yet; skipping until merged.");
+                return;
+              }
+              throw error;
+            }
             const { owner, repo } = context.repo;
 
             const defaultBranch = (await github.rest.repos.get({ owner, repo })).data.default_branch;
             const rawPulls = await github.paginate(github.rest.pulls.list, {
               owner, repo, state: "open", per_page: 100,
             });
-            const pullRequests = rawPulls.map((pr) => ({
-              number: pr.number,
-              title: pr.title,
-              headRefName: pr.head.ref,
-              baseRefName: pr.base.ref,
-              body: pr.body ?? "",
-            }));
+            // Same-repo PRs only: the tree keys parents by branch name, so a fork
+            // PR sharing a branch name would corrupt root resolution.
+            const pullRequests = rawPulls
+              .filter((pr) => pr.head.repo?.full_name === `${owner}/${repo}`)
+              .map((pr) => ({
+                number: pr.number,
+                title: pr.title,
+                headRefName: pr.head.ref,
+                baseRefName: pr.base.ref,
+                body: pr.body ?? "",
+              }));
 
             const trigger = {
               number: context.payload.pull_request.number,
@@ -112,13 +133,17 @@ jobs:
             const rawPulls = await github.paginate(github.rest.pulls.list, {
               owner, repo, state: "open", per_page: 100,
             });
-            const pullRequests = rawPulls.map((pr) => ({
-              number: pr.number,
-              title: pr.title,
-              headRefName: pr.head.ref,
-              baseRefName: pr.base.ref,
-              body: pr.body ?? "",
-            }));
+            // Same-repo PRs only: a fork PR sharing a branch name would corrupt
+            // branch-name-keyed tree derivation.
+            const pullRequests = rawPulls
+              .filter((pr) => pr.head.repo?.full_name === `${owner}/${repo}`)
+              .map((pr) => ({
+                number: pr.number,
+                title: pr.title,
+                headRefName: pr.head.ref,
+                baseRefName: pr.base.ref,
+                body: pr.body ?? "",
+              }));
 
             const writeBody = async (number, body) => {
               await github.rest.pulls.update({ owner, repo, pull_number: number, body });
