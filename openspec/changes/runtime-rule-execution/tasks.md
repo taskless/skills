@@ -1,0 +1,45 @@
+## 1. Runtime-rule recognition
+
+- [ ] 1.1 Add `packages/cli/src/rules/runtime/discover.ts`: enumerate `.taskless/runtime-rules/` for rule directories, parse each capture `*.yml`'s `metadata.taskless` (`kind`, `name`, `check`, `match`), and confirm the class via `kind: runtime`. Return a typed `RuntimeRule` (`{ dir, captureFiles, checkFile, match }`). `.taskless/runtime-rule-tests/` is not enumerated for execution.
+- [ ] 1.2 Static rules stay sourced from `.taskless/rules/`; runtime rules from `.taskless/runtime-rules/` — location is the class split.
+
+## 2. Narrow → gate → check harness
+
+- [ ] 2.1 Add `packages/cli/src/rules/runtime/narrow.ts`: assemble a rule's capture rules and run ONE `ast-grep` scan — anchor mode `--inline-rules --json=stream`, broad mode `--files-with-matches` (`kind: program`). Reuse the existing scan plumbing where possible.
+- [ ] 2.2 Add match normalization to `{ rule, ruleId, file (root-relative), line (1-indexed), column, text, captures }`, mapping the hashed capture `id` back to the model `name` surfaced as `match.rule`.
+- [ ] 2.3 Gate on matches: when the narrow yields zero matches, do NOT invoke `check.ts`.
+- [ ] 2.4 Add `packages/cli/src/rules/runtime/invoke.ts`: call `check.ts`'s default export with `(root, matches)` via a CLI-bundled, pinned `tsx`; use the returned `Finding[]`. Isolate a throwing check to a single error-severity finding for that rule.
+- [ ] 2.5 Decide and implement scheduling (process-per-check vs. `worker_threads` pool vs. `import()`); bound each check with a default wall-clock timeout (overridable via `--timeout <seconds>`) that terminates the check and records a single error-severity finding.
+- [ ] 2.6 Map each `Finding` (`severity ∈ error|warning|info`) onto `CheckResult` with a runtime `source`; feed into the existing aggregation and exit-code logic.
+
+## 3. tsx bundling
+
+- [ ] 3.1 Add a pinned `tsx` (or equivalent loader) to the CLI bundle and resolve its path at runtime without assuming any repo-local toolchain.
+- [ ] 3.2 Verify `check.ts` executes with no `node_modules` and no precompile in a temp-dir fixture.
+
+## 4. Reconcile scoping & materialization
+
+- [ ] 4.1 Extend `src/rules/run-set.ts` to enumerate `.taskless/runtime-rules/` and sign each rule's `check.ts` only (capture `*.yml` and static rules are inert — not reported to reconcile).
+- [ ] 4.2 Compute per-rule eligibility: a runtime rule executes only if its `check.ts` is in `run`; otherwise withhold and surface as advisory.
+- [ ] 4.3 Materialize blessed runtime rules into `.taskless/.run/` and execute `check.ts` from there (read-hash-execute); ensure `.taskless/.gitignore` still covers `.run/`.
+
+## 5. check dispatch & modes
+
+- [ ] 5.1 In `src/commands/check.ts`, split the corpus via `classifyRules`; always run static rules; route runtime rules through the harness only on a validated path.
+- [ ] 5.2 Implement the mode table: authed/API-key → reconcile & run fully-blessed runtime rules; logged-out/`--anonymous` → skip runtime + report skipped; reconcile-cannot-complete → skip runtime with notice; `--dangerously-run-scripts` → run all runtime rules trusting local signatures.
+- [ ] 5.3 Add the `--dangerously-run-scripts` flag: skip reconciliation entirely (no network) and run all present runtime rules, behind a prominent unverified-execution warning (stderr, suppressed under `--json`). Add the `--timeout <seconds>` flag.
+- [ ] 5.4 Narrow the stacked-under degrade path so it scans static rules but never executes runtime `check.ts`.
+- [ ] 5.5 Emit skipped-runtime notices (human output); under `--json` add an additive optional `skipped: [{ rule, reason }]` field leaving `success`/`results` unchanged. Confirm the exit code stays governed solely by error-severity findings.
+
+## 6. Help & docs
+
+- [ ] 6.1 Update `packages/cli/src/help/check.txt` with a runtime-rule section: what runs per mode, and the `--dangerously-run-scripts` warning.
+- [ ] 6.2 Update `packages/cli/src/help/ci.txt` to note the enforced (`--enforce`) sandbox as the authoritative runtime-rule enforcement point.
+
+## 7. Tests & verification
+
+- [ ] 7.1 Harness unit tests: narrow assembly (anchor/broad), gate-on-zero-matches (check never invoked), match normalization (hashed id → model name), `Finding` → `CheckResult` mapping, throwing-check isolation, timeout → error finding.
+- [ ] 7.2 Mode integration tests (subprocess against `dist/`, temp-dir fixtures with a mock reconcile server + git origin): authed runs blessed runtime rules; partially-blessed rule withheld; logged-out and `--anonymous` skip runtime + report skipped; reconcile-unavailable skips runtime; `--dangerously-run-scripts` runs runtime offline with a warning.
+- [ ] 7.3 Static-always-run tests: static rules run in every mode; static rules are not reported to reconcile.
+- [ ] 7.4 `--json` shape tests: warnings/notices suppressed; runtime findings appear under the same `results` shape as static findings.
+- [ ] 7.5 Run `pnpm typecheck`, `pnpm lint`, and the full `pnpm test` — all green.
