@@ -17,13 +17,18 @@ export interface RuntimeRunOptions {
   timeoutMs?: number;
 }
 
-/** Map a check `Finding` onto the scanner-agnostic `CheckResult`. */
+/**
+ * Map a check `Finding` onto the scanner-agnostic `CheckResult`. `Finding`
+ * line/column are 1-indexed (harness contract); `CheckResult.range` is 0-indexed
+ * (ast-grep native — display and `--json` consumers add 1), so convert down.
+ */
 function findingToCheckResult(
   rule: RuntimeRule,
   finding: Finding
 ): CheckResult {
-  const line = finding.line ?? 0;
-  const column = finding.column ?? 0;
+  const line = finding.line === undefined ? 0 : Math.max(0, finding.line - 1);
+  const column =
+    finding.column === undefined ? 0 : Math.max(0, finding.column - 1);
   return {
     source: RUNTIME_SOURCE,
     ruleId: rule.name,

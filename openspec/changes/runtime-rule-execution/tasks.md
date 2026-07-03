@@ -25,11 +25,11 @@
 
 ## 5. check dispatch & modes
 
-- [ ] 5.1 In `src/commands/check.ts`, split the corpus via `classifyRules`; always run static rules; route runtime rules through the harness only on a validated path.
-- [ ] 5.2 Implement the mode table: authed/API-key → reconcile & run fully-blessed runtime rules; logged-out/`--anonymous` → skip runtime + report skipped; reconcile-cannot-complete → skip runtime with notice; `--dangerously-run-scripts` → run all runtime rules trusting local signatures.
-- [ ] 5.3 Add the `--dangerously-run-scripts` flag: skip reconciliation entirely (no network) and run all present runtime rules, behind a prominent unverified-execution warning (stderr, suppressed under `--json`). Add the `--timeout <seconds>` flag.
-- [ ] 5.4 Narrow the stacked-under degrade path so it scans static rules but never executes runtime `check.ts`.
-- [ ] 5.5 Emit skipped-runtime notices (human output); under `--json` add an additive optional `skipped: [{ rule, reason }]` field leaving `success`/`results` unchanged. Confirm the exit code stays governed solely by error-severity findings.
+- [x] 5.1 Rewrote `src/commands/check.ts`: static rules under `.taskless/rules/` always scan; runtime rules route through the harness only on a validated path. **Cutover** — removed the stacked-under static-reconcile gating (deleted `src/rules/run-set.ts`).
+- [x] 5.2 `planRuntime` implements the mode table: authed → reconcile & run blessed rules, withhold the rest (advisory); logged-out/`--anonymous`/no-remote/reconcile-unavailable → skip runtime + report skipped; `--dangerously-run-scripts` → run all runtime rules (no network).
+- [x] 5.3 Added `--dangerously-run-scripts` (skips reconciliation, runs all runtime rules, prominent stderr warning suppressed under `--json`) and `--timeout <seconds>` (→ `parseTimeoutMs`).
+- [x] 5.4 The former degrade path now scans static rules but **never executes runtime `check.ts`** unverified — skip-with-notice instead.
+- [x] 5.5 Skipped-runtime notices are human-output; under `--json` an additive optional `skipped: [{ rule, reason }]` field is added (schema updated) leaving `success`/`results` unchanged. Fixed a `Finding`→`CheckResult` off-by-one (findings are 1-indexed; `CheckResult.range` is 0-indexed). Exit code stays governed solely by error-severity findings. Removed the now-obsolete `test/reconcile-check.test.ts` + `test/run-set.test.ts` (Group 7 adds runtime-dispatch tests).
 
 ## 6. Help & docs
 
