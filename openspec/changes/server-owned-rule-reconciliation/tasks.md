@@ -42,7 +42,7 @@
 
 ## 7. Tests & verification
 
-- [ ] 7.1 Add reconcile-gating integration tests (vitest, subprocess against `dist/`, temp-dir fixtures): only `run`-set rules scanned; non-run files excluded.
-- [ ] 7.2 Add auth-state tests: logged-out and `--anonymous` scan all rules silently; authed endpoint-unavailable warns and degrades without failing the exit code; `--json` omits warnings.
-- [ ] 7.3 Add mismatch-warning tests: `unsafe`/`unknown`/`missing` warn without changing the exit code; empty run set exits 0 without invoking the scanner.
-- [ ] 7.4 Run `pnpm build` then `pnpm --filter @taskless/cli test`, plus `pnpm typecheck` and `pnpm lint`; fix any failures.
+- [x] 7.1 Add reconcile-gating integration tests (vitest, subprocess against `dist/`, temp-dir fixtures with a mock reconcile server + git origin): only `run`-set rules scanned; non-run files excluded. Also unit tests for `signRuleFiles`/`selectRunFiles`/`materializeRunDirectory` in `test/run-set.test.ts`.
+- [x] 7.2 Add auth-state tests: logged-out and `--anonymous` scan all rules silently (no reconcile call); authed endpoint-unavailable (503) warns and degrades without failing the exit code; `--json` omits warnings.
+- [x] 7.3 Add mismatch-warning tests: `unsafe`/`unknown`/`missing` warn without changing the exit code; empty run set exits 0 without invoking the scanner.
+- [x] 7.4 Ran `pnpm typecheck`, `pnpm lint`, and the full `pnpm test` (turbo build + 340 tests) — all green.
