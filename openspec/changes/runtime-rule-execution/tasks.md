@@ -1,7 +1,7 @@
 ## 1. Runtime-rule recognition
 
-- [ ] 1.1 Add `packages/cli/src/rules/runtime/discover.ts`: enumerate `.taskless/runtime-rules/` for rule directories, parse each capture `*.yml`'s `metadata.taskless` (`kind`, `name`, `check`, `match`), and confirm the class via `kind: runtime`. Return a typed `RuntimeRule` (`{ dir, captureFiles, checkFile, match }`). `.taskless/runtime-rule-tests/` is not enumerated for execution.
-- [ ] 1.2 Static rules stay sourced from `.taskless/rules/`; runtime rules from `.taskless/runtime-rules/` — location is the class split.
+- [x] 1.1 Add `packages/cli/src/rules/runtime/discover.ts`: enumerate `.taskless/runtime-rules/` for rule directories, parse each capture `*.yml`'s `metadata.taskless` (`kind`, `name`, `check`, `match`), and confirm the class via `kind: runtime`. Return a typed `RuntimeRule` (`{ dir, captureFiles, checkFile, match }`). `.taskless/runtime-rule-tests/` is not enumerated for execution. (Also mirrored the harness↔check contract types into `src/types/runtime-rule.ts`.)
+- [x] 1.2 Static rules stay sourced from `.taskless/rules/`; runtime rules from `.taskless/runtime-rules/` — location is the class split.
 
 ## 2. Narrow → gate → check harness
 
