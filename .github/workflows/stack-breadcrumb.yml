@@ -124,19 +124,36 @@ jobs:
               await github.rest.pulls.update({ owner, repo, pull_number: number, body });
             };
 
+            // Root values can arrive as strings (dispatch payloads) or typos
+            // (manual input); coerce and validate so an invalid root fails loudly
+            // instead of silently building an empty tree and no-op'ing.
+            const parseRoot = (value) => {
+              const parsed = Number(value);
+              return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+            };
+
             // repository_dispatch always carries client_payload.root (stage 1 sets
             // it); workflow_dispatch carries inputs.root (empty → reconcile all).
             let roots;
             if (context.eventName === "repository_dispatch") {
-              const root = context.payload.client_payload?.root;
-              if (root === undefined || root === null) {
-                core.setFailed("repository_dispatch missing client_payload.root; refusing to reconcile-all");
+              const root = parseRoot(context.payload.client_payload?.root);
+              if (root === undefined) {
+                core.setFailed(`repository_dispatch requires a positive integer client_payload.root; got ${JSON.stringify(context.payload.client_payload?.root)}`);
                 return;
               }
               roots = [root];
             } else {
-              const input = context.payload.inputs?.root;
-              roots = input ? [Number(input)] : stack.findAllRoots(pullRequests, defaultBranch);
+              const rawInput = context.payload.inputs?.root;
+              if (rawInput) {
+                const root = parseRoot(rawInput);
+                if (root === undefined) {
+                  core.setFailed(`workflow_dispatch input "root" must be a positive integer PR number; got "${rawInput}"`);
+                  return;
+                }
+                roots = [root];
+              } else {
+                roots = stack.findAllRoots(pullRequests, defaultBranch);
+              }
             }
 
             for (const root of roots) {
