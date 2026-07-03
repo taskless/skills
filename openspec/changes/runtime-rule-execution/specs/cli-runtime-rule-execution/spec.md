@@ -2,18 +2,19 @@
 
 ### Requirement: Runtime rules are directories recognized by metadata
 
-The CLI SHALL recognize a **runtime rule** as a directory under `.taskless/runtime-rules/`
-containing one or more ast-grep capture `*.yml` and exactly one `check.ts`, its capture rules
-declaring `metadata.taskless.kind: runtime`. The CLI SHALL read `metadata.taskless.check` to
-locate the `check.ts` within the directory and `metadata.taskless.match` (`anchor` or `broad`)
-to select the ast-grep invocation mode. Rule files under `.taskless/rules/` SHALL continue to
-be treated as static ast-grep rules, not runtime rules. `.taskless/runtime-rule-tests/` holds
-verification fixtures and SHALL NOT be executed by `check`.
+The CLI SHALL recognize a **runtime rule** as a directory under `.taskless/runtime-rules/<name>/`
+containing one or more ast-grep capture `*.yml` (one per capture rule) and a single `check.ts`,
+its capture rules declaring `metadata.taskless.kind: runtime`. The rule's check file SHALL be
+the `check.ts` in the rule directory. The CLI SHALL read `metadata.taskless.match` (`anchor` or
+`broad`) to select the ast-grep invocation mode. Rule files under `.taskless/rules/` SHALL
+continue to be treated as static ast-grep rules, not runtime rules.
+`.taskless/runtime-rule-tests/<name>/` holds `valid/` and `invalid/` verification fixtures and
+SHALL NOT be executed by `check`.
 
 #### Scenario: A runtime-rules directory entry is a runtime rule
 
 - **WHEN** `.taskless/runtime-rules/<name>/` contains capture `*.yml` with `metadata.taskless.kind: runtime` and a `check.ts`
-- **THEN** the CLI SHALL treat it as a runtime rule and route it to the runtime harness
+- **THEN** the CLI SHALL treat it as a runtime rule with `check.ts` as its check file and route it to the runtime harness
 
 #### Scenario: Rules under .taskless/rules remain static
 
