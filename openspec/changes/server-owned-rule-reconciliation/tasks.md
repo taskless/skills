@@ -21,19 +21,19 @@
 
 ## 4. Run-set gating in check
 
-- [ ] 4.1 Add a rule-enumeration + signing step: read every `.yml` under `.taskless/rules/`, compute `{ file, signature }` for each.
-- [ ] 4.2 In `packages/cli/src/commands/check.ts`, branch on auth state: no token (or `--anonymous`) → run all local rules with no network; token + resolvable `repositoryUrl` + not `--anonymous` → reconcile-then-gate to the `run` set.
-- [ ] 4.3 Materialize an ephemeral, gitignored `.taskless/.run/rules/` containing only the `run`-set files (matched to local files by signature); ensure `.taskless/.gitignore` covers `.run/`.
-- [ ] 4.4 Generate an sgconfig pointing `ruleDirs` at the ephemeral run dir (extend `src/filesystem/sgconfig.ts` to accept a rules dir / target) and scan that set via the existing `runAstGrepScan`.
-- [ ] 4.5 When the `run` set is empty, skip `sg scan`, produce zero results, and exit 0 (still surface advisories).
+- [x] 4.1 Add a rule-enumeration + signing step (`src/rules/run-set.ts` → `signRuleFiles`): read every `.yml` under `.taskless/rules/`, compute `{ file, path, signature }` for each.
+- [x] 4.2 In `packages/cli/src/commands/check.ts` (`resolveScanMode`), branch on auth state: no token (or `--anonymous`) → local; token + resolvable `repositoryUrl` + not `--anonymous` → reconcile, gating to the `run` set on `ok`.
+- [x] 4.3 Materialize an ephemeral, gitignored `.taskless/.run/rules/` (`materializeRunDirectory` + `selectRunFiles`) containing only the `run`-set files matched by signature; `.taskless/.gitignore` gets `.run/`.
+- [x] 4.4 Extend `src/filesystem/sgconfig.ts` to accept a target rules directory and point `ruleDirs` at the ephemeral run dir; scan via the existing `runAstGrepScan`.
+- [x] 4.5 When the `run` set is empty, skip `sg scan`, produce zero results, and exit 0 (still surface advisories).
 
 ## 5. Mismatch warnings, degrade & exit codes
 
-- [ ] 5.1 On a successful authenticated reconcile, warn on `unsafe` (tamper/drift), `unknown` (not server-issued), and `missing` (audit-only) without changing the exit code.
-- [ ] 5.2 Keep the unauthenticated/`--anonymous` path silent (run all local rules, no warning; optional informational line only).
-- [ ] 5.3 Implement the authed degrade path: token present but reconcile can't complete (no git remote / endpoint unreachable / not-deployed / transport error) → warn "verification could not be performed" and scan all local rules, no non-zero exit.
-- [ ] 5.4 Suppress all warnings/notices under `--json`; keep the existing `{ success, results }` shape (and the error envelope on scan failure).
-- [ ] 5.5 Ensure the exit code stays governed solely by error-severity results from the executed rule set.
+- [x] 5.1 On a successful authenticated reconcile, `surfaceReconcileWarnings` warns on `unsafe` (tamper/drift), `unknown` (not server-issued), and `missing` (audit-only) without changing the exit code.
+- [x] 5.2 The unauthenticated/`--anonymous` path is silent (runs all local rules, no warning).
+- [x] 5.3 The authed degrade path warns and scans all local rules with no non-zero exit — covers no git remote, `unauthorized` (401, with a re-auth hint), and `unavailable` (unreachable / not-deployed / transport).
+- [x] 5.4 All warnings/notices are suppressed under `--json` (warnings go to stderr and are gated on `!args.json`); the existing `{ success, results }` / error-envelope shapes are unchanged.
+- [x] 5.5 The exit code stays governed solely by error-severity results from the executed rule set.
 
 ## 6. Help & docs
 
