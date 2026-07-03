@@ -14,10 +14,10 @@
 
 ## 3. Reconcile API client
 
-- [ ] 3.1 Create `packages/cli/src/api/reconcile.ts` with local `ReconcileRequest` (`{ repositoryUrl, files: { file, signature }[] }`) and `ReconcileResponse` (`run`/`unsafe`/`unknown`/`missing`) types.
-- [ ] 3.2 Implement `reconcile(token, request)` issuing `POST /cli/api/reconcile` with `Authorization: Bearer <token>` against `getApiBaseUrl()`'s origin (reuse `createApiClient`/config where practical).
-- [ ] 3.3 Map outcomes to typed results: success → parsed buckets; `401` `{ error: "unauthorized" }` → unauthorized signal; transport error / `404` / not-deployed → "reconcile unavailable" signal (never a thrown hard failure that aborts `check`).
-- [ ] 3.4 Add `RECONCILE_FAILED` to the `CLIErrorCode` union in `packages/cli/src/types/errors.ts`.
+- [x] 3.1 Create `packages/cli/src/api/reconcile.ts` with local `ReconcileRequest` (`{ repositoryUrl, files: { file, signature }[] }`) and `ReconcileResponse` (`run`/`unsafe`/`unknown`/`missing`) types.
+- [x] 3.2 Implement `reconcile(token, request)` issuing `POST /cli/api/reconcile` with `Authorization: Bearer <token>` against `getApiBaseUrl()`'s origin (plain fetch, since the path is not in the generated schema).
+- [x] 3.3 Map outcomes to a discriminated `ReconcileOutcome`: success → parsed buckets (`ok`); `401` → `unauthorized`; transport error / `404` / not-deployed / any other non-2xx → `unavailable` (never a thrown hard failure that aborts `check`). Verified against the live origin: reconcile returns 405 (not yet deployed) → `unavailable`.
+- [x] 3.4 Add `RECONCILE_FAILED` to the `CLIErrorCode` union in `packages/cli/src/types/errors.ts`.
 
 ## 4. Run-set gating in check
 

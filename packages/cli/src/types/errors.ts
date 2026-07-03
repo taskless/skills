@@ -14,6 +14,7 @@ export type CLIErrorCode =
   | "INVALID_INPUT"
   | "NETWORK_ERROR"
   | "SCAN_FAILED"
+  | "RECONCILE_FAILED"
   | "INTERNAL_ERROR";
 
 /**
