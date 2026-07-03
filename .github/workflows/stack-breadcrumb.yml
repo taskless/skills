@@ -1,0 +1,216 @@
+name: Stack Breadcrumb
+
+# Self-contained stacked-PR breadcrumb. All logic lives in a zero-dependency
+# module (.github/scripts/stack-breadcrumb.cjs) that each job loads via
+# actions/github-script — no pnpm/tsx/package install, no build step.
+#
+# Two stages keep reconciliation serialized per stack root:
+#   STAGE 1 (dispatch)  — on PR shape-change events, resolve the affected
+#                         root(s) and fire a `repository_dispatch`.
+#   STAGE 2 (reconcile) — on that dispatch (or a manual `workflow_dispatch`),
+#                         render and propagate the breadcrumb, serialized per root.
+#
+# Stage 1 fires the dispatch with the built-in GITHUB_TOKEN: although that token
+# normally suppresses recursive workflow runs, `repository_dispatch` is a
+# documented exception, so stage 2 fires. NOTE: `repository_dispatch` always runs
+# from the DEFAULT BRANCH's copy of this file, so the live breadcrumb (driven by
+# PR events → dispatch → reconcile) activates only once this is merged to `main`.
+# `workflow_dispatch` instead runs from the branch you select in the "Run
+# workflow" menu, so it can be used to test the reconcile stage before merge.
+
+on:
+  pull_request:
+    # Tree SHAPE only — no `synchronize` (a head push never changes membership).
+    types: [opened, reopened, edited, closed]
+  repository_dispatch:
+    types: [stack-reconcile]
+  workflow_dispatch:
+    inputs:
+      root:
+        description: "Root PR number to reconcile (leave empty to reconcile all open stacks)"
+        required: false
+        default: ""
+
+# Permissions are least-privilege per job: stage 1 only POSTs a dispatch; only
+# stage 2 writes PR bodies.
+permissions: {}
+
+jobs:
+  dispatch:
+    name: Resolve root and dispatch reconcile
+    # Skip fork PRs (read-only token) and the bot's own body edits. The built-in
+    # GITHUB_TOKEN already won't retrigger workflows, but the actor guard makes
+    # the no-loop guarantee explicit for any non-token edit too.
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.sender.login != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # required to POST repository_dispatch
+      pull-requests: read # walk the tree
+    concurrency:
+      group: stack-breadcrumb-dispatch-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      # Check out the DEFAULT branch's copy of the script, not the PR head: this
+      # privileged job (contents: write) must run trusted, reviewed logic, never
+      # PR-supplied code.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const scriptPath = `${process.env.GITHUB_WORKSPACE}/.github/scripts/stack-breadcrumb.cjs`;
+            let stack;
+            try {
+              stack = require(scriptPath);
+            } catch (error) {
+              // Bootstrap: before this workflow is on the default branch the
+              // script isn't there yet. Skip rather than fail.
+              if (error.code === "MODULE_NOT_FOUND") {
+                core.info("stack-breadcrumb script not on the default branch yet; skipping until merged.");
+                return;
+              }
+              throw error;
+            }
+            const { owner, repo } = context.repo;
+
+            const defaultBranch = (await github.rest.repos.get({ owner, repo })).data.default_branch;
+            const rawPulls = await github.paginate(github.rest.pulls.list, {
+              owner, repo, state: "open", per_page: 100,
+            });
+            // Same-repo PRs only: the tree keys parents by branch name, so a fork
+            // PR sharing a branch name would corrupt root resolution.
+            const pullRequests = rawPulls
+              .filter((pr) => pr.head.repo?.full_name === `${owner}/${repo}`)
+              .map((pr) => ({
+                number: pr.number,
+                title: pr.title,
+                headRefName: pr.head.ref,
+                baseRefName: pr.base.ref,
+                body: pr.body ?? "",
+              }));
+
+            const trigger = {
+              number: context.payload.pull_request.number,
+              baseRefName: context.payload.pull_request.base.ref,
+            };
+            const roots = stack.resolveAffectedRoots(trigger, pullRequests, defaultBranch);
+            if (roots.length === 0) {
+              core.info(`PR #${trigger.number} affects no open stack; nothing to dispatch`);
+              return;
+            }
+            for (const root of roots) {
+              await github.rest.repos.createDispatchEvent({
+                owner, repo, event_type: "stack-reconcile", client_payload: { root },
+              });
+              core.info(`dispatched reconcile for root #${root}`);
+            }
+
+  reconcile:
+    name: Reconcile breadcrumb across the stack
+    if: github.event_name == 'repository_dispatch' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # checkout
+      pull-requests: write # edit PR bodies
+    # One reconcile per root at a time. A burst for one root collapses to the
+    # latest run; convergent writes make cancellation safe.
+    concurrency:
+      group: stack-reconcile-${{ github.event.client_payload.root || github.event.inputs.root || 'all' }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const stack = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/stack-breadcrumb.cjs`);
+            const { owner, repo } = context.repo;
+
+            const defaultBranch = (await github.rest.repos.get({ owner, repo })).data.default_branch;
+            const rawPulls = await github.paginate(github.rest.pulls.list, {
+              owner, repo, state: "open", per_page: 100,
+            });
+            // Same-repo PRs only: a fork PR sharing a branch name would corrupt
+            // branch-name-keyed tree derivation.
+            const pullRequests = rawPulls
+              .filter((pr) => pr.head.repo?.full_name === `${owner}/${repo}`)
+              .map((pr) => ({
+                number: pr.number,
+                title: pr.title,
+                headRefName: pr.head.ref,
+                baseRefName: pr.base.ref,
+                body: pr.body ?? "",
+              }));
+
+            const writeBody = async (number, body) => {
+              await github.rest.pulls.update({ owner, repo, pull_number: number, body });
+            };
+
+            // Root values can arrive as strings (dispatch payloads) or typos
+            // (manual input); coerce to a positive integer.
+            const parseRoot = (value) => {
+              const parsed = Number(value);
+              return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+            };
+
+            // repository_dispatch always carries client_payload.root (stage 1 sets
+            // it); workflow_dispatch carries inputs.root (empty → reconcile all).
+            let roots;
+            if (context.eventName === "repository_dispatch") {
+              const root = parseRoot(context.payload.client_payload?.root);
+              if (root === undefined) {
+                core.setFailed(`repository_dispatch requires a positive integer client_payload.root; got ${JSON.stringify(context.payload.client_payload?.root)}`);
+                return;
+              }
+              // The root came from stage 1 but the stack may have shifted since.
+              const actualRoot = stack.findRoot(root, pullRequests, defaultBranch);
+              if (actualRoot === undefined) {
+                // Documented race: the root merged/closed between dispatch and
+                // reconcile. Safe, explicit no-op — a later event re-resolves.
+                core.info(`root #${root} is no longer an open PR; nothing to reconcile.`);
+                return;
+              }
+              // Normalize to the current true root in case membership changed.
+              roots = [actualRoot];
+            } else {
+              const rawInput = context.payload.inputs?.root;
+              if (rawInput) {
+                const root = parseRoot(rawInput);
+                if (root === undefined) {
+                  core.setFailed(`workflow_dispatch input "root" must be a positive integer PR number; got "${rawInput}"`);
+                  return;
+                }
+                // Manual input: fail loudly if it isn't an open PR or isn't the
+                // actual stack root, rather than reconciling the wrong subtree.
+                const actualRoot = stack.findRoot(root, pullRequests, defaultBranch);
+                if (actualRoot === undefined) {
+                  core.setFailed(`workflow_dispatch input #${root} is not an open PR.`);
+                  return;
+                }
+                if (actualRoot !== root) {
+                  core.setFailed(`workflow_dispatch input #${root} is not a stack root; its root is #${actualRoot}. Re-run with #${actualRoot}, or leave the input empty to reconcile all stacks.`);
+                  return;
+                }
+                roots = [root];
+              } else {
+                roots = stack.findAllRoots(pullRequests, defaultBranch);
+              }
+            }
+
+            // reconcile() continues past an individual failed write (safe
+            // failure) and records it; surface any such failures as a job
+            // failure so an inconsistent breadcrumb doesn't pass silently.
+            const failures = [];
+            for (const root of roots) {
+              const result = await stack.reconcile(root, { pullRequests, writeBody });
+              core.info(`reconciled root #${root}: ${JSON.stringify(result)}`);
+              failures.push(...result.failed);
+            }
+            if (failures.length > 0) {
+              core.setFailed(`Failed to update ${failures.length} PR body/bodies: ${failures.map((n) => `#${n}`).join(", ")}. See logs above.`);
+            }
