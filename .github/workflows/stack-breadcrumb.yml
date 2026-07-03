@@ -202,7 +202,15 @@ jobs:
               }
             }
 
+            // reconcile() continues past an individual failed write (safe
+            // failure) and records it; surface any such failures as a job
+            // failure so an inconsistent breadcrumb doesn't pass silently.
+            const failures = [];
             for (const root of roots) {
               const result = await stack.reconcile(root, { pullRequests, writeBody });
               core.info(`reconciled root #${root}: ${JSON.stringify(result)}`);
+              failures.push(...result.failed);
+            }
+            if (failures.length > 0) {
+              core.setFailed(`Failed to update ${failures.length} PR body/bodies: ${failures.map((n) => `#${n}`).join(", ")}. See logs above.`);
             }
