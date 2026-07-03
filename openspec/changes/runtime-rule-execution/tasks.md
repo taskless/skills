@@ -5,17 +5,17 @@
 
 ## 2. Narrow → gate → check harness
 
-- [ ] 2.1 Add `packages/cli/src/rules/runtime/narrow.ts`: assemble a rule's capture rules and run ONE `ast-grep` scan — anchor mode `--inline-rules --json=stream`, broad mode `--files-with-matches` (`kind: program`). Reuse the existing scan plumbing where possible.
-- [ ] 2.2 Add match normalization to `{ rule, ruleId, file (root-relative), line (1-indexed), column, text, captures }`, mapping the hashed capture `id` back to the model `name` surfaced as `match.rule`.
-- [ ] 2.3 Gate on matches: when the narrow yields zero matches, do NOT invoke `check.ts`.
-- [ ] 2.4 Add `packages/cli/src/rules/runtime/invoke.ts`: call `check.ts`'s default export with `(root, matches)` via a CLI-bundled, pinned `tsx`; use the returned `Finding[]`. Isolate a throwing check to a single error-severity finding for that rule.
-- [ ] 2.5 Decide and implement scheduling (process-per-check vs. `worker_threads` pool vs. `import()`); bound each check with a default wall-clock timeout (overridable via `--timeout <seconds>`) that terminates the check and records a single error-severity finding.
-- [ ] 2.6 Map each `Finding` (`severity ∈ error|warning|info`) onto `CheckResult` with a runtime `source`; feed into the existing aggregation and exit-code logic.
+- [x] 2.1 Add `packages/cli/src/rules/runtime/narrow.ts`: assemble a rule's capture rules and run ONE `ast-grep` scan — anchor mode `--json=stream`, broad mode `--files-with-matches` (`kind: program`). (Used a temp `--config` rules dir rather than `--inline-rules` so multiple capture rules + full ast-grep config run in a single scan; reuses `findSgBinary`/`buildPath` from `scan.ts`.)
+- [x] 2.2 Add match normalization to `{ rule, ruleId, file (root-relative), line (1-indexed), column, text, captures }`, mapping the hashed capture `id` back to the model `name` surfaced as `match.rule`. (ast-grep 0-indexed → 1-indexed; captures from `metaVariables.single`.)
+- [x] 2.3 Gate on matches: when the narrow yields zero matches, do NOT invoke `check.ts`.
+- [x] 2.4 Add `packages/cli/src/rules/runtime/invoke.ts`: call `check.ts`'s default export with `(root, matches)` via a CLI-bundled, pinned `tsx`; use the returned `Finding[]`. Isolate a throwing check to a single error-severity finding for that rule. (Runs an embedded ESM runner under `tsx`; findings via an out-file so the check's stdout can't pollute the channel.)
+- [x] 2.5 Decide and implement scheduling: process-per-check (each invoke spawns a `tsx` process), rules run sequentially; bound each check with a default wall-clock timeout (`DEFAULT_CHECK_TIMEOUT_MS`, overridable via `--timeout`) that SIGKILLs the check and records a single error-severity finding.
+- [x] 2.6 Map each `Finding` (`severity ∈ error|warning|info`, omitted → warning) onto `CheckResult` with `source: taskless-runtime` (`src/rules/runtime/harness.ts`); feeds the existing aggregation and exit-code logic.
 
 ## 3. tsx bundling
 
-- [ ] 3.1 Add a pinned `tsx` (or equivalent loader) to the CLI bundle and resolve its path at runtime without assuming any repo-local toolchain.
-- [ ] 3.2 Verify `check.ts` executes with no `node_modules` and no precompile in a temp-dir fixture.
+- [x] 3.1 Add a pinned `tsx` to the CLI `dependencies` and resolve its bin at runtime via `createRequire`/`tsx/package.json` (no repo-local toolchain assumed); externalized from the Vite bundle (spawned as a subprocess).
+- [x] 3.2 Verify `check.ts` executes with no `node_modules` and no precompile — smoke-tested against a temp-dir fixture (discovery → narrow → `tsx` invoke → finding); automated coverage lands in Group 7.
 
 ## 4. Reconcile scoping & materialization
 
