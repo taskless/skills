@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { createInterface } from "node:readline";
 import { join } from "node:path";
@@ -69,17 +69,18 @@ function runSg(
   });
 }
 
-/** Write the given capture rules into `<directory>/rules/` and a config pointing at them. */
+/** Copy the given capture files into `<directory>/rules/` and a config pointing at them. */
 async function writeRuleConfig(
   directory: string,
   captureRules: LoadedCaptureRule[]
 ): Promise<string> {
   const rulesDirectory = join(directory, "rules");
   await mkdir(rulesDirectory, { recursive: true });
+  // Copy the original `*.yml` bytes rather than re-serializing the parsed rule —
+  // a YAML round-trip can subtly alter an exotic ast-grep config, and the file is
+  // a valid ast-grep rule as delivered.
   await Promise.all(
-    captureRules.map((c) =>
-      writeFile(join(rulesDirectory, `${c.id}.yml`), stringify(c.rule))
-    )
+    captureRules.map((c) => copyFile(c.file, join(rulesDirectory, c.fileName)))
   );
   const configPath = join(directory, "sgconfig.yml");
   await writeFile(configPath, stringify({ ruleDirs: ["rules"] }));

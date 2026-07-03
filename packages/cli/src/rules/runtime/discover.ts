@@ -87,14 +87,25 @@ async function loadCaptureRules(
 }
 
 /**
- * Enumerate `.taskless/runtime-rules/` and return each rule directory that holds
- * at least one `kind: runtime` capture rule. `.taskless/runtime-rule-tests/` is
- * never enumerated — it holds verification fixtures, not executable rules.
+ * Enumerate `.taskless/runtime-rules/` under `cwd` and return each rule
+ * directory that holds at least one `kind: runtime` capture rule.
+ * `.taskless/runtime-rule-tests/` is never enumerated — it holds verification
+ * fixtures, not executable rules.
  */
 export async function discoverRuntimeRules(
   cwd: string
 ): Promise<RuntimeRule[]> {
-  const root = join(cwd, ".taskless", RUNTIME_RULES_DIR);
+  return discoverRuntimeRulesIn(join(cwd, ".taskless", RUNTIME_RULES_DIR));
+}
+
+/**
+ * Enumerate runtime rules under an explicit `runtime-rules` root — used to
+ * re-discover rules from the materialized `.taskless/.run/` tree so the executed
+ * bytes are the blessed ones.
+ */
+export async function discoverRuntimeRulesIn(
+  root: string
+): Promise<RuntimeRule[]> {
   let directoryEntries;
   try {
     directoryEntries = await readdir(root, { withFileTypes: true });

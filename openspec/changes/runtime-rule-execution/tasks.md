@@ -5,7 +5,7 @@
 
 ## 2. Narrow → gate → check harness
 
-- [x] 2.1 Add `packages/cli/src/rules/runtime/narrow.ts`: assemble a rule's capture rules and run ONE `ast-grep` scan — anchor mode `--json=stream`, broad mode `--files-with-matches` (`kind: program`). (Used a temp `--config` rules dir rather than `--inline-rules` so multiple capture rules + full ast-grep config run in a single scan; reuses `findSgBinary`/`buildPath` from `scan.ts`.)
+- [x] 2.1 Add `packages/cli/src/rules/runtime/narrow.ts`: assemble a rule's capture rules and run ONE `ast-grep` scan per mode — anchor `--json=stream`, broad `--files-with-matches` (`kind: program`). (Used a temp `--config` rules dir rather than `--inline-rules` — a runtime rule has multiple capture rules + full ast-grep config, which `--inline-rules` can't carry; **copies the original capture `*.yml` bytes** to avoid a YAML round-trip. Grouped by mode: all-anchor = 1 scan, mixed = 1 per mode to avoid broad's whole-file streaming. Reuses `findSgBinary`/`buildPath`.)
 - [x] 2.2 Add match normalization to `{ rule, ruleId, file (root-relative), line (1-indexed), column, text, captures }`, mapping the hashed capture `id` back to the model `name` surfaced as `match.rule`. (ast-grep 0-indexed → 1-indexed; captures from `metaVariables.single`.)
 - [x] 2.3 Gate on matches: when the narrow yields zero matches, do NOT invoke `check.ts`.
 - [x] 2.4 Add `packages/cli/src/rules/runtime/invoke.ts`: call `check.ts`'s default export with `(root, matches)` via a CLI-bundled, pinned `tsx`; use the returned `Finding[]`. Isolate a throwing check to a single error-severity finding for that rule. (Runs an embedded ESM runner under `tsx`; findings via an out-file so the check's stdout can't pollute the channel.)
@@ -19,9 +19,9 @@
 
 ## 4. Reconcile scoping & materialization
 
-- [ ] 4.1 Extend `src/rules/run-set.ts` to enumerate `.taskless/runtime-rules/` and sign each rule's `check.ts` only (capture `*.yml` and static rules are inert — not reported to reconcile).
-- [ ] 4.2 Compute per-rule eligibility: a runtime rule executes only if its `check.ts` is in `run`; otherwise withhold and surface as advisory.
-- [ ] 4.3 Materialize blessed runtime rules into `.taskless/.run/` and execute `check.ts` from there (read-hash-execute); ensure `.taskless/.gitignore` still covers `.run/`.
+- [x] 4.1 Add `src/rules/runtime/run-set.ts` (runtime-cohesive rather than bloating the static `run-set.ts`): enumerate via `discoverRuntimeRules`, `signRuntimeChecks` signs each rule's `check.ts` only, `reportRuntimeChecks` maps to `{ file, signature }` (capture `*.yml` and static rules are inert — not reported).
+- [x] 4.2 `selectBlessedRuntimeRules(signed, run)` computes per-rule eligibility by content-join: a rule is blessed iff its `check.ts` signature is in `run`; the rest are `withheld` (advisory).
+- [x] 4.3 `materializeRuntimeRules` copies blessed rule dirs into `.taskless/.run/runtime-rules/<name>/` and re-discovers them (via `discoverRuntimeRulesIn`) so the narrow + `check.ts` execute the blessed bytes; `addToGitignore` keeps `.run/` ignored.
 
 ## 5. check dispatch & modes
 
