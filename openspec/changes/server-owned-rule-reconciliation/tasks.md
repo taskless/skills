@@ -37,8 +37,8 @@
 
 ## 6. Help & docs
 
-- [ ] 6.1 Update `packages/cli/src/help/check.txt` to explain the auth-state behavior (offline runs local; authed reconciles and warns on mismatches), the run-set gate, and `--anonymous`.
-- [ ] 6.2 Update `packages/cli/src/help/ci.txt` to describe the CI backstop as the enforcement point over the reconciled run set.
+- [x] 6.1 Update `packages/cli/src/help/check.txt` with a "What runs (auth state)" section (offline/`--anonymous` runs local; authed reconciles and warns on `unsafe`/`unknown`/`missing`; warnings are stderr-only and never affect exit code or `--json`).
+- [x] 6.2 Update `packages/cli/src/help/ci.txt` step 7 to describe the optional `TASKLESS_TOKEN` backstop as the enforcement point over the reconciled run set.
 
 ## 7. Tests & verification
 

@@ -1,16 +1,37 @@
 # Topic: check     (CLI v%(CLI_VERSION)s / topic v1)
 
 ## Goal
-Run all rules in `.taskless/rules/` against the codebase and report
-matches. Used standalone (full project scan), in CI (diff-only scan),
-or after rule create/improve to validate.
+Run the applicable rules in `.taskless/rules/` against the codebase and
+report matches. Used standalone (full project scan), in CI (diff-only
+scan), or after rule create/improve to validate.
 
 ## Preconditions
 - `.taskless/` directory exists.
 - At least one rule exists in `.taskless/rules/`. (If none exist,
   the CLI exits 0 with a friendly message suggesting
   `taskless rule create`.)
-- No auth required.
+- No auth required. What actually runs depends on auth state — see
+  "What runs (auth state)".
+
+## What runs (auth state)
+
+`check` never requires auth, but auth state decides which rules execute:
+
+- **Logged out** (or `--anonymous`) — scans every rule in
+  `.taskless/rules/` locally, with no network call. The offline linter
+  posture; no warnings.
+- **Logged in** — reconciles the local rule files against the Taskless
+  service and runs ONLY the server-blessed `run` set. Files that drift
+  from the blessed copy (`unsafe`), were never issued (`unknown`), or
+  are expected but absent locally (`missing`) are reported as warnings
+  and do NOT run. If reconciliation can't complete (no GitHub remote,
+  service unavailable/not deployed, or a rejected token), `check` warns
+  that verification was skipped and falls back to a full local scan.
+
+Warnings are human-readable stderr only: they never change the exit
+code and never appear in `--json` output (which stays the
+`{ success, results }` shape). The authoritative allow-list is the
+server's; the CI backstop (`taskless help ci`) is the enforcement point.
 
 ## Steps
 
