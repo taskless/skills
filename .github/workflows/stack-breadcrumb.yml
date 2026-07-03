@@ -1,0 +1,145 @@
+name: Stack Breadcrumb
+
+# Self-contained stacked-PR breadcrumb. All logic lives in a zero-dependency
+# module (.github/scripts/stack-breadcrumb.cjs) that each job loads via
+# actions/github-script — no pnpm/tsx/package install, no build step.
+#
+# Two stages keep reconciliation serialized per stack root:
+#   STAGE 1 (dispatch)  — on PR shape-change events, resolve the affected
+#                         root(s) and fire a `repository_dispatch`.
+#   STAGE 2 (reconcile) — on that dispatch (or a manual `workflow_dispatch`),
+#                         render and propagate the breadcrumb, serialized per root.
+#
+# Stage 1 fires the dispatch with the built-in GITHUB_TOKEN: although that token
+# normally suppresses recursive workflow runs, `repository_dispatch` is a
+# documented exception, so stage 2 fires. NOTE: `repository_dispatch` /
+# `workflow_dispatch` workflows only ever run from the DEFAULT BRANCH's copy of
+# this file, so stage 2 activates only once this is merged to `main`.
+
+on:
+  pull_request:
+    # Tree SHAPE only — no `synchronize` (a head push never changes membership).
+    types: [opened, reopened, edited, closed]
+  repository_dispatch:
+    types: [stack-reconcile]
+  workflow_dispatch:
+    inputs:
+      root:
+        description: "Root PR number to reconcile (leave empty to reconcile all open stacks)"
+        required: false
+        default: ""
+
+# Permissions are least-privilege per job: stage 1 only POSTs a dispatch; only
+# stage 2 writes PR bodies.
+permissions: {}
+
+jobs:
+  dispatch:
+    name: Resolve root and dispatch reconcile
+    # Skip fork PRs (read-only token) and the bot's own body edits. The built-in
+    # GITHUB_TOKEN already won't retrigger workflows, but the actor guard makes
+    # the no-loop guarantee explicit for any non-token edit too.
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.sender.login != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # required to POST repository_dispatch
+      pull-requests: read # walk the tree
+    concurrency:
+      group: stack-breadcrumb-dispatch-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const stack = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/stack-breadcrumb.cjs`);
+            const { owner, repo } = context.repo;
+
+            const defaultBranch = (await github.rest.repos.get({ owner, repo })).data.default_branch;
+            const rawPulls = await github.paginate(github.rest.pulls.list, {
+              owner, repo, state: "open", per_page: 100,
+            });
+            const pullRequests = rawPulls.map((pr) => ({
+              number: pr.number,
+              title: pr.title,
+              headRefName: pr.head.ref,
+              baseRefName: pr.base.ref,
+              body: pr.body ?? "",
+            }));
+
+            const trigger = {
+              number: context.payload.pull_request.number,
+              baseRefName: context.payload.pull_request.base.ref,
+            };
+            const roots = stack.resolveAffectedRoots(trigger, pullRequests, defaultBranch);
+            if (roots.length === 0) {
+              core.info(`PR #${trigger.number} affects no open stack; nothing to dispatch`);
+              return;
+            }
+            for (const root of roots) {
+              await github.rest.repos.createDispatchEvent({
+                owner, repo, event_type: "stack-reconcile", client_payload: { root },
+              });
+              core.info(`dispatched reconcile for root #${root}`);
+            }
+
+  reconcile:
+    name: Reconcile breadcrumb across the stack
+    if: github.event_name == 'repository_dispatch' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # checkout
+      pull-requests: write # edit PR bodies
+    # One reconcile per root at a time. A burst for one root collapses to the
+    # latest run; convergent writes make cancellation safe.
+    concurrency:
+      group: stack-reconcile-${{ github.event.client_payload.root || github.event.inputs.root || 'all' }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const stack = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/stack-breadcrumb.cjs`);
+            const { owner, repo } = context.repo;
+
+            const defaultBranch = (await github.rest.repos.get({ owner, repo })).data.default_branch;
+            const rawPulls = await github.paginate(github.rest.pulls.list, {
+              owner, repo, state: "open", per_page: 100,
+            });
+            const pullRequests = rawPulls.map((pr) => ({
+              number: pr.number,
+              title: pr.title,
+              headRefName: pr.head.ref,
+              baseRefName: pr.base.ref,
+              body: pr.body ?? "",
+            }));
+
+            const writeBody = async (number, body) => {
+              await github.rest.pulls.update({ owner, repo, pull_number: number, body });
+            };
+
+            // repository_dispatch always carries client_payload.root (stage 1 sets
+            // it); workflow_dispatch carries inputs.root (empty → reconcile all).
+            let roots;
+            if (context.eventName === "repository_dispatch") {
+              const root = context.payload.client_payload?.root;
+              if (root === undefined || root === null) {
+                core.setFailed("repository_dispatch missing client_payload.root; refusing to reconcile-all");
+                return;
+              }
+              roots = [root];
+            } else {
+              const input = context.payload.inputs?.root;
+              roots = input ? [Number(input)] : stack.findAllRoots(pullRequests, defaultBranch);
+            }
+
+            for (const root of roots) {
+              const result = await stack.reconcile(root, { pullRequests, writeBody });
+              core.info(`reconciled root #${root}: ${JSON.stringify(result)}`);
+            }
