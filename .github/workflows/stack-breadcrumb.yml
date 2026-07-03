@@ -12,9 +12,11 @@ name: Stack Breadcrumb
 #
 # Stage 1 fires the dispatch with the built-in GITHUB_TOKEN: although that token
 # normally suppresses recursive workflow runs, `repository_dispatch` is a
-# documented exception, so stage 2 fires. NOTE: `repository_dispatch` /
-# `workflow_dispatch` workflows only ever run from the DEFAULT BRANCH's copy of
-# this file, so stage 2 activates only once this is merged to `main`.
+# documented exception, so stage 2 fires. NOTE: `repository_dispatch` always runs
+# from the DEFAULT BRANCH's copy of this file, so the live breadcrumb (driven by
+# PR events → dispatch → reconcile) activates only once this is merged to `main`.
+# `workflow_dispatch` instead runs from the branch you select in the "Run
+# workflow" menu, so it can be used to test the reconcile stage before merge.
 
 on:
   pull_request:
@@ -150,8 +152,7 @@ jobs:
             };
 
             // Root values can arrive as strings (dispatch payloads) or typos
-            // (manual input); coerce and validate so an invalid root fails loudly
-            // instead of silently building an empty tree and no-op'ing.
+            // (manual input); coerce to a positive integer.
             const parseRoot = (value) => {
               const parsed = Number(value);
               return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
@@ -166,13 +167,33 @@ jobs:
                 core.setFailed(`repository_dispatch requires a positive integer client_payload.root; got ${JSON.stringify(context.payload.client_payload?.root)}`);
                 return;
               }
-              roots = [root];
+              // The root came from stage 1 but the stack may have shifted since.
+              const actualRoot = stack.findRoot(root, pullRequests, defaultBranch);
+              if (actualRoot === undefined) {
+                // Documented race: the root merged/closed between dispatch and
+                // reconcile. Safe, explicit no-op — a later event re-resolves.
+                core.info(`root #${root} is no longer an open PR; nothing to reconcile.`);
+                return;
+              }
+              // Normalize to the current true root in case membership changed.
+              roots = [actualRoot];
             } else {
               const rawInput = context.payload.inputs?.root;
               if (rawInput) {
                 const root = parseRoot(rawInput);
                 if (root === undefined) {
                   core.setFailed(`workflow_dispatch input "root" must be a positive integer PR number; got "${rawInput}"`);
+                  return;
+                }
+                // Manual input: fail loudly if it isn't an open PR or isn't the
+                // actual stack root, rather than reconciling the wrong subtree.
+                const actualRoot = stack.findRoot(root, pullRequests, defaultBranch);
+                if (actualRoot === undefined) {
+                  core.setFailed(`workflow_dispatch input #${root} is not an open PR.`);
+                  return;
+                }
+                if (actualRoot !== root) {
+                  core.setFailed(`workflow_dispatch input #${root} is not a stack root; its root is #${actualRoot}. Re-run with #${actualRoot}, or leave the input empty to reconcile all stacks.`);
                   return;
                 }
                 roots = [root];
