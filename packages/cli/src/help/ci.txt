@@ -161,13 +161,18 @@ different structure for CircleCI. The six steps stay the same.
 `taskless check` does NOT require authentication. The generated CI
 config works out of the box with no secrets and scans all local rules.
 
-Optionally, exposing a `TASKLESS_TOKEN` secret turns CI into the
-**backstop**: an authenticated `check` reconciles the repo's rule files
-against the Taskless service and runs exactly the server-blessed `run`
-set, warning on drift (`unsafe`), unissued files (`unknown`), or
-missing rules. This is the enforcement point for the server-owned rule
-set — local developer runs are advisory. To wire it, set the token as
-an env var on the check step (GitHub Actions):
+Static ast-grep rules always run in CI with no secrets. **Runtime
+rules** (`.taskless/runtime-rules/`, which execute a `check.ts`) only
+run when their code is server-verified — so an unauthenticated CI job
+runs the static rules and skips the runtime ones.
+
+Exposing a `TASKLESS_TOKEN` secret turns CI into the **backstop** for
+runtime rules: an authenticated `check` reconciles each runtime rule's
+`check.ts` against the Taskless service and runs exactly the
+server-blessed set, withholding any that drift or were never issued.
+This is the enforcement point for runtime rules — local developer runs
+skip them unless `--dangerously-run-scripts` is passed. To wire it, set
+the token as an env var on the check step (GitHub Actions):
 
 ```yaml
       - name: Taskless check
