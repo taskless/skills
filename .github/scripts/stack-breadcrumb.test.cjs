@@ -51,6 +51,14 @@ test("parseStackComment: undefined when no marker", () => {
   assert.equal(parseStackComment("just a normal PR body"), undefined);
 });
 
+test("parseStackComment: undefined for a bare opening marker without a closing tag", () => {
+  // A pasted/stray opening marker must not be treated as a managed region.
+  assert.equal(
+    parseStackComment("intro\n<!-- stack root=10 pr=10,11 -->\nno closing tag"),
+    undefined
+  );
+});
+
 test("getRegion: extracts the full region", () => {
   assert.equal(getRegion(`before\n${REGION}\nafter`), REGION);
 });

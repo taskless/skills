@@ -21,9 +21,11 @@
 // Marker-region surgery
 //
 // Each managed PR body carries at most one region delimited by
-// `<!-- stack root=N pr=… -->` … `<!-- /stack -->`. Splicing leaves all other
-// bytes untouched (so a git-town breadcrumb or any other content survives);
-// removing a region collapses the blank lines it left behind.
+// `<!-- stack root=N pr=… -->` … `<!-- /stack -->`. Replacing a region in place
+// leaves every other byte untouched, so a git-town breadcrumb or any other
+// content is never disturbed. Appending trims the body's trailing whitespace
+// before adding the region after a blank line; removing collapses the blank
+// lines the region left behind and trims trailing whitespace.
 // ---------------------------------------------------------------------------
 
 /** Matches the whole region, opening marker through `<!-- /stack -->`. */
@@ -32,9 +34,17 @@ const REGION_PATTERN = /<!-- stack [^>]*-->[\S\s]*?<!-- \/stack -->/;
 /** Matches just the opening marker, capturing `root` and the `pr=` list. */
 const OPEN_MARKER_PATTERN = /<!-- stack root=(\d+) pr=([\d,]*) -->/;
 
-/** Parse the opening marker's `root` and ordered `pr=` membership list, if present. */
+/**
+ * Parse the opening marker's `root` and ordered `pr=` membership list — but only
+ * inside a COMPLETE region (both markers present), so a stray or pasted opening
+ * marker without its closing tag is not mistaken for a managed region.
+ */
 function parseStackComment(body) {
-  const match = OPEN_MARKER_PATTERN.exec(body);
+  const region = getRegion(body);
+  if (region === undefined) {
+    return undefined;
+  }
+  const match = OPEN_MARKER_PATTERN.exec(region);
   if (!match) {
     return undefined;
   }
