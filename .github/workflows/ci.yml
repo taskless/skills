@@ -40,3 +40,6 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+      - name: Test workflow scripts
+        run: node --test .github/scripts/*.test.cjs
