@@ -33,13 +33,13 @@
 
 ## 6. Help & docs
 
-- [ ] 6.1 Update `packages/cli/src/help/check.txt` with a runtime-rule section: what runs per mode, and the `--dangerously-run-scripts` warning.
-- [ ] 6.2 Update `packages/cli/src/help/ci.txt` to note the enforced (`--enforce`) sandbox as the authoritative runtime-rule enforcement point.
+- [x] 6.1 Updated `check.txt` (topic v2): the two rule kinds, what runs per mode, the `--dangerously-run-scripts` warning, `--timeout`, and the `--json` `skipped` array.
+- [x] 6.2 Updated `ci.txt` step 7: static rules always run unauthenticated; the `TASKLESS_TOKEN` backstop is the authoritative enforcement point for runtime `check.ts`.
 
 ## 7. Tests & verification
 
-- [ ] 7.1 Harness unit tests: narrow assembly (anchor/broad), gate-on-zero-matches (check never invoked), match normalization (hashed id → model name), `Finding` → `CheckResult` mapping, throwing-check isolation, timeout → error finding.
-- [ ] 7.2 Mode integration tests (subprocess against `dist/`, temp-dir fixtures with a mock reconcile server + git origin): authed runs blessed runtime rules; partially-blessed rule withheld; logged-out and `--anonymous` skip runtime + report skipped; reconcile-unavailable skips runtime; `--dangerously-run-scripts` runs runtime offline with a warning.
-- [ ] 7.3 Static-always-run tests: static rules run in every mode; static rules are not reported to reconcile.
-- [ ] 7.4 `--json` shape tests: warnings/notices suppressed; runtime findings appear under the same `results` shape as static findings.
-- [ ] 7.5 Run `pnpm typecheck`, `pnpm lint`, and the full `pnpm test` — all green.
+- [x] 7.1 `test/runtime-harness.test.ts` (imports src, real ast-grep + tsx): discovery, gate-on-zero-matches (check never invoked), match normalization + `Finding`→`CheckResult` indexing, throwing-check isolation, timeout → error finding.
+- [x] 7.2 `test/runtime-check.test.ts` (subprocess against `dist/`, temp fixtures + mock reconcile server + git origin): authed runs blessed rules; empty-run withholds; logged-out and `--anonymous` skip + report; reconcile-unavailable (503) skips; `--dangerously-run-scripts` runs offline with a warning.
+- [x] 7.3 Static-always-run asserted in every mode; reconcile receives ONLY the runtime `check.ts` (never the static YAML).
+- [x] 7.4 `--json` shape: warnings/notices suppressed; runtime findings share the `results` shape; the optional `skipped` array present when runtime rules don't run.
+- [x] 7.5 `pnpm --filter @taskless/cli typecheck`, `pnpm lint`, and full `pnpm test` (338 tests) — all green. Also fixed a real timeout bug (SIGKILL the tsx process _group_, not just the wrapper, so a runaway check is actually terminated).

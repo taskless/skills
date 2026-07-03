@@ -89,16 +89,26 @@ export async function invokeCheck(
     await writeFile(runnerPath, RUNNER_SOURCE);
 
     const result = await new Promise<InvokeResult>((resolvePromise) => {
+      // `detached` makes the child its own process-group leader so a timeout
+      // can SIGKILL the whole tree — `tsx` re-execs node as a grandchild, and
+      // killing only the wrapper would leave a runaway check running.
       const child = spawn(
         process.execPath,
         [tsxCli, runnerPath, checkFile, root, matchesPath, outPath],
-        { stdio: ["ignore", "ignore", "pipe"] }
+        { stdio: ["ignore", "ignore", "pipe"], detached: true }
       );
       const stderrChunks: string[] = [];
       let timedOut = false;
+      const killTree = () => {
+        try {
+          if (child.pid !== undefined) process.kill(-child.pid, "SIGKILL");
+        } catch {
+          child.kill("SIGKILL");
+        }
+      };
       const timer = setTimeout(() => {
         timedOut = true;
-        child.kill("SIGKILL");
+        killTree();
       }, timeoutMs);
 
       child.stderr.on("data", (chunk: Buffer) =>
