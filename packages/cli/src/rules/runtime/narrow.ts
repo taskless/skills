@@ -52,12 +52,16 @@ function runSg(
       stderrChunks.push(chunk.toString())
     );
     child.on("error", reject);
-    child.on("close", (code) => {
-      // ast-grep exits 1 when matches are found — expected. >1 is a real failure.
-      if (code !== null && code > 1) {
+    child.on("close", (code, signal) => {
+      // ast-grep exits 1 when matches are found — expected. A `null` code means
+      // the process was killed by a signal (e.g. OOM); treat that and any exit
+      // >1 as a real failure rather than silently dropping matches.
+      if (code === null || code > 1) {
+        const cause =
+          code === null ? `signal ${String(signal)}` : `exit ${String(code)}`;
         reject(
           new Error(
-            `ast-grep narrow failed (exit ${String(code)})${
+            `ast-grep narrow failed (${cause})${
               stderrChunks.length > 0 ? `: ${stderrChunks.join("").trim()}` : ""
             }`
           )
@@ -137,11 +141,15 @@ export async function runNarrow(
       });
     }
 
-    if (broad.length > 0) {
-      const config = await writeRuleConfig(join(workDirectory, "broad"), broad);
-      // A single ruleId can't be recovered from --files-with-matches; attribute
-      // broad matches to the (usually sole) broad capture rule.
-      const broadRule = broad[0]!;
+    // `--files-with-matches` reports paths only — it can't say which rule
+    // matched — so run one broad scan per broad capture rule and attribute each
+    // file to that rule. (Broad rules are whole-language enumerators, so this is
+    // cheap and the common case is a single broad rule.)
+    for (const broadRule of broad) {
+      const config = await writeRuleConfig(
+        join(workDirectory, `broad-${broadRule.id}`),
+        [broadRule]
+      );
       const seen = new Set<string>();
       await runSg(root, config, ["--files-with-matches"], paths, (line) => {
         const file = line.trim();

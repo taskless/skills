@@ -1,5 +1,5 @@
 import { cp, mkdir, rm } from "node:fs/promises";
-import { join, relative } from "node:path";
+import { join, relative, sep } from "node:path";
 
 import { addToGitignore } from "../../filesystem/gitignore";
 import { signRuleFile } from "../rule-hash";
@@ -16,20 +16,35 @@ export interface SignedRuntimeRule {
   signature: string;
 }
 
+/** Result of signing a set of runtime rules' `check.ts` files. */
+export interface RuntimeSigningResult {
+  /** Rules whose `check.ts` was read and signed. */
+  signed: SignedRuntimeRule[];
+  /** Rules whose `check.ts` was missing or unreadable (cannot be reconciled). */
+  unreadable: RuntimeRule[];
+}
+
 /**
  * Sign each runtime rule's `check.ts` (only) — the sole artifact carrying
  * arbitrary code execution. Capture `*.yml` are inert and are neither signed nor
- * reported.
+ * reported. A rule whose `check.ts` cannot be read is returned in `unreadable`
+ * (never thrown) so one malformed rule never aborts the whole `check`.
  */
 export async function signRuntimeChecks(
   rules: RuntimeRule[]
-): Promise<SignedRuntimeRule[]> {
-  return Promise.all(
-    rules.map(async (rule) => ({
-      rule,
-      signature: await signRuleFile(rule.checkFile),
-    }))
+): Promise<RuntimeSigningResult> {
+  const signed: SignedRuntimeRule[] = [];
+  const unreadable: RuntimeRule[] = [];
+  await Promise.all(
+    rules.map(async (rule) => {
+      try {
+        signed.push({ rule, signature: await signRuleFile(rule.checkFile) });
+      } catch {
+        unreadable.push(rule);
+      }
+    })
   );
+  return { signed, unreadable };
 }
 
 /** Map signed runtime rules to the reconcile report (`check.ts` path + signature). */
@@ -38,7 +53,8 @@ export function reportRuntimeChecks(
   signed: SignedRuntimeRule[]
 ): ReportedFile[] {
   return signed.map(({ rule, signature }) => ({
-    file: relative(cwd, rule.checkFile),
+    // Reconcile paths are repo-relative POSIX; normalize Windows separators.
+    file: relative(cwd, rule.checkFile).split(sep).join("/"),
     signature,
   }));
 }

@@ -175,7 +175,15 @@ async function planRuntime(
     );
   }
 
-  const signed = await signRuntimeChecks(discovered);
+  // A rule whose check.ts is missing/unreadable is reported, not fatal: signing
+  // never throws, and such rules are surfaced as skipped so static checks and
+  // the other runtime rules are unaffected.
+  const { signed, unreadable } = await signRuntimeChecks(discovered);
+  const unreadableSkips: SkippedRuntimeRule[] = unreadable.map((rule) => ({
+    rule: rule.name,
+    reason: "its check.ts is missing or unreadable",
+  }));
+
   const outcome = await reconcile(token, {
     repositoryUrl,
     files: reportRuntimeChecks(cwd, signed),
@@ -198,14 +206,26 @@ async function planRuntime(
     signed,
     outcome.result.run
   );
-  const execute =
-    blessed.length > 0 ? await materializeRuntimeRules(cwd, blessed) : [];
+  let execute: RuntimeRule[] = [];
+  try {
+    execute =
+      blessed.length > 0 ? await materializeRuntimeRules(cwd, blessed) : [];
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return skipAllRuntime(
+      discovered,
+      `runtime rules could not be materialized (${message})`
+    );
+  }
   return {
     execute,
-    skipped: withheld.map((rule) => ({
-      rule: rule.name,
-      reason: "not blessed by the server (unsafe / unknown / drift)",
-    })),
+    skipped: [
+      ...unreadableSkips,
+      ...withheld.map((rule) => ({
+        rule: rule.name,
+        reason: "not blessed by the server (unsafe / unknown / drift)",
+      })),
+    ],
     notices: [],
   };
 }

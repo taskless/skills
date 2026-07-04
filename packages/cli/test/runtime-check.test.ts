@@ -281,4 +281,49 @@ describe("check: static vs runtime dispatch", () => {
     expect(stderr).toContain("dangerously-run-scripts");
     expect(stdout).toContain("demo"); // runtime finding surfaced
   });
+
+  it("a runtime rule missing check.ts is skipped, not fatal; static still runs", async () => {
+    // A malformed rule (capture yml, no check.ts) must not abort the whole check.
+    const broken = join(directory, ".taskless", "runtime-rules", "broken");
+    await mkdir(broken, { recursive: true });
+    await writeFile(join(broken, "logs.yml"), RUNTIME_CAPTURE, "utf8");
+
+    const server = await startMockServer((request) => ({
+      statusCode: 200,
+      body: {
+        run: [
+          {
+            ruleId: "demo",
+            file: CHECK_REPORT_PATH,
+            signature: sig(request, "check.ts"),
+          },
+        ],
+        unsafe: [],
+        unknown: [],
+        missing: [],
+      },
+    }));
+    try {
+      const { stdout, exitCode } = await runCli(
+        ["check", "-d", directory, "--json"],
+        {
+          TASKLESS_TOKEN: "fake.token",
+          TASKLESS_API_URL: server.apiUrl,
+        }
+      );
+      const output = parseJson(stdout);
+      expect(exitCode).toBe(0); // not SCAN_FAILED
+      // The good runtime rule still ran and static still ran.
+      expect(output.results.some((r) => r.source === "taskless-runtime")).toBe(
+        true
+      );
+      expect(output.results.some((r) => r.ruleId === "no-console")).toBe(true);
+      // The broken rule is reported as skipped, not crashed.
+      expect(output.skipped?.some((s) => s.rule === "broken")).toBe(true);
+      // Only the readable check.ts was reported to the server.
+      expect(server.requests[0]!.files).toHaveLength(1);
+    } finally {
+      await server.close();
+    }
+  });
 });
