@@ -155,7 +155,6 @@ jobs:
             // non-open member); they're fetched only for tree structure/rendering.
             // Root resolution below still uses the open-PR list only.
             const openNumbers = new Set(pullRequests.map((pr) => pr.number));
-            const openHeadRefs = new Set(pullRequests.map((pr) => pr.headRefName));
             const historicalNumbers = new Set();
             for (const pr of pullRequests) {
               const marker = stack.parseStackComment(pr.body);
@@ -168,19 +167,13 @@ jobs:
                 }
               }
             }
-            // Fetch in parallel (the set is bounded by stack size). Skip a
-            // historical PR whose head ref collides with an open PR's — the tree
-            // is keyed by headRefName, so a reused branch name would corrupt it.
-            const historical = (
+            // Fetch in parallel (the set is bounded by stack size); keep same-repo PRs.
+            const fetched = (
               await Promise.all(
                 [...historicalNumbers].map(async (number) => {
                   try {
                     const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: number });
                     if (pr.head.repo?.full_name !== `${owner}/${repo}`) return undefined;
-                    if (openHeadRefs.has(pr.head.ref)) {
-                      core.info(`stack-breadcrumb: skipping historical PR #${number}; head ref "${pr.head.ref}" collides with an open PR`);
-                      return undefined;
-                    }
                     return {
                       number: pr.number,
                       title: pr.title,
@@ -196,6 +189,20 @@ jobs:
                 })
               )
             ).filter((pr) => pr !== undefined);
+            // The tree is keyed by headRefName, so admit a historical PR only if
+            // its head ref is not already claimed — by an open PR OR an earlier
+            // historical one. A reused branch name would otherwise corrupt tree
+            // derivation.
+            const claimedHeadRefs = new Set(pullRequests.map((pr) => pr.headRefName));
+            const historical = [];
+            for (const pr of fetched) {
+              if (claimedHeadRefs.has(pr.headRefName)) {
+                core.info(`stack-breadcrumb: skipping historical PR #${pr.number}; head ref "${pr.headRefName}" already claimed by another PR`);
+                continue;
+              }
+              claimedHeadRefs.add(pr.headRefName);
+              historical.push(pr);
+            }
             const allPullRequests = [...pullRequests, ...historical];
 
             const writeBody = async (number, body) => {
