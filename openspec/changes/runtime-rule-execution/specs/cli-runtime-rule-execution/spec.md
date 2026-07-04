@@ -5,8 +5,10 @@
 The CLI SHALL recognize a **runtime rule** as a directory under `.taskless/runtime-rules/<name>/`
 containing one or more ast-grep capture `*.yml` (one per capture rule) and a single `check.ts`,
 its capture rules declaring `metadata.taskless.kind: runtime`. The rule's check file SHALL be
-the `check.ts` in the rule directory. The CLI SHALL read `metadata.taskless.match` (`anchor` or
-`broad`) to select the ast-grep invocation mode. Rule files under `.taskless/rules/` SHALL
+the `check.ts` in the rule directory. The CLI SHALL read **each capture rule's**
+`metadata.taskless.match` (`anchor` or `broad`) to select that capture rule's ast-grep
+invocation mode; capture rules within one runtime rule MAY mix modes (each is independent).
+Rule files under `.taskless/rules/` SHALL
 continue to be treated as static ast-grep rules, not runtime rules.
 `.taskless/runtime-rule-tests/<name>/` holds `valid/` and `invalid/` verification fixtures and
 SHALL NOT be executed by `check`.
@@ -45,7 +47,9 @@ The CLI SHALL normalize every narrow match to
 `{ rule, ruleId, file, line, column, text, captures }`, where `file` is root-relative, `line`
 is 1-indexed, and `rule` is the capture rule's stable model-assigned `name`. The CLI SHALL map
 the hashed capture-rule `id` used by the scan back to that `name` so `match.rule` is the value
-the check branches on, never the hash.
+the check branches on, never the hash. A `broad` (path-only, `--files-with-matches`) match
+carries no location or captures: its `line` and `column` SHALL be `1`, and its `text` and
+`captures` SHALL be empty.
 
 #### Scenario: Hashed id maps to model name
 

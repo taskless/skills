@@ -72,7 +72,7 @@ did not run.
 ### Requirement: Check accepts --dangerously-run-scripts to run runtime rules without server validation
 
 `taskless check` SHALL accept a `--dangerously-run-scripts` flag that runs **all** runtime
-rules by trusting their local signatures without server validation, regardless of auth state.
+rules without server validation, regardless of auth state.
 When the flag is set the CLI SHALL NOT reconcile — it SHALL skip the network entirely (matching
 how `--anonymous` forces the no-network path) and execute every present runtime rule. The CLI
 SHALL emit a prominent warning that runtime rule code is being executed unverified. The flag
@@ -163,5 +163,5 @@ non-zero code solely because reconciliation failed, and the warning SHALL be sup
 #### Scenario: Degrade warning is suppressed under --json
 
 - **WHEN** the CLI degrades and `--json` is set
-- **THEN** stdout SHALL contain only the existing `{ success, results }` JSON shape
+- **THEN** stdout SHALL contain the machine JSON shape (`{ success, results }` plus the additive optional `skipped` array for the skipped runtime rules)
 - **AND** SHALL NOT contain the human-readable degrade warning
