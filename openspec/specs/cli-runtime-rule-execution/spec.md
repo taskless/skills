@@ -129,11 +129,11 @@ toward the exit code identically to static findings. `Finding.severity` (`error`
 
 When a runtime rule is executed on a validated path, the CLI SHALL execute it from the
 ephemeral, gitignored `.taskless/.run/` materialization of the blessed bytes, not from the
-live `.taskless/rules/` tree, so the bytes executed are the exact bytes reconciliation blessed
-(read-hash-execute ordering).
+live `.taskless/runtime-rules/` tree, so the bytes executed are the exact bytes reconciliation
+blessed (read-hash-execute ordering).
 
 #### Scenario: Execution uses the blessed bytes
 
 - **WHEN** a runtime rule is blessed and executed
 - **THEN** the CLI SHALL invoke the `check.ts` materialized under `.taskless/.run/`
-- **AND** SHALL NOT execute a copy modified in `.taskless/rules/` after reconciliation
+- **AND** SHALL NOT execute a copy modified in `.taskless/runtime-rules/` after reconciliation

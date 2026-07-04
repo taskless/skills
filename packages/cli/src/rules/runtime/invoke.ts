@@ -100,8 +100,21 @@ export async function invokeCheck(
       const stderrChunks: string[] = [];
       let timedOut = false;
       const killTree = () => {
+        if (child.pid === undefined) return;
+        if (process.platform === "win32") {
+          // Negative PIDs aren't supported on Windows; `taskkill /T` terminates
+          // the whole tree (the tsx wrapper and its re-exec'd node grandchild).
+          try {
+            spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
+              stdio: "ignore",
+            });
+          } catch {
+            child.kill("SIGKILL");
+          }
+          return;
+        }
         try {
-          if (child.pid !== undefined) process.kill(-child.pid, "SIGKILL");
+          process.kill(-child.pid, "SIGKILL");
         } catch {
           child.kill("SIGKILL");
         }

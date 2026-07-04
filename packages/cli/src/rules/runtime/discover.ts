@@ -123,15 +123,15 @@ export async function discoverRuntimeRulesIn(
     const captureRules = await loadCaptureRules(directory);
     if (captureRules.length === 0) continue; // not a runtime rule
 
-    // Every capture rule of a runtime rule names the same `check.ts`; the
-    // generator always writes `check.ts`, so fall back to that.
-    const checkName =
-      captureRules[0]!.rule.metadata.taskless.check || "check.ts";
+    // The check file is always `check.ts` inside the rule directory (per spec).
+    // We deliberately do NOT resolve `metadata.taskless.check` as a path — an
+    // arbitrary value (e.g. `../../evil.ts`) must not be able to point execution
+    // or signing at a file outside the rule directory.
     rules.push({
       name: entry.name,
       dir: directory,
       captureRules,
-      checkFile: join(directory, checkName),
+      checkFile: join(directory, "check.ts"),
     });
   }
   return rules;
