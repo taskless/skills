@@ -64,7 +64,9 @@ export async function canonicalHash(fileText: string): Promise<string> {
 /**
  * Parse and validate a signature envelope. The algoVersion is read up to the
  * first `;` — before any `key=value` parsing — so versioning never depends on
- * the parameter syntax. Throws on a malformed or unsupported envelope.
+ * the parameter syntax. Throws on a malformed envelope; an unknown (future)
+ * algoVersion is parsed leniently (its `algo`/`digest` are not validated) so
+ * newer signatures stay forward-compatible rather than being rejected.
  */
 export function parseSignature(signature: string): ParsedSignature {
   const firstDelimiter = signature.indexOf(";");
