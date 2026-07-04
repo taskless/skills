@@ -104,7 +104,7 @@ be a release blocker (the test SHALL fail the build).
 - **THEN** the test SHALL fail
 - **AND** the build SHALL NOT pass
 
-### Requirement: Reconcile reports every held rule file
+### Requirement: Reconcile reports every runtime rule's check.ts
 
 Reconciliation SHALL be scoped to the **`check.ts` of runtime rules** — the only artifact that
 carries arbitrary code execution. Static ast-grep rules and runtime-rule capture `*.yml` are
