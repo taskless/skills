@@ -143,7 +143,7 @@ Ship a pinned `tsx` (or equivalent loader) with the CLI so `check.ts` runs witho
 `node_modules`/toolchain in the user's repo. Execute blessed runtime rules from the ephemeral,
 gitignored `.taskless/.run/` (extending the stacked-under materialize step), so the bytes
 executed are exactly the reconciled-and-blessed bytes (read-hash-execute ordering), not
-whatever is live in `.taskless/rules/` at exec time.
+whatever is live in `.taskless/runtime-rules/` at exec time.
 
 _Alternative rejected:_ require the user to have `tsx`/`ts-node`. Non-hermetic, version-drift
 prone, and breaks the "no toolchain assumptions" posture the rest of the CLI keeps.
