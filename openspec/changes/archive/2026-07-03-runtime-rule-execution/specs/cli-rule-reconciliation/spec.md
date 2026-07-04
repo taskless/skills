@@ -1,6 +1,11 @@
+## RENAMED Requirements
+
+- FROM: `### Requirement: Reconcile reports every held rule file`
+- TO: `### Requirement: Reconcile reports every runtime rule's check.ts`
+
 ## MODIFIED Requirements
 
-### Requirement: Reconcile reports every held rule file
+### Requirement: Reconcile reports every runtime rule's check.ts
 
 Reconciliation SHALL be scoped to the **`check.ts` of runtime rules** — the only artifact that
 carries arbitrary code execution. Static ast-grep rules and runtime-rule capture `*.yml` are

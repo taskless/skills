@@ -66,8 +66,9 @@ mode, and never parses rule intent beyond this metadata envelope and the ast-gre
 already understands. `.taskless/runtime-rule-tests/<name>/` holds `valid/`/`invalid/` fixtures
 and is not executed by `check`.
 
-This layout is confirmed against the generator
-(`workers/generator/src/actions/add-runtime-rule.ts`), which writes
+This layout is confirmed against the Taskless internal generator — in the sibling
+`taskless/taskless` repo, not this one — at `workers/generator/src/actions/add-runtime-rule.ts`,
+which writes
 `.taskless/runtime-rules/<slug>-<suffix>/` with `<capture-name>.yml` per capture rule and a
 `check.ts`, and hashes `check.ts` with the same `canonicalHash` envelope reconcile uses.
 
