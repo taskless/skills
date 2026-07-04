@@ -145,7 +145,42 @@ jobs:
                 headRefName: pr.head.ref,
                 baseRefName: pr.base.ref,
                 body: pr.body ?? "",
+                state: "open",
               }));
+
+            // Preserve construction history: pull in stack members recorded in
+            // existing breadcrumb markers that are no longer open (merged/closed),
+            // so the tree keeps listing them and the last open PR captures the
+            // whole stack. Their bodies are frozen (reconcile never rewrites a
+            // non-open member); they're fetched only for tree structure/rendering.
+            // Root resolution below still uses the open-PR list only.
+            const openNumbers = new Set(pullRequests.map((pr) => pr.number));
+            const historicalNumbers = new Set();
+            for (const pr of pullRequests) {
+              const marker = stack.parseStackComment(pr.body);
+              if (!marker) continue;
+              for (const member of marker.members) {
+                if (!openNumbers.has(member)) historicalNumbers.add(member);
+              }
+            }
+            const historical = [];
+            for (const number of historicalNumbers) {
+              try {
+                const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: number });
+                if (pr.head.repo?.full_name !== `${owner}/${repo}`) continue;
+                historical.push({
+                  number: pr.number,
+                  title: pr.title,
+                  headRefName: pr.head.ref,
+                  baseRefName: pr.base.ref,
+                  body: pr.body ?? "",
+                  state: pr.state, // "closed" (merged or closed)
+                });
+              } catch (error) {
+                core.info(`stack-breadcrumb: could not fetch historical PR #${number}: ${String(error)}`);
+              }
+            }
+            const allPullRequests = [...pullRequests, ...historical];
 
             const writeBody = async (number, body) => {
               await github.rest.pulls.update({ owner, repo, pull_number: number, body });
@@ -207,7 +242,7 @@ jobs:
             // failure so an inconsistent breadcrumb doesn't pass silently.
             const failures = [];
             for (const root of roots) {
-              const result = await stack.reconcile(root, { pullRequests, writeBody });
+              const result = await stack.reconcile(root, { pullRequests: allPullRequests, writeBody });
               core.info(`reconciled root #${root}: ${JSON.stringify(result)}`);
               failures.push(...result.failed);
             }

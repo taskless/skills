@@ -276,3 +276,40 @@ test("reconcile: records a failed write and continues", async () => {
   assert.deepEqual(result.failed, [10]);
   assert.deepEqual(result.updated, [11]);
 });
+
+test("reconcile: freezes a merged member but keeps it in the open PR's breadcrumb", async () => {
+  // #10 open (root), #11 merged (tip). #11 stays in the tree so #10 keeps
+  // listing it, but its own body is never rewritten.
+  const prs = [
+    { ...pr(10, "a", "main"), state: "open" },
+    { ...pr(11, "b", "a"), state: "closed" },
+  ];
+  const calls = [];
+  const result = await reconcile(10, {
+    pullRequests: prs,
+    writeBody: (number_, body) => calls.push([number_, body]),
+  });
+  assert.deepEqual(result.updated, [10]);
+  assert.deepEqual(result.frozen, [11]);
+  assert.equal(calls.length, 1);
+  // #10's breadcrumb still lists the merged #11 and the marker keeps full membership.
+  assert.match(calls[0][1], /#11/);
+  assert.match(calls[0][1], /pr=10,11/);
+});
+
+test("reconcile: a lone open root with only merged descendants still renders", async () => {
+  // The whole stack has merged except the root — the breadcrumb must NOT clear.
+  const prs = [
+    { ...pr(10, "a", "main"), state: "open" },
+    { ...pr(11, "b", "a"), state: "closed" },
+    { ...pr(12, "c", "b"), state: "closed" },
+  ];
+  const calls = [];
+  const result = await reconcile(10, {
+    pullRequests: prs,
+    writeBody: (number_, body) => calls.push([number_, body]),
+  });
+  assert.deepEqual(result.updated, [10]);
+  assert.deepEqual(result.frozen, [11, 12]);
+  assert.match(calls[0][1], /pr=10,11,12/);
+});

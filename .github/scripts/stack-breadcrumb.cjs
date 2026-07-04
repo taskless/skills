@@ -298,11 +298,20 @@ async function reconcile(root, deps) {
 
   const updated = [];
   const skipped = [];
+  const frozen = [];
   const failed = [];
 
   for (const number_ of tree.members) {
     const pullRequest = byNumber.get(number_);
     if (!pullRequest) {
+      continue;
+    }
+    // A merged/closed member stays in the tree — so open PRs keep listing it and
+    // the last open PR captures the full construction history — but its own body
+    // is frozen (never rewritten). Members without a `state` are treated as open
+    // (open-PR list and unit fixtures both omit or set it to "open").
+    if (pullRequest.state !== undefined && pullRequest.state !== "open") {
+      frozen.push(number_);
       continue;
     }
     const region = renderRegion(tree, number_);
@@ -322,7 +331,7 @@ async function reconcile(root, deps) {
     }
   }
 
-  return { root, updated, skipped, failed };
+  return { root, updated, skipped, frozen, failed };
 }
 
 module.exports = {
