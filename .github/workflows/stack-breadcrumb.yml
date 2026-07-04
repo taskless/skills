@@ -145,7 +145,73 @@ jobs:
                 headRefName: pr.head.ref,
                 baseRefName: pr.base.ref,
                 body: pr.body ?? "",
+                state: "open",
               }));
+
+            // Preserve construction history: pull in stack members recorded in
+            // existing breadcrumb markers that are no longer open (merged/closed),
+            // so the tree keeps listing them and the last open PR captures the
+            // whole stack. Their bodies are frozen (reconcile never rewrites a
+            // non-open member); they're fetched only for tree structure/rendering.
+            // Root resolution below still uses the open-PR list only.
+            const openNumbers = new Set(pullRequests.map((pr) => pr.number));
+            const historicalNumbers = new Set();
+            for (const pr of pullRequests) {
+              const marker = stack.parseStackComment(pr.body);
+              if (!marker) continue;
+              for (const member of marker.members) {
+                // Guard against a malformed marker (non-positive / non-integer)
+                // and skip members that are already open.
+                if (Number.isInteger(member) && member > 0 && !openNumbers.has(member)) {
+                  historicalNumbers.add(member);
+                }
+              }
+            }
+            // PR bodies are user-editable, so a crafted/malformed marker could
+            // list many members; cap the historical fetch defensively (with a log).
+            const MAX_HISTORICAL_MEMBERS = 50;
+            let historicalList = [...historicalNumbers].toSorted((a, b) => a - b);
+            if (historicalList.length > MAX_HISTORICAL_MEMBERS) {
+              core.info(`stack-breadcrumb: marker lists ${historicalList.length} historical members; capping at ${MAX_HISTORICAL_MEMBERS}`);
+              historicalList = historicalList.slice(0, MAX_HISTORICAL_MEMBERS);
+            }
+            // Fetch in parallel (bounded by the cap above); keep same-repo PRs.
+            const fetched = (
+              await Promise.all(
+                historicalList.map(async (number) => {
+                  try {
+                    const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: number });
+                    if (pr.head.repo?.full_name !== `${owner}/${repo}`) return undefined;
+                    return {
+                      number: pr.number,
+                      title: pr.title,
+                      headRefName: pr.head.ref,
+                      baseRefName: pr.base.ref,
+                      body: pr.body ?? "",
+                      state: pr.state, // "closed" (merged or closed)
+                    };
+                  } catch (error) {
+                    core.info(`stack-breadcrumb: could not fetch historical PR #${number}: ${String(error)}`);
+                    return undefined;
+                  }
+                })
+              )
+            ).filter((pr) => pr !== undefined);
+            // The tree is keyed by headRefName, so admit a historical PR only if
+            // its head ref is not already claimed — by an open PR OR an earlier
+            // historical one. A reused branch name would otherwise corrupt tree
+            // derivation.
+            const claimedHeadRefs = new Set(pullRequests.map((pr) => pr.headRefName));
+            const historical = [];
+            for (const pr of fetched) {
+              if (claimedHeadRefs.has(pr.headRefName)) {
+                core.info(`stack-breadcrumb: skipping historical PR #${pr.number}; head ref "${pr.headRefName}" already claimed by another PR`);
+                continue;
+              }
+              claimedHeadRefs.add(pr.headRefName);
+              historical.push(pr);
+            }
+            const allPullRequests = [...pullRequests, ...historical];
 
             const writeBody = async (number, body) => {
               await github.rest.pulls.update({ owner, repo, pull_number: number, body });
@@ -207,7 +273,7 @@ jobs:
             // failure so an inconsistent breadcrumb doesn't pass silently.
             const failures = [];
             for (const root of roots) {
-              const result = await stack.reconcile(root, { pullRequests, writeBody });
+              const result = await stack.reconcile(root, { pullRequests: allPullRequests, writeBody });
               core.info(`reconciled root #${root}: ${JSON.stringify(result)}`);
               failures.push(...result.failed);
             }
