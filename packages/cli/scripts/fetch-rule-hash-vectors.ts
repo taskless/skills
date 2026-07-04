@@ -68,15 +68,25 @@ try {
 if (response?.ok) {
   // The endpoint wraps the source-of-truth array as { vectors: [...] }; the
   // committed cache stores the bare array to match the server reference file.
-  const body = (await response.json()) as {
-    vectors?: { name: string; input: string; signature: string }[];
-  };
-  if (Array.isArray(body.vectors) && body.vectors.length > 0) {
+  let body:
+    | { vectors?: { name: string; input: string; signature: string }[] }
+    | undefined;
+  try {
+    body = (await response.json()) as {
+      vectors?: { name: string; input: string; signature: string }[];
+    };
+  } catch (error) {
+    // A 200 with a non-JSON body (e.g. a proxy error page) must fall back to the
+    // cache like any other failure, not throw and break the build.
+    const message = error instanceof Error ? error.message : String(error);
+    fallBackToCache(`Response was not valid JSON (${message})`);
+  }
+  if (body && Array.isArray(body.vectors) && body.vectors.length > 0) {
     writeFileSync(OUTPUT_PATH, toAsciiJson(body.vectors), "utf8");
     console.log(
       `  Wrote ${String(body.vectors.length)} vectors to: ${OUTPUT_PATH}`
     );
-  } else {
+  } else if (body) {
     fallBackToCache(`Response did not contain a non-empty "vectors" array`);
   }
 } else if (response) {
