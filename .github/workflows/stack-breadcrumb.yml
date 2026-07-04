@@ -167,10 +167,18 @@ jobs:
                 }
               }
             }
-            // Fetch in parallel (the set is bounded by stack size); keep same-repo PRs.
+            // PR bodies are user-editable, so a crafted/malformed marker could
+            // list many members; cap the historical fetch defensively (with a log).
+            const MAX_HISTORICAL_MEMBERS = 50;
+            let historicalList = [...historicalNumbers].toSorted((a, b) => a - b);
+            if (historicalList.length > MAX_HISTORICAL_MEMBERS) {
+              core.info(`stack-breadcrumb: marker lists ${historicalList.length} historical members; capping at ${MAX_HISTORICAL_MEMBERS}`);
+              historicalList = historicalList.slice(0, MAX_HISTORICAL_MEMBERS);
+            }
+            // Fetch in parallel (bounded by the cap above); keep same-repo PRs.
             const fetched = (
               await Promise.all(
-                [...historicalNumbers].map(async (number) => {
+                historicalList.map(async (number) => {
                   try {
                     const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: number });
                     if (pr.head.repo?.full_name !== `${owner}/${repo}`) return undefined;
