@@ -7,10 +7,7 @@ import { decodeJwt } from "jose";
 
 import { decodeOrgId } from "./auth/jwt";
 import { getConfigDirectory, getToken } from "./auth/token";
-
-declare const __VERSION__: string;
-const CLI_VERSION: string =
-  typeof __VERSION__ === "string" ? __VERSION__ : "unknown";
+import { CLI_VERSION } from "./version";
 
 const POSTHOG_PROJECT_TOKEN =
   "phc_stymptTiUskp4zM3m9StNSGheHwjskaYagpxV7rDjZyc";

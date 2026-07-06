@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from "../api/config";
+import { CLI_VERSION, CLI_VERSION_HEADER } from "../version";
 
 const CLIENT_ID = "taskless-cli";
 
@@ -43,7 +44,10 @@ class HttpDeviceFlowProvider implements DeviceFlowProvider {
     }
     const response = await fetch(`${baseUrl}/auth/device`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        [CLI_VERSION_HEADER]: CLI_VERSION,
+      },
       body: JSON.stringify(body),
     });
 
@@ -61,7 +65,10 @@ class HttpDeviceFlowProvider implements DeviceFlowProvider {
     const baseUrl = getApiBaseUrl();
     const response = await fetch(`${baseUrl}/auth/token`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        [CLI_VERSION_HEADER]: CLI_VERSION,
+      },
       body: JSON.stringify({
         grant_type: "urn:ietf:params:oauth:grant-type:device_code",
         device_code: deviceCode,

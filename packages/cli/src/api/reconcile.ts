@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from "./config";
+import { CLI_VERSION, CLI_VERSION_HEADER } from "../version";
 
 /**
  * Server-owned rule reconciliation (TSKL-270). The CLI reports the rule files
@@ -87,6 +88,7 @@ export async function reconcile(
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
+        [CLI_VERSION_HEADER]: CLI_VERSION,
       },
       body: JSON.stringify(request),
     });
