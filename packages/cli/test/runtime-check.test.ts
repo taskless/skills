@@ -24,12 +24,14 @@ type Responder = (request: ReconcileRequestBody) => {
 interface MockServer {
   apiUrl: string;
   requests: ReconcileRequestBody[];
+  headers: Record<string, string | string[] | undefined>[];
   close: () => Promise<void>;
 }
 
 /** Start a mock reconcile endpoint on a random port. */
 function startMockServer(responder: Responder): Promise<MockServer> {
   const requests: ReconcileRequestBody[] = [];
+  const headers: Record<string, string | string[] | undefined>[] = [];
   const server: Server = createServer((request, response) => {
     if (request.method !== "POST" || request.url !== "/cli/api/reconcile") {
       response.writeHead(404).end("{}");
@@ -40,6 +42,7 @@ function startMockServer(responder: Responder): Promise<MockServer> {
     request.on("end", () => {
       const parsed = JSON.parse(raw) as ReconcileRequestBody;
       requests.push(parsed);
+      headers.push(request.headers);
       const { statusCode, body } = responder(parsed);
       response.writeHead(statusCode, { "content-type": "application/json" });
       response.end(JSON.stringify(body ?? {}));
@@ -52,6 +55,7 @@ function startMockServer(responder: Responder): Promise<MockServer> {
       resolvePromise({
         apiUrl: `http://127.0.0.1:${String(port)}/cli`,
         requests,
+        headers,
         close: () => new Promise((done) => server.close(() => done())),
       });
     });
@@ -322,6 +326,26 @@ describe("check: static vs runtime dispatch", () => {
       expect(output.skipped?.some((s) => s.rule === "broken")).toBe(true);
       // Only the readable check.ts was reported to the server.
       expect(server.requests[0]!.files).toHaveLength(1);
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("declares the CLI version via the x-taskless-cli-version header", async () => {
+    const server = await startMockServer(() => ({
+      statusCode: 200,
+      body: { run: [], unsafe: [], unknown: [], missing: [] },
+    }));
+    try {
+      await runCli(["check", "-d", directory, "--json"], {
+        TASKLESS_TOKEN: "fake.token",
+        TASKLESS_API_URL: server.apiUrl,
+      });
+      expect(server.requests).toHaveLength(1);
+      const version = server.headers[0]?.["x-taskless-cli-version"];
+      expect(typeof version).toBe("string");
+      expect(version).not.toBe("");
+      expect(version).not.toBe("unknown");
     } finally {
       await server.close();
     }

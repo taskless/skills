@@ -2,6 +2,7 @@ import createClient from "openapi-fetch";
 
 import type { paths } from "../generated/api";
 import { getApiBaseUrl } from "./config";
+import { CLI_VERSION, CLI_VERSION_HEADER } from "../version";
 
 /** Create a typed API client for the Taskless CLI API */
 export function createApiClient(token: string) {
@@ -9,6 +10,9 @@ export function createApiClient(token: string) {
   const baseUrl = getApiBaseUrl().replace(/\/cli\/?$/, "");
   return createClient<paths>({
     baseUrl,
-    headers: { Authorization: `Bearer ${token}` },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      [CLI_VERSION_HEADER]: CLI_VERSION,
+    },
   });
 }
