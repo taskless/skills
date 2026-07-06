@@ -3,11 +3,27 @@ import { readdir, stat } from "node:fs/promises";
 import { defineCommand } from "citty";
 
 import { runAstGrepScan } from "../rules/scan";
+import type { CheckResult } from "../types/check";
 import { formatText } from "../util/format";
 import { generateSgConfig } from "../filesystem/sgconfig";
 import { getTelemetry } from "../telemetry";
 import { outputSchema as checkOutputSchema } from "../schemas/check";
 import { makeErrorEnvelope } from "../types/errors";
+import { getToken } from "../auth/token";
+import { resolveRepositoryUrl } from "../util/git-remote";
+import { getCliPrefix } from "../util/package-manager";
+import { reconcile } from "../api/reconcile";
+import {
+  discoverRuntimeRules,
+  type RuntimeRule,
+} from "../rules/runtime/discover";
+import {
+  materializeRuntimeRules,
+  reportRuntimeChecks,
+  selectBlessedRuntimeRules,
+  signRuntimeChecks,
+} from "../rules/runtime/run-set";
+import { executeRuntimeRules } from "../rules/runtime/harness";
 
 async function pathExists(absolutePath: string): Promise<boolean> {
   try {
@@ -71,7 +87,9 @@ function extractPositionalPaths(rawArguments: string[]): string[] {
     if (argument.startsWith("-")) {
       // Skip value for short/long flags that take a value
       if (
-        (argument === "-d" || argument === "--dir") &&
+        (argument === "-d" ||
+          argument === "--dir" ||
+          argument === "--timeout") &&
         index + 1 < rawArguments.length
       ) {
         index += 1;
@@ -81,6 +99,143 @@ function extractPositionalPaths(rawArguments: string[]): string[] {
     paths.push(argument);
   }
   return paths;
+}
+
+/** A runtime rule that will not run, with why (advisory). */
+interface SkippedRuntimeRule {
+  rule: string;
+  reason: string;
+}
+
+/** The runtime-execution plan resolved from auth state and flags. */
+interface RuntimePlan {
+  /** Rules to execute — materialized when gated, live under `--dangerously-run-scripts`. */
+  execute: RuntimeRule[];
+  /** Rules that will not run, with a reason. */
+  skipped: SkippedRuntimeRule[];
+  /** Human-only notices about the runtime disposition. */
+  notices: string[];
+}
+
+/** Skip every runtime rule with a shared reason (an unverified path). */
+function skipAllRuntime(rules: RuntimeRule[], reason: string): RuntimePlan {
+  return {
+    execute: [],
+    skipped: rules.map((rule) => ({ rule: rule.name, reason })),
+    notices: [],
+  };
+}
+
+/**
+ * Decide which runtime rules run. A runtime rule's `check.ts` is arbitrary code
+ * execution, so it runs only when its signature is server-validated (an
+ * authenticated reconcile that returns it in `run`) or `--dangerously-run-scripts`
+ * is set. Every unverified path — anonymous, logged out, no remote, or a
+ * reconcile that cannot complete — skips runtime rules without failing.
+ */
+async function planRuntime(
+  cwd: string,
+  discovered: RuntimeRule[],
+  options: { anonymous: boolean; dangerouslyRunScripts: boolean }
+): Promise<RuntimePlan> {
+  if (discovered.length === 0) return { execute: [], skipped: [], notices: [] };
+
+  if (options.dangerouslyRunScripts) {
+    return {
+      execute: discovered,
+      skipped: [],
+      notices: [
+        "Warning: --dangerously-run-scripts is executing runtime rule code without server verification.",
+      ],
+    };
+  }
+
+  if (options.anonymous) {
+    return skipAllRuntime(
+      discovered,
+      "anonymous mode — runtime rules were not verified and did not run"
+    );
+  }
+
+  const token = await getToken(cwd, { silent: true });
+  if (!token) {
+    return skipAllRuntime(
+      discovered,
+      "not authenticated — runtime rules were not verified and did not run"
+    );
+  }
+
+  let repositoryUrl: string;
+  try {
+    repositoryUrl = await resolveRepositoryUrl(cwd);
+  } catch {
+    return skipAllRuntime(
+      discovered,
+      "no GitHub remote — runtime rules could not be verified and did not run"
+    );
+  }
+
+  // A rule whose check.ts is missing/unreadable is reported, not fatal: signing
+  // never throws, and such rules are surfaced as skipped so static checks and
+  // the other runtime rules are unaffected.
+  const { signed, unreadable } = await signRuntimeChecks(discovered);
+  const unreadableSkips: SkippedRuntimeRule[] = unreadable.map((rule) => ({
+    rule: rule.name,
+    reason: "its check.ts is missing or unreadable",
+  }));
+
+  const outcome = await reconcile(token, {
+    repositoryUrl,
+    files: reportRuntimeChecks(cwd, signed),
+  });
+
+  if (outcome.status === "unauthorized") {
+    return skipAllRuntime(
+      discovered,
+      `authentication was rejected — run \`${getCliPrefix()} auth login\` to re-authenticate`
+    );
+  }
+  if (outcome.status === "unavailable") {
+    return skipAllRuntime(
+      discovered,
+      `the rule service was unavailable (${outcome.reason})`
+    );
+  }
+
+  const { blessed, withheld } = selectBlessedRuntimeRules(
+    signed,
+    outcome.result.run
+  );
+  let execute: RuntimeRule[] = [];
+  try {
+    execute =
+      blessed.length > 0 ? await materializeRuntimeRules(cwd, blessed) : [];
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return skipAllRuntime(
+      discovered,
+      `runtime rules could not be materialized (${message})`
+    );
+  }
+  return {
+    execute,
+    skipped: [
+      ...unreadableSkips,
+      ...withheld.map((rule) => ({
+        rule: rule.name,
+        reason: "not blessed by the server (unsafe / unknown / drift)",
+      })),
+    ],
+    notices: [],
+  };
+}
+
+/** Parse `--timeout <seconds>` into milliseconds; invalid/absent → undefined (default). */
+function parseTimeoutMs(raw: string | undefined): number | undefined {
+  if (raw === undefined) return undefined;
+  const seconds = Number(raw);
+  if (!Number.isFinite(seconds) || seconds <= 0) return undefined;
+  return Math.round(seconds * 1000);
 }
 
 export const checkCommand = defineCommand({
@@ -101,13 +256,30 @@ export const checkCommand = defineCommand({
     },
     anonymous: {
       type: "boolean",
-      description: "Accepted for compatibility; check has no auth dependency",
+      description:
+        "Run only trusted static rules; skip runtime rules (no reconciliation)",
       default: false,
+    },
+    "dangerously-run-scripts": {
+      type: "boolean",
+      description:
+        "Run runtime-rule check.ts without server verification (executes untrusted code)",
+      default: false,
+    },
+    timeout: {
+      type: "string",
+      description: "Per-runtime-check timeout in seconds (default 10)",
     },
   },
   async run({ args, rawArgs }) {
     const cwd = resolve(args.dir ?? process.cwd());
     const telemetry = await getTelemetry(cwd);
+
+    // Warnings/notices are advisory human output; suppress them under --json so
+    // the machine output stays the { success, results, skipped? } shape.
+    const warn = (message: string) => {
+      if (!args.json) console.error(message);
+    };
 
     // Set when a scan actually runs; drives cli_check_completed with counts
     // only (never matched code).
@@ -134,17 +306,19 @@ export const checkCommand = defineCommand({
         return;
       }
 
-      // Check for rule files
+      // Static rules (trusted ast-grep YAML) always run; runtime rules
+      // (untrusted check.ts) are gated separately.
       const rulesDirectory = join(cwd, ".taskless", "rules");
-      let ruleFiles: string[] = [];
+      let staticRuleFiles: string[] = [];
       try {
         const entries = await readdir(rulesDirectory);
-        ruleFiles = entries.filter((f) => f.endsWith(".yml"));
+        staticRuleFiles = entries.filter((f) => f.endsWith(".yml"));
       } catch {
         // .taskless/ or rules/ directory doesn't exist
       }
+      const runtimeRules = await discoverRuntimeRules(cwd);
 
-      if (ruleFiles.length === 0) {
+      if (staticRuleFiles.length === 0 && runtimeRules.length === 0) {
         if (args.json) {
           console.log(
             JSON.stringify(
@@ -159,10 +333,35 @@ export const checkCommand = defineCommand({
         return;
       }
 
-      // Generate ephemeral sgconfig.yml and run scanner
       try {
-        await generateSgConfig(cwd);
-        const { results } = await runAstGrepScan(cwd, existingPaths);
+        const results: CheckResult[] = [];
+
+        // Static rules: always scan, no verification (inert data).
+        if (staticRuleFiles.length > 0) {
+          await generateSgConfig(cwd);
+          const scan = await runAstGrepScan(cwd, existingPaths);
+          results.push(...scan.results);
+        }
+
+        // Runtime rules: run only what the server validated (or forced).
+        const plan = await planRuntime(cwd, runtimeRules, {
+          anonymous: args.anonymous,
+          dangerouslyRunScripts: Boolean(args["dangerously-run-scripts"]),
+        });
+        for (const notice of plan.notices) warn(notice);
+        for (const skipped of plan.skipped) {
+          warn(
+            `Notice: runtime rule ${skipped.rule} was not run — ${skipped.reason}.`
+          );
+        }
+        if (plan.execute.length > 0) {
+          const runtimeResults = await executeRuntimeRules(cwd, plan.execute, {
+            paths: existingPaths,
+            timeoutMs: parseTimeoutMs(args.timeout),
+          });
+          results.push(...runtimeResults);
+        }
+
         let errorCount = 0;
         let warningCount = 0;
         for (const result of results) {
@@ -172,11 +371,11 @@ export const checkCommand = defineCommand({
         const hasErrors = errorCount > 0;
         scanCounts = { errorCount, warningCount, findings: results.length };
 
-        // Format output
         if (args.json) {
           const output = checkOutputSchema.parse({
             success: !hasErrors,
             results,
+            ...(plan.skipped.length > 0 ? { skipped: plan.skipped } : {}),
           });
           console.log(JSON.stringify(output));
         } else {

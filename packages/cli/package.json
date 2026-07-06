@@ -8,11 +8,13 @@
     "directory": "packages/cli"
   },
   "scripts": {
+    "prebuild": "tsx scripts/fetch-rule-hash-vectors.ts",
     "build": "vite build",
     "build:dev": "TASKLESS_BUILD_TARGET=dev vite build",
     "build:self": "TASKLESS_BUILD_TARGET=self vite build",
     "generate:api": "openapi-typescript https://app.taskless.io/cli/api/__schema -o src/generated/api.d.ts",
     "generate:ast-grep-schema": "tsx scripts/fetch-ast-grep-schema.ts",
+    "generate:rule-hash-vectors": "tsx scripts/fetch-rule-hash-vectors.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
@@ -40,6 +42,7 @@
     "posthog-node": "^5.28.11",
     "smol-toml": "^1.6.1",
     "sprintf-js": "^1.1.3",
+    "tsx": "^4.21.0",
     "yaml": "^2.8.2",
     "zod": "^4.3.6"
   },

@@ -1,16 +1,52 @@
-# Topic: check     (CLI v%(CLI_VERSION)s / topic v1)
+# Topic: check     (CLI v%(CLI_VERSION)s / topic v2)
 
 ## Goal
-Run all rules in `.taskless/rules/` against the codebase and report
-matches. Used standalone (full project scan), in CI (diff-only scan),
-or after rule create/improve to validate.
+Run the applicable rules against the codebase and report matches. Two
+rule kinds run: **static** ast-grep rules in `.taskless/rules/`, and
+**runtime** rules in `.taskless/runtime-rules/` (a directory of ast-grep
+capture rules plus a `check.ts`). Used standalone (full project scan),
+in CI (diff-only scan), or after rule create/improve to validate.
 
 ## Preconditions
 - `.taskless/` directory exists.
-- At least one rule exists in `.taskless/rules/`. (If none exist,
-  the CLI exits 0 with a friendly message suggesting
-  `taskless rule create`.)
-- No auth required.
+- At least one rule exists in `.taskless/rules/` or
+  `.taskless/runtime-rules/`. (If none exist, the CLI exits 0 with a
+  friendly message suggesting `taskless rule create`.)
+- No auth required. Static rules always run; whether runtime rules run
+  depends on auth state — see "What runs".
+
+## What runs
+
+`check` never requires auth. The two rule kinds run differently:
+
+- **Static rules** (`.taskless/rules/*.yml`) are inert ast-grep patterns
+  and **always run**, in every mode, with no network call. The offline
+  linter posture.
+- **Runtime rules** (`.taskless/runtime-rules/<name>/`) execute a
+  `check.ts` — arbitrary code — so they run ONLY when that code is
+  verified:
+  - **Logged in** (token or API key) — each rule's `check.ts` is
+    reconciled against the Taskless service; rules the server blessed
+    (`run`) execute, and the rest are withheld and reported (advisory).
+  - **Logged out, `--anonymous`, no GitHub remote, or service
+    unavailable** — runtime rules are **skipped** (reported, never run).
+    Static rules still run.
+  - **`--dangerously-run-scripts`** — runs every runtime rule trusting
+    local signatures, with no network call, behind a prominent warning.
+    This is the only way to run runtime rules unverified.
+
+Notices about skipped/withheld runtime rules are human-readable stderr
+only: they never change the exit code. Under `--json` they do NOT appear
+as warnings; instead an additive optional `skipped: [{ rule, reason }]`
+array is included alongside the unchanged `{ success, results }`. The
+authoritative allow-list is the server's; the CI backstop
+(`taskless help ci`) is the enforcement point for runtime rules.
+
+## Flags
+- `--json` — machine output (`{ success, results, skipped? }`).
+- `--anonymous` — run only static rules; skip runtime rules.
+- `--dangerously-run-scripts` — run runtime `check.ts` unverified.
+- `--timeout <seconds>` — per-runtime-check wall-clock bound (default 10).
 
 ## Steps
 
@@ -32,6 +68,11 @@ or after rule create/improve to validate.
    ```
    Paths that don't exist on disk are silently filtered, so you can
    pipe raw `git diff` output directly without pre-filtering.
+
+   When runtime rules were present but not run (e.g. logged out), the
+   JSON also carries `"skipped": [{ "rule": "<name>", "reason": "…" }]`
+   alongside `success`/`results`. Surface it so CI can tell that runtime
+   rules did not execute; it never affects the exit code.
 
 3. **Parse the JSON output.** Shape:
    ```json

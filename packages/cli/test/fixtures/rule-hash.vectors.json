@@ -1,0 +1,67 @@
+[
+  {
+    "name": "lf-baseline",
+    "input": "rule:\n  id: foo\n  message: no foo\n",
+    "signature": "1;h=sha-256;d=7d0f9d1822594679d83800361278d6e3ecb3182669cf1aa2d54469ef6df24dbe"
+  },
+  {
+    "name": "crlf-equals-lf",
+    "input": "rule:\r\n  id: foo\r\n  message: no foo\r\n",
+    "signature": "1;h=sha-256;d=7d0f9d1822594679d83800361278d6e3ecb3182669cf1aa2d54469ef6df24dbe"
+  },
+  {
+    "name": "no-trailing-newline-equals-single",
+    "input": "rule:\n  id: foo\n  message: no foo",
+    "signature": "1;h=sha-256;d=7d0f9d1822594679d83800361278d6e3ecb3182669cf1aa2d54469ef6df24dbe"
+  },
+  {
+    "name": "multiple-trailing-newlines-equal-single",
+    "input": "rule:\n  id: foo\n  message: no foo\n\n\n",
+    "signature": "1;h=sha-256;d=7d0f9d1822594679d83800361278d6e3ecb3182669cf1aa2d54469ef6df24dbe"
+  },
+  {
+    "name": "leading-bom-stripped",
+    "input": "\ufeffrule:\n  id: foo\n  message: no foo\n",
+    "signature": "1;h=sha-256;d=7d0f9d1822594679d83800361278d6e3ecb3182669cf1aa2d54469ef6df24dbe"
+  },
+  {
+    "name": "meaningful-content-change-differs",
+    "input": "rule:\n  id: bar\n  message: no foo\n",
+    "signature": "1;h=sha-256;d=417c6b37ea6f4f7082836ec875d161cf874bfc19587a6b0ac029a28e56f55bc1"
+  },
+  {
+    "name": "multibyte-utf8",
+    "input": "rule:\n  message: caf\u00e9 \u2615 \u65e5\u672c\u8a9e\n",
+    "signature": "1;h=sha-256;d=91cccc7d330ab09b77bd4daa31acebb080256e34638516be5b570ba600bf6284"
+  },
+  {
+    "name": "combining-mark-not-nfc-folded",
+    "input": "rule:\n  id: cafe\u0301\n",
+    "signature": "1;h=sha-256;d=75d78b40aed8ddc5d3e6338644e043d7925907ede842d192ed777507838c29d8"
+  },
+  {
+    "name": "lone-cr-equals-lf",
+    "input": "rule:\r  id: foo\r  message: no foo\r",
+    "signature": "1;h=sha-256;d=7d0f9d1822594679d83800361278d6e3ecb3182669cf1aa2d54469ef6df24dbe"
+  },
+  {
+    "name": "empty-input-becomes-single-lf",
+    "input": "",
+    "signature": "1;h=sha-256;d=01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+  },
+  {
+    "name": "interior-bom-preserved",
+    "input": "rule:\n  id: a\ufeffb\n",
+    "signature": "1;h=sha-256;d=85c354beeecb2124ea714d37fad08fc25fa0b3c1a3c225de236f38cc264fb9fb"
+  },
+  {
+    "name": "double-leading-bom-strips-one",
+    "input": "\ufeff\ufeffrule:\n  id: foo\n  message: no foo\n",
+    "signature": "1;h=sha-256;d=644a709d438d1c267bcc615d1ca83977fcaf61fe774443ba9f6f44e371c8af62"
+  },
+  {
+    "name": "astral-utf8-surrogate-pair",
+    "input": "rule:\n  message: party \ud83c\udf89\n",
+    "signature": "1;h=sha-256;d=13ab09346df90129fc2d562a6bcbf1fad13cdb27bda09091d5355f9876881518"
+  }
+]

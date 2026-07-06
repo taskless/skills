@@ -16,7 +16,8 @@ you recognize one not on the list, apply the same patterns.
   produces an always-green check that gives false confidence.)
 - A local `taskless check` succeeds (or fails with real findings the
   user is OK with seeing in CI's first run).
-- No auth required for CI — `check` is unauthenticated.
+- No auth required for CI — `check` is unauthenticated by default.
+  (Optionally tokenized as a server-enforced backstop; see step 7.)
 
 ## Steps
 
@@ -155,10 +156,34 @@ The six universal steps:
 YAML for GitHub/GitLab/Azure/Bitbucket; Groovy for Jenkins;
 different structure for CircleCI. The six steps stay the same.
 
-### 7. Authentication in CI
+### 7. Authentication in CI (optional backstop)
 
 `taskless check` does NOT require authentication. The generated CI
-config works out of the box with no secrets. Only mention auth if
+config works out of the box with no secrets and scans all local rules.
+
+Static ast-grep rules always run in CI with no secrets. **Runtime
+rules** (`.taskless/runtime-rules/`, which execute a `check.ts`) only
+run when their code is server-verified — so an unauthenticated CI job
+runs the static rules and skips the runtime ones.
+
+Exposing a `TASKLESS_TOKEN` secret turns CI into the **backstop** for
+runtime rules: an authenticated `check` reconciles each runtime rule's
+`check.ts` against the Taskless service and runs exactly the
+server-blessed set, withholding any that drift or were never issued.
+This is the enforcement point for runtime rules — local developer runs
+skip them unless `--dangerously-run-scripts` is passed. To wire it, set
+the token as an env var on the check step (GitHub Actions):
+
+```yaml
+      - name: Taskless check
+        env:
+          TASKLESS_TOKEN: ${{ secrets.TASKLESS_TOKEN }}
+        run: |
+          ...
+```
+
+Add this only when the user wants server-enforced rules in CI; the
+unauthenticated default remains fully supported. Also mention auth if
 the user explicitly asks to run authenticated commands (e.g.
 `rule create`/`rule improve`) in CI — uncommon.
 
