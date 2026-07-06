@@ -24,10 +24,20 @@ const checkResultSchema = z.object({
   fix: z.string().nullable().optional().describe("Suggested fix replacement"),
 });
 
+/** A runtime rule that was present but not executed (advisory), for `--json`. */
+const skippedRuntimeRuleSchema = z.object({
+  rule: z.string().describe("Runtime rule name that did not run"),
+  reason: z.string().describe("Why the runtime rule was not run"),
+});
+
 /** Output schema for `taskless check --json` on success */
 export const outputSchema = z.object({
   success: z.boolean(),
   results: z.array(checkResultSchema).describe("Check results"),
+  skipped: z
+    .array(skippedRuntimeRuleSchema)
+    .optional()
+    .describe("Runtime rules present but not executed"),
 });
 
 /** Error schema for `taskless check --json` on failure */

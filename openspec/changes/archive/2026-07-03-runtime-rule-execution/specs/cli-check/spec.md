@@ -165,3 +165,18 @@ non-zero code solely because reconciliation failed, and the warning SHALL be sup
 - **WHEN** the CLI degrades and `--json` is set
 - **THEN** stdout SHALL contain the machine JSON shape (`{ success, results }` plus the additive optional `skipped` array for the skipped runtime rules)
 - **AND** SHALL NOT contain the human-readable degrade warning
+
+## REMOVED Requirements
+
+### Requirement: Check warns on reconciliation mismatches
+
+**Reason**: The cutover scopes reconciliation to runtime `check.ts` only; static rules are no
+longer reconciled. Runtime-rule mismatches (a `check.ts` that is `unsafe`/`unknown`/`missing`)
+are now surfaced as withheld/skipped notices and the `--json` `skipped` array (see the ADDED
+requirements), so the static-rule drift/unknown/missing warnings this described no longer exist.
+
+### Requirement: Check exits cleanly when the run set is empty
+
+**Reason**: Static rules are no longer gated by a server `run` set — they always scan. An empty
+runtime allow-list simply runs no runtime rules (reported via `skipped`/withheld); there is no
+static empty-run-set skip behavior left to specify.

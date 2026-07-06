@@ -25,10 +25,12 @@ SHALL NOT be executed by `check`.
 
 ### Requirement: The harness narrows with one ast-grep scan and gates on matches
 
-For a runtime rule the CLI SHALL assemble the rule's capture rules and run **one** `ast-grep`
-scan as the narrow: `--inline-rules --json=stream` in `anchor` mode, and
-`--files-with-matches` in `broad` mode (whole-language `kind: program` enumerators). When the
-narrow produces **zero** matches the CLI SHALL NOT invoke `check.ts`.
+For a runtime rule the CLI SHALL assemble the rule's capture rules into an ast-grep
+configuration and run **one scan per mode** as the narrow: `--json=stream` for `anchor` capture
+rules, and `--files-with-matches` for `broad` capture rules (whole-language `kind: program`
+enumerators). A rule with only `anchor` capture rules therefore runs in a single scan; a rule
+mixing modes runs one scan per mode. When the narrow produces **zero** matches the CLI SHALL
+NOT invoke `check.ts`.
 
 #### Scenario: Zero matches skips the check
 
@@ -36,10 +38,10 @@ narrow produces **zero** matches the CLI SHALL NOT invoke `check.ts`.
 - **THEN** the CLI SHALL NOT invoke that rule's `check.ts`
 - **AND** the rule SHALL contribute no findings
 
-#### Scenario: One scan per rule
+#### Scenario: Capture rules of a mode run together
 
-- **WHEN** a runtime rule has multiple capture rules
-- **THEN** the CLI SHALL run them as a single `ast-grep` scan, not one scan per capture rule
+- **WHEN** a runtime rule has multiple `anchor` capture rules
+- **THEN** the CLI SHALL run them in a single `ast-grep` scan, not one scan per capture rule
 
 ### Requirement: Matches are normalized and attributed to the model name
 

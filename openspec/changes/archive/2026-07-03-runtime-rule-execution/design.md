@@ -17,8 +17,8 @@ hashed, globally-unique `id` (`${ruleSlug}-${sha1(ruleBody).slice(0,8)}`) for sc
 attribution, and a stable model-assigned `name` the check branches on. Capture rules may carry
 full ast-grep config (`constraints`/`utils`/`transform` as **siblings** of `rule`).
 
-The local harness is resolved in TSKL-245: assemble a rule's capture rules → **one**
-`ast-grep scan` (anchor `--inline-rules --json=stream`; broad `--files-with-matches`) → gate
+The local harness is resolved in TSKL-245: assemble a rule's capture rules → an
+`ast-grep scan` (one per mode: anchor `--json=stream`; broad `--files-with-matches`) → gate
 on matches → invoke `check.ts`'s **default export** with `(root, matches)` via a bundled,
 pinned `tsx`; use the **returned** `Finding[]`. `Finding.severity ∈ error|warning|info` maps
 onto static-rule gating with no translation. Measured cost is `tsx` per-worker startup
@@ -126,9 +126,13 @@ would run unverified code the user never opted into.
 
 ### Decision: The narrow → gate → `check.ts` harness, per TSKL-245
 
-For each executable runtime rule: collect its capture rules and run **one** `ast-grep` scan —
-`--inline-rules --json=stream` in anchor mode, `--files-with-matches` in broad mode
-(`kind: program` enumerators). Normalize each match to
+For each executable runtime rule: collect its capture rules into a generated ast-grep config
+(a temp `ruleDirs` config — `--inline-rules` carries only a single rule, and a runtime rule has
+multiple capture rules plus full `constraints`/`utils`/`transform`) and run **one scan per
+mode** — `--json=stream` for anchor capture rules, `--files-with-matches` for broad
+(`kind: program`) enumerators. An all-anchor rule is a single scan; mixing modes is one scan
+per mode (broad is kept separate so a `kind: program` rule isn't streamed as whole-file text).
+Normalize each match to
 `{ rule, ruleId, file (root-relative), line (1-indexed), column, text, captures }`, mapping the
 hashed `ruleId` back to the model `name` as `match.rule`. If there are **zero** matches,
 `check.ts` is not invoked. Otherwise invoke its **default export** as a function with

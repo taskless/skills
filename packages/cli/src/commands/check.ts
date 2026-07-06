@@ -12,14 +12,18 @@ import { makeErrorEnvelope } from "../types/errors";
 import { getToken } from "../auth/token";
 import { resolveRepositoryUrl } from "../util/git-remote";
 import { getCliPrefix } from "../util/package-manager";
-import { reconcile, type ReconcileResponse } from "../api/reconcile";
+import { reconcile } from "../api/reconcile";
 import {
-  RUN_RULES_DIR,
-  materializeRunDirectory,
-  selectRunFiles,
-  signRuleFiles,
-  type SignedRuleFile,
-} from "../rules/run-set";
+  discoverRuntimeRules,
+  type RuntimeRule,
+} from "../rules/runtime/discover";
+import {
+  materializeRuntimeRules,
+  reportRuntimeChecks,
+  selectBlessedRuntimeRules,
+  signRuntimeChecks,
+} from "../rules/runtime/run-set";
+import { executeRuntimeRules } from "../rules/runtime/harness";
 
 async function pathExists(absolutePath: string): Promise<boolean> {
   try {
@@ -83,7 +87,9 @@ function extractPositionalPaths(rawArguments: string[]): string[] {
     if (argument.startsWith("-")) {
       // Skip value for short/long flags that take a value
       if (
-        (argument === "-d" || argument === "--dir") &&
+        (argument === "-d" ||
+          argument === "--dir" ||
+          argument === "--timeout") &&
         index + 1 < rawArguments.length
       ) {
         index += 1;
@@ -95,79 +101,141 @@ function extractPositionalPaths(rawArguments: string[]): string[] {
   return paths;
 }
 
-/**
- * How `check` will scan, decided from auth state:
- * - `local`: unauthenticated or `--anonymous` — scan all local rules silently.
- * - `degrade`: authenticated but reconciliation could not complete — scan all
- *   local rules and warn that verification could not be performed.
- * - `gated`: reconciliation succeeded — scan only the blessed `run` set.
- */
-type ScanMode =
-  | { kind: "local" }
-  | { kind: "degrade"; reason: string }
-  | { kind: "gated"; result: ReconcileResponse; signed: SignedRuleFile[] };
+/** A runtime rule that will not run, with why (advisory). */
+interface SkippedRuntimeRule {
+  rule: string;
+  reason: string;
+}
 
-async function resolveScanMode(
+/** The runtime-execution plan resolved from auth state and flags. */
+interface RuntimePlan {
+  /** Rules to execute — materialized when gated, live under `--dangerously-run-scripts`. */
+  execute: RuntimeRule[];
+  /** Rules that will not run, with a reason. */
+  skipped: SkippedRuntimeRule[];
+  /** Human-only notices about the runtime disposition. */
+  notices: string[];
+}
+
+/** Skip every runtime rule with a shared reason (an unverified path). */
+function skipAllRuntime(rules: RuntimeRule[], reason: string): RuntimePlan {
+  return {
+    execute: [],
+    skipped: rules.map((rule) => ({ rule: rule.name, reason })),
+    notices: [],
+  };
+}
+
+/**
+ * Decide which runtime rules run. A runtime rule's `check.ts` is arbitrary code
+ * execution, so it runs only when its signature is server-validated (an
+ * authenticated reconcile that returns it in `run`) or `--dangerously-run-scripts`
+ * is set. Every unverified path — anonymous, logged out, no remote, or a
+ * reconcile that cannot complete — skips runtime rules without failing.
+ */
+async function planRuntime(
   cwd: string,
-  anonymous: boolean,
-  ruleFiles: string[]
-): Promise<ScanMode> {
-  if (anonymous) return { kind: "local" };
+  discovered: RuntimeRule[],
+  options: { anonymous: boolean; dangerouslyRunScripts: boolean }
+): Promise<RuntimePlan> {
+  if (discovered.length === 0) return { execute: [], skipped: [], notices: [] };
+
+  if (options.dangerouslyRunScripts) {
+    return {
+      execute: discovered,
+      skipped: [],
+      notices: [
+        "Warning: --dangerously-run-scripts is executing runtime rule code without server verification.",
+      ],
+    };
+  }
+
+  if (options.anonymous) {
+    return skipAllRuntime(
+      discovered,
+      "anonymous mode — runtime rules were not verified and did not run"
+    );
+  }
 
   const token = await getToken(cwd, { silent: true });
-  if (!token) return { kind: "local" };
+  if (!token) {
+    return skipAllRuntime(
+      discovered,
+      "not authenticated — runtime rules were not verified and did not run"
+    );
+  }
 
   let repositoryUrl: string;
   try {
     repositoryUrl = await resolveRepositoryUrl(cwd);
   } catch {
-    return {
-      kind: "degrade",
-      reason: "no GitHub remote was found, so rules could not be verified",
-    };
+    return skipAllRuntime(
+      discovered,
+      "no GitHub remote — runtime rules could not be verified and did not run"
+    );
   }
 
-  const signed = await signRuleFiles(cwd, ruleFiles);
+  // A rule whose check.ts is missing/unreadable is reported, not fatal: signing
+  // never throws, and such rules are surfaced as skipped so static checks and
+  // the other runtime rules are unaffected.
+  const { signed, unreadable } = await signRuntimeChecks(discovered);
+  const unreadableSkips: SkippedRuntimeRule[] = unreadable.map((rule) => ({
+    rule: rule.name,
+    reason: "its check.ts is missing or unreadable",
+  }));
+
   const outcome = await reconcile(token, {
     repositoryUrl,
-    files: signed.map(({ file, signature }) => ({ file, signature })),
+    files: reportRuntimeChecks(cwd, signed),
   });
 
-  if (outcome.status === "ok") {
-    return { kind: "gated", result: outcome.result, signed };
-  }
   if (outcome.status === "unauthorized") {
-    return {
-      kind: "degrade",
-      reason: `authentication was rejected — run \`${getCliPrefix()} auth login\` to re-authenticate`,
-    };
+    return skipAllRuntime(
+      discovered,
+      `authentication was rejected — run \`${getCliPrefix()} auth login\` to re-authenticate`
+    );
+  }
+  if (outcome.status === "unavailable") {
+    return skipAllRuntime(
+      discovered,
+      `the rule service was unavailable (${outcome.reason})`
+    );
+  }
+
+  const { blessed, withheld } = selectBlessedRuntimeRules(
+    signed,
+    outcome.result.run
+  );
+  let execute: RuntimeRule[] = [];
+  try {
+    execute =
+      blessed.length > 0 ? await materializeRuntimeRules(cwd, blessed) : [];
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return skipAllRuntime(
+      discovered,
+      `runtime rules could not be materialized (${message})`
+    );
   }
   return {
-    kind: "degrade",
-    reason: `the rule service was unavailable (${outcome.reason})`,
+    execute,
+    skipped: [
+      ...unreadableSkips,
+      ...withheld.map((rule) => ({
+        rule: rule.name,
+        reason: "not blessed by the server (unsafe / unknown / drift)",
+      })),
+    ],
+    notices: [],
   };
 }
 
-/** Emit advisory reconciliation warnings (human output only). */
-function surfaceReconcileWarnings(
-  result: ReconcileResponse,
-  warn: (message: string) => void
-): void {
-  for (const entry of result.unsafe) {
-    warn(
-      `Warning: ${entry.file} differs from the blessed rule (tamper/drift) and will not run.`
-    );
-  }
-  for (const entry of result.unknown) {
-    warn(
-      `Notice: ${entry.file} was not issued by the server and will not run.`
-    );
-  }
-  for (const entry of result.missing) {
-    warn(
-      `Notice: expected rule ${entry.ruleId} (${entry.file}) is not present locally.`
-    );
-  }
+/** Parse `--timeout <seconds>` into milliseconds; invalid/absent → undefined (default). */
+function parseTimeoutMs(raw: string | undefined): number | undefined {
+  if (raw === undefined) return undefined;
+  const seconds = Number(raw);
+  if (!Number.isFinite(seconds) || seconds <= 0) return undefined;
+  return Math.round(seconds * 1000);
 }
 
 export const checkCommand = defineCommand({
@@ -188,16 +256,27 @@ export const checkCommand = defineCommand({
     },
     anonymous: {
       type: "boolean",
-      description: "Skip server reconciliation and scan local rules unverified",
+      description:
+        "Run only trusted static rules; skip runtime rules (no reconciliation)",
       default: false,
+    },
+    "dangerously-run-scripts": {
+      type: "boolean",
+      description:
+        "Run runtime-rule check.ts without server verification (executes untrusted code)",
+      default: false,
+    },
+    timeout: {
+      type: "string",
+      description: "Per-runtime-check timeout in seconds (default 10)",
     },
   },
   async run({ args, rawArgs }) {
     const cwd = resolve(args.dir ?? process.cwd());
     const telemetry = await getTelemetry(cwd);
 
-    // Warnings are advisory human output; suppress them under --json so the
-    // machine output stays the existing { success, results } shape.
+    // Warnings/notices are advisory human output; suppress them under --json so
+    // the machine output stays the { success, results, skipped? } shape.
     const warn = (message: string) => {
       if (!args.json) console.error(message);
     };
@@ -227,17 +306,19 @@ export const checkCommand = defineCommand({
         return;
       }
 
-      // Check for rule files
+      // Static rules (trusted ast-grep YAML) always run; runtime rules
+      // (untrusted check.ts) are gated separately.
       const rulesDirectory = join(cwd, ".taskless", "rules");
-      let ruleFiles: string[] = [];
+      let staticRuleFiles: string[] = [];
       try {
         const entries = await readdir(rulesDirectory);
-        ruleFiles = entries.filter((f) => f.endsWith(".yml"));
+        staticRuleFiles = entries.filter((f) => f.endsWith(".yml"));
       } catch {
         // .taskless/ or rules/ directory doesn't exist
       }
+      const runtimeRules = await discoverRuntimeRules(cwd);
 
-      if (ruleFiles.length === 0) {
+      if (staticRuleFiles.length === 0 && runtimeRules.length === 0) {
         if (args.json) {
           console.log(
             JSON.stringify(
@@ -252,30 +333,33 @@ export const checkCommand = defineCommand({
         return;
       }
 
-      // Decide what to run from auth state, then scan.
       try {
-        const mode = await resolveScanMode(cwd, args.anonymous, ruleFiles);
+        const results: CheckResult[] = [];
 
-        let results: CheckResult[] = [];
-        if (mode.kind === "gated") {
-          surfaceReconcileWarnings(mode.result, warn);
-          const runFiles = selectRunFiles(mode.signed, mode.result.run);
-          // Empty run set (empty corpus, or all unsafe/unknown): run nothing.
-          if (runFiles.length > 0) {
-            await materializeRunDirectory(cwd, runFiles);
-            await generateSgConfig(cwd, { rulesDirectory: RUN_RULES_DIR });
-            const scan = await runAstGrepScan(cwd, existingPaths);
-            results = scan.results;
-          }
-        } else {
-          if (mode.kind === "degrade") {
-            warn(
-              `Notice: ${mode.reason}. Scanning all local rules unverified; the CI backstop enforces the server-owned rule set.`
-            );
-          }
+        // Static rules: always scan, no verification (inert data).
+        if (staticRuleFiles.length > 0) {
           await generateSgConfig(cwd);
           const scan = await runAstGrepScan(cwd, existingPaths);
-          results = scan.results;
+          results.push(...scan.results);
+        }
+
+        // Runtime rules: run only what the server validated (or forced).
+        const plan = await planRuntime(cwd, runtimeRules, {
+          anonymous: args.anonymous,
+          dangerouslyRunScripts: Boolean(args["dangerously-run-scripts"]),
+        });
+        for (const notice of plan.notices) warn(notice);
+        for (const skipped of plan.skipped) {
+          warn(
+            `Notice: runtime rule ${skipped.rule} was not run — ${skipped.reason}.`
+          );
+        }
+        if (plan.execute.length > 0) {
+          const runtimeResults = await executeRuntimeRules(cwd, plan.execute, {
+            paths: existingPaths,
+            timeoutMs: parseTimeoutMs(args.timeout),
+          });
+          results.push(...runtimeResults);
         }
 
         let errorCount = 0;
@@ -287,11 +371,11 @@ export const checkCommand = defineCommand({
         const hasErrors = errorCount > 0;
         scanCounts = { errorCount, warningCount, findings: results.length };
 
-        // Format output
         if (args.json) {
           const output = checkOutputSchema.parse({
             success: !hasErrors,
             results,
+            ...(plan.skipped.length > 0 ? { skipped: plan.skipped } : {}),
           });
           console.log(JSON.stringify(output));
         } else {
