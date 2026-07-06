@@ -1,0 +1,56 @@
+name: Require Changeset
+
+# Every PR to `main` must add a changeset (a new `.changeset/<name>.md`) so the
+# version bump is intentional and the changelog stays complete. A PR that
+# legitimately needs no release note (docs, CI, chores) can carry the
+# `skip-changeset` label to bypass the requirement.
+#
+# The job ALWAYS runs and reports a status (the label is checked inside the
+# step, not via a job-level `if`), so it stays safe to mark as a required check —
+# a conditionally-skipped required check would otherwise block merges.
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  changeset:
+    name: Require a changeset
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for a changeset
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          set -euo pipefail
+
+          # Escape hatch for PRs that intentionally ship no release note.
+          case ",${LABELS}," in
+            *,skip-changeset,*)
+              echo "The 'skip-changeset' label is present — bypassing the changeset requirement."
+              exit 0
+              ;;
+          esac
+
+          # A changeset is any new `.changeset/*.md` added by this PR, other than
+          # the template README.
+          ADDED=$(git diff --name-only --diff-filter=A "$BASE_SHA...$HEAD_SHA" -- '.changeset/*.md' \
+            | grep -viE '/README\.md$' || true)
+
+          if [ -z "$ADDED" ]; then
+            echo "::error::This PR adds no changeset. Run \`pnpm changeset\` to record the release impact, or apply the \`skip-changeset\` label if no release note is needed (docs / CI / chore)."
+            exit 1
+          fi
+
+          echo "Changeset(s) added by this PR:"
+          echo "$ADDED" | sed 's/^/  - /'
