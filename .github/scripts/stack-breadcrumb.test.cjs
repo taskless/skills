@@ -15,6 +15,7 @@ const {
   findAllRoots,
   planUpdate,
   reconcile,
+  hasFailedStackJob,
 } = require("./stack-breadcrumb.cjs");
 
 const DEFAULT_BRANCH = "main";
@@ -312,4 +313,47 @@ test("reconcile: a lone open root with only merged descendants still renders", a
   assert.deepEqual(result.updated, [10]);
   assert.deepEqual(result.frozen, [11, 12]);
   assert.match(calls[0][1], /pr=10,11,12/);
+});
+
+test("hasFailedStackJob: true when a stack-prefixed job failed", () => {
+  assert.equal(
+    hasFailedStackJob([
+      { name: "stack: position", conclusion: "success" },
+      { name: "stack: openspec-archived", conclusion: "failure" },
+    ]),
+    true
+  );
+});
+
+test("hasFailedStackJob: false when the only failure is not a stack job", () => {
+  assert.equal(
+    hasFailedStackJob([
+      { name: "stack: position", conclusion: "success" },
+      { name: "Validate", conclusion: "failure" },
+    ]),
+    false
+  );
+});
+
+test("hasFailedStackJob: false for a skipped stack job (not a failure)", () => {
+  assert.equal(
+    hasFailedStackJob([
+      { name: "stack: openspec-archived", conclusion: "skipped" },
+    ]),
+    false
+  );
+});
+
+test("hasFailedStackJob: 'stack' must be a name prefix, not merely contained", () => {
+  assert.equal(
+    hasFailedStackJob([
+      { name: "Reconcile breadcrumb across the stack", conclusion: "failure" },
+    ]),
+    false
+  );
+});
+
+test("hasFailedStackJob: false for empty/missing jobs", () => {
+  assert.equal(hasFailedStackJob([]), false);
+  assert.equal(hasFailedStackJob(undefined), false);
 });

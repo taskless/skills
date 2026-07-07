@@ -334,6 +334,25 @@ async function reconcile(root, deps) {
   return { root, updated, skipped, frozen, failed };
 }
 
+// ---------------------------------------------------------------------------
+// Stale stack-check detection (for re-running "trued" checks)
+// ---------------------------------------------------------------------------
+
+/**
+ * Whether a workflow run is a stale stack-dependent check that should be
+ * re-run. A run qualifies when it has a job that FAILED and whose name is
+ * `stack`-prefixed (the convention for stack-position-dependent gates, e.g.
+ * `stack: openspec-archived`). Passing/skipped stack jobs and non-stack
+ * failures (tests) do NOT qualify — so nothing is re-run when the stack is
+ * mid-flight and its checks are green or appropriately skipped.
+ */
+function hasFailedStackJob(jobs) {
+  return (jobs ?? []).some(
+    (job) =>
+      job.conclusion === "failure" && /^stack\b/i.test(String(job.name ?? ""))
+  );
+}
+
 module.exports = {
   parseStackComment,
   getRegion,
@@ -346,6 +365,7 @@ module.exports = {
   findAllRoots,
   planUpdate,
   reconcile,
+  hasFailedStackJob,
   HERE_PREFIX,
   HERE_SUFFIX,
   STACK_HEADING,
