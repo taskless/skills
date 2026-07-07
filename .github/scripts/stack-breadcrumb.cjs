@@ -339,12 +339,12 @@ async function reconcile(root, deps) {
 // ---------------------------------------------------------------------------
 
 /**
- * Whether a workflow run is a stale stack-dependent check that should be
- * re-run. A run qualifies when it has a job that FAILED and whose name is
- * `stack`-prefixed (the convention for stack-position-dependent gates, e.g.
- * `stack: openspec-archived`). Passing/skipped stack jobs and non-stack
- * failures (tests) do NOT qualify — so nothing is re-run when the stack is
- * mid-flight and its checks are green or appropriately skipped.
+ * Given a workflow run's `jobs`, decide whether that run is a stale
+ * stack-dependent check to re-run: it qualifies when one of its jobs FAILED and
+ * that job's name is `stack`-prefixed (the convention for stack-position-
+ * dependent gates, e.g. `stack: openspec-archived`). Passing/skipped stack jobs
+ * and non-stack failures (tests) do NOT qualify — so nothing is re-run when the
+ * stack is mid-flight and its checks are green or appropriately skipped.
  */
 function hasFailedStackJob(jobs) {
   return (jobs ?? []).some(
