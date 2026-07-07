@@ -8,7 +8,10 @@ name: Stack Breadcrumb
 #   STAGE 1 (dispatch)  — on PR shape-change events, resolve the affected
 #                         root(s) and fire a `repository_dispatch`.
 #   STAGE 2 (reconcile) — on that dispatch (or a manual `workflow_dispatch`),
-#                         render and propagate the breadcrumb, serialized per root.
+#                         render and propagate the breadcrumb, serialized per
+#                         root, AND "true" the stack: re-run any stale
+#                         `stack`-prefixed check that a shape change left failing
+#                         on a PR that is no longer the tip.
 #
 # Stage 1 fires the dispatch with the built-in GITHUB_TOKEN: although that token
 # normally suppresses recursive workflow runs, `repository_dispatch` is a
@@ -117,6 +120,7 @@ jobs:
     permissions:
       contents: read # checkout
       pull-requests: write # edit PR bodies
+      actions: write # re-run stale stack-dependent checks ("trueing" the stack)
     # One reconcile per root at a time. A burst for one root collapses to the
     # latest run; convergent writes make cancellation safe.
     concurrency:
@@ -146,6 +150,7 @@ jobs:
                 baseRefName: pr.base.ref,
                 body: pr.body ?? "",
                 state: "open",
+                headSha: pr.head.sha,
               }));
 
             // Preserve construction history: pull in stack members recorded in
@@ -277,6 +282,48 @@ jobs:
               core.info(`reconciled root #${root}: ${JSON.stringify(result)}`);
               failures.push(...result.failed);
             }
+
+            // "Trueing" the stack: a stack shape change can leave a PR's
+            // stack-position-dependent checks (e.g. the OpenSpec archive gate)
+            // failing on a PR that is no longer the tip. GitHub won't re-run a
+            // PR's checks when a *different* PR changes, so do it here — re-run
+            // any workflow run on an affected (open) PR that has a FAILED
+            // `stack`-prefixed job. Failing tests and green/skipped stack checks
+            // are left alone.
+            const rechecked = new Set();
+            for (const root of roots) {
+              const tree = stack.buildTree(root, allPullRequests);
+              for (const number of tree.members) {
+                if (rechecked.has(number)) continue;
+                rechecked.add(number);
+                const pr = allPullRequests.find((p) => p.number === number);
+                if (!pr || pr.state !== "open" || !pr.headSha) continue;
+                const runs = await github.paginate(github.rest.actions.listWorkflowRunsForRepo, {
+                  owner, repo, head_sha: pr.headSha, per_page: 100,
+                });
+                const seenWorkflows = new Set();
+                for (const run of runs) {
+                  // Consider only the latest run per workflow for this head SHA.
+                  if (seenWorkflows.has(run.workflow_id)) continue;
+                  seenWorkflows.add(run.workflow_id);
+                  // A still-running latest run will report fresh on its own; a
+                  // run that did not fail overall cannot contain a failed job, so
+                  // skip the job fetch for it entirely.
+                  if (run.status !== "completed" || run.conclusion !== "failure") continue;
+                  const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+                    owner, repo, run_id: run.id, per_page: 100,
+                  });
+                  if (!stack.hasFailedStackJob(jobs)) continue;
+                  try {
+                    await github.rest.actions.reRunWorkflow({ owner, repo, run_id: run.id });
+                    core.info(`recheck: re-ran "${run.name}" (run ${run.id}) on PR #${number}`);
+                  } catch (error) {
+                    core.info(`recheck: could not re-run run ${run.id} on PR #${number}: ${String(error)}`);
+                  }
+                }
+              }
+            }
+
             if (failures.length > 0) {
               core.setFailed(`Failed to update ${failures.length} PR body/bodies: ${failures.map((n) => `#${n}`).join(", ")}. See logs above.`);
             }

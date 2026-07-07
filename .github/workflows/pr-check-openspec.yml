@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   stack-position:
-    name: Detect stack position
+    name: "stack: position"
     runs-on: ubuntu-latest
     outputs:
       is_tip: ${{ steps.detect.outputs.is_tip }}
@@ -51,6 +51,7 @@ jobs:
           fi
 
   check-openspec-archived:
+    name: "stack: openspec-archived"
     needs: stack-position
     if: needs.stack-position.outputs.is_tip == 'true'
     runs-on: ubuntu-latest
