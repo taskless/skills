@@ -37,7 +37,7 @@ export const infoCommand = defineCommand({
       args.anonymous ? Promise.resolve() : getToken(cwd),
     ]);
 
-    let auth: { user: string; email: string; orgs: string[] } | undefined;
+    let auth: { user: string; email?: string; orgs: string[] } | undefined;
     if (!args.anonymous && token) {
       const whoami = await fetchWhoami(token);
       if (whoami) {
