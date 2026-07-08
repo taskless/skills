@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { selectOrgForOwners, type WhoamiOrg } from "../src/auth/org";
 
-const org = (id: string, url: string, source = "github"): WhoamiOrg => ({
-  orgId: 1,
-  id,
-  name: url.split("/").pop() ?? "",
-  installationId: 1,
-  source,
-  url,
-});
+// `source` is cast because the generated schema pins it to the literal
+// "github"; the source-filter test deliberately injects another provider.
+const org = (id: string, url: string, source = "github"): WhoamiOrg =>
+  ({
+    orgId: 1,
+    id,
+    name: url.split("/").pop() ?? "",
+    installationId: 1,
+    source,
+    url,
+  }) as WhoamiOrg;
 
 describe("selectOrgForOwners", () => {
   const orgs = [

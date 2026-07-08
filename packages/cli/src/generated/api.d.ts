@@ -31,14 +31,23 @@ export interface paths {
               /** @description Display name */
               user: string;
               /** @description Email address */
-              email: string;
+              email?: string;
               orgs: {
                 /** @description GitHub org ID */
                 orgId: number;
+                /** @description Taskless organization UUID */
+                id: string;
                 /** @description Organization name */
                 name: string;
                 /** @description GitHub App installation ID */
                 installationId: number;
+                /**
+                 * @description Identity provider
+                 * @constant
+                 */
+                source: "github";
+                /** @description Canonical owner URL the client matches its repository against */
+                url: string;
               }[];
             };
           };
@@ -141,12 +150,14 @@ export interface paths {
               /** @enum {string} */
               status:
                 | "accepted"
+                | "classifying"
                 | "building"
                 | "generated"
                 | "failed"
                 | "pr"
                 | "merged"
-                | "closed";
+                | "closed"
+                | "unsupported";
               /** @description Generated rules (present when status is generated) */
               rules?: {
                 /** @description Rule identifier (matches content.id) */
@@ -290,6 +301,136 @@ export interface paths {
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/cli/api/reconcile": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Reconcile reported rule files against the blessed corpus; returns what may run */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      /** @description OK */
+      requestBody?: {
+        content: {
+          "application/json": {
+            /** @description Taskless org UUID (preferred) or numeric GitHub org id; falls back to the deprecated token claim */
+            orgId?: string | number;
+            /** @description Full repository URL */
+            repositoryUrl: string;
+            /** @description The rule files the client holds and their local signatures */
+            files: {
+              /** @description Delivered rule filename under .taskless/rules/ on the client */
+              file: string;
+              /** @description Canonical signature the client computed for its local file (`1;h=sha-256;d=<hex>`) */
+              signature: string;
+            }[];
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /** @description Files the client may execute — exactly these, nothing else */
+              run: {
+                /** @description The model-assigned rule identifier */
+                ruleId: string;
+                /** @description Delivered rule filename under .taskless/rules/ */
+                file: string;
+                /** @description Blessed canonical signature (`1;h=sha-256;d=<hex>`) */
+                signature: string;
+              }[];
+              /** @description Reported files whose content differs from the blessed rule */
+              unsafe: {
+                /** @description Delivered rule filename */
+                file: string;
+                /** @description The blessed (authoritative) signature */
+                expected: string;
+                /** @description The signature the client reported */
+                got: string;
+              }[];
+              /** @description Reported files the corpus never issued */
+              unknown: {
+                /** @description Delivered rule filename the corpus never issued */
+                file: string;
+              }[];
+              /** @description Blessed rules the client did not report */
+              missing: {
+                /** @description The model-assigned rule identifier */
+                ruleId: string;
+                /** @description Delivered rule filename the client did not report */
+                file: string;
+              }[];
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/cli/api/rule-hash-vectors": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Public: canonical rule-hash conformance vectors for cross-repo validation */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /** @description Canonical conformance vectors every implementation must reproduce */
+              vectors: {
+                /** @description Human-readable case name, e.g. "crlf-equals-lf" */
+                name: string;
+                /** @description Raw rule text to hash */
+                input: string;
+                /** @description Canonical signature envelope: <algoVersion>;h=<algo>;d=<hex> */
+                signature: string;
+              }[];
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;

@@ -1,25 +1,16 @@
+import type { paths } from "../generated/api";
 import { listRemoteOwnerUrls } from "../util/git-remote";
 
+type WhoamiData =
+  paths["/cli/api/whoami"]["get"]["responses"]["200"]["content"]["application/json"];
+
 /**
- * One organization from `GET /cli/api/whoami` (0.10.x contract). Hand-typed
- * here because the generated schema lags the server (the fields ship in
- * lockstep). `orgId` stays the numeric GitHub org id; `id` is the Taskless org
- * UUID — the value to send as the org subject on write calls.
+ * One organization from `GET /cli/api/whoami`, derived from the generated
+ * OpenAPI schema. `orgId` is the numeric GitHub org id; `id` is the Taskless
+ * org UUID — the subject the CLI acts as on write calls; `url` is the canonical
+ * OWNER url (e.g. `https://github.com/acme`) matched against the repo's remotes.
  */
-export interface WhoamiOrg {
-  /** GitHub numeric org id (unchanged from 0.9.x). */
-  orgId: number;
-  /** Taskless org UUID — the org subject the CLI acts as. */
-  id: string;
-  /** Org name (GitHub owner login). */
-  name: string;
-  /** GitHub App installation id. */
-  installationId: number;
-  /** Provider discriminator, e.g. `"github"`. */
-  source: string;
-  /** Canonical OWNER url, e.g. `https://github.com/acme` (not per-repo). */
-  url: string;
-}
+export type WhoamiOrg = WhoamiData["orgs"][number];
 
 /**
  * Pick the acting org from a whoami org list given the repo's owner urls (in
