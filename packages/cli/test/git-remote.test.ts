@@ -57,26 +57,30 @@ describe("canonicalizeGitHubUrl", () => {
 });
 
 describe("canonicalOwnerUrl", () => {
-  // The server normalizes orgs[].url identically; these are the doc's vectors.
+  // Parity fixtures with the server's @taskless/shared/github canonicalOwnerUrl.
+  // The dashboard builds whoami's per-org `url` with the same function and the
+  // two are compared with `===`, so every form here MUST reduce identically —
+  // including the ssh://, git://, and port forms the old regex version threw on.
   it.each([
-    "git@github.com:Acme/Widgets.git",
-    "https://github.com/acme/widgets",
-    "https://github.com/ACME/widgets.git",
-    "https://www.github.com/acme/widgets/",
-    "git@github.com:acme/widgets",
+    "git@github.com:Acme/Widgets.git", // scp-like SSH
+    "https://github.com/acme/widgets", // https
+    "https://github.com/ACME/widgets.git", // .git suffix
+    "https://www.github.com/acme/widgets/", // www. + trailing slash
+    "git@github.com:acme/widgets", // scp-like, no .git
+    "ssh://git@github.com/acme/widgets.git", // ssh:// URL form
+    "git://github.com/acme/widgets.git", // git:// URL form
+    "https://github.com:443/acme/widgets", // explicit port
+    "https://x-access-token@GitHub.com/Acme/Widgets", // userinfo + mixed case
+    "acme", // bare owner login (the form the server canonicalizes)
   ])("reduces %s to the canonical owner url", (input) => {
     expect(canonicalOwnerUrl(input)).toBe("https://github.com/acme");
   });
 
-  it("strips userinfo and lowercases the host", () => {
-    expect(
-      canonicalOwnerUrl("https://x-access-token@GitHub.com/Acme/Widgets")
-    ).toBe("https://github.com/acme");
-  });
-
-  it("throws for non-GitHub remotes", () => {
-    expect(() => canonicalOwnerUrl("git@gitlab.com:acme/widgets.git")).toThrow(
-      /Only GitHub/
+  it("keeps the host for non-GitHub remotes (dropped later by listRemoteOwnerUrls)", () => {
+    // Mirrors the server: host-agnostic and never throws. A gitlab owner url
+    // just won't match a github-sourced org.
+    expect(canonicalOwnerUrl("git@gitlab.com:acme/widgets.git")).toBe(
+      "https://gitlab.com/acme"
     );
   });
 });
@@ -122,5 +126,18 @@ describe("listRemoteOwnerUrls", () => {
       { cwd: directory }
     );
     expect(await listRemoteOwnerUrls(directory)).toEqual([]);
+  });
+
+  it("matches a github remote given in ssh:// url form", async () => {
+    // Regression guard: the old regex canonicalizer threw on ssh:// remotes, so
+    // this repo would have resolved to no current-org context.
+    await execFileAsync(
+      "git",
+      ["remote", "add", "origin", "ssh://git@github.com/Acme/Widgets.git"],
+      { cwd: directory }
+    );
+    expect(await listRemoteOwnerUrls(directory)).toEqual([
+      "https://github.com/acme",
+    ]);
   });
 });
