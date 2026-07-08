@@ -53,30 +53,52 @@ export function canonicalizeGitHubUrl(rawUrl: string): string {
   );
 }
 
-// git@github.com:owner/repo(.git) — owner only
-const OWNER_SSH_PATTERN =
-  /^git@github\.com:(?<owner>[^/]+)\/[^/]+?(?:\.git)?$/i;
-// http(s)://[user@][www.]github.com/owner/repo(.git)(/) — owner only
-const OWNER_HTTPS_PATTERN =
-  /^https?:\/\/(?:[^@/]+@)?(?:www\.)?github\.com\/(?<owner>[^/]+)\/[^/]+?(?:\.git)?\/?$/i;
-
 /**
- * Reduce a GitHub remote URL to its canonical OWNER url —
- * `https://github.com/{owner}` — matching the server's `orgs[].url`
- * normalization exactly: scheme `https`, host `github.com` (no `www.`), owner
- * lowercased, repo dropped, no `.git`, no trailing slash, no userinfo.
- * Throws for anything that isn't a GitHub owner/repo remote.
+ * Reduce a git remote reference to a canonical OWNER url —
+ * `https://{host}/{owner}`. This is a verbatim port of the server's
+ * `@taskless/shared/github` `canonicalOwnerUrl`, which builds `whoami`'s
+ * per-org `url`. The two sides are compared with `===`, so this MUST stay
+ * byte-for-byte identical — any divergence silently drops an org match.
+ *
+ * Accepts a bare owner login, a full repo URL, or an SSH remote (scp-like or
+ * `ssh://`/`git://` URL form). Host and owner are lowercased (GitHub logins are
+ * case-insensitive), `www.` is stripped, a trailing `.git`/slash removed, and
+ * userinfo, port, query, and fragment discarded. Host defaults to `github.com`
+ * when the input carries none. Never throws: a non-GitHub host comes back as
+ * `https://{that-host}/{owner}`, which simply won't match a GitHub org url —
+ * `listRemoteOwnerUrls` is where non-GitHub owners are dropped.
  */
-export function canonicalOwnerUrl(rawUrl: string): string {
-  const url = rawUrl.trim();
-  const match = OWNER_SSH_PATTERN.exec(url) ?? OWNER_HTTPS_PATTERN.exec(url);
-  if (!match?.groups?.owner) {
-    throw new Error(
-      `Unsupported git remote URL: "${rawUrl}". Only GitHub repositories (github.com) are supported.`
-    );
+export function canonicalOwnerUrl(ownerOrUrl: string): string {
+  const raw = ownerOrUrl.trim();
+  let host = "github.com";
+  let path = raw;
+
+  const sshRemote = /^[^@/]+@([^:/]+):(.+)$/.exec(raw);
+  if (sshRemote) {
+    // scp-like SSH remote: git@github.com:owner/repo(.git)
+    host = sshRemote[1] ?? host;
+    path = sshRemote[2] ?? path;
+  } else if (/^[a-z][a-z0-9+.-]*:\/\//i.test(raw) || raw.startsWith("//")) {
+    // Absolute (https://, ssh://, git://) or scheme-relative (//host/...) URL
+    try {
+      const url = new URL(raw.startsWith("//") ? `https:${raw}` : raw);
+      host = url.hostname;
+      path = url.pathname;
+    } catch {
+      // Not parseable as a URL — fall through and treat the input as a path.
+    }
   }
-  return `https://github.com/${match.groups.owner.toLowerCase()}`;
+
+  host = host.toLowerCase().replace(/^www\./, "");
+  const owner = (path.replace(/^\/+/, "").split("/")[0] ?? "")
+    .replace(/\.git$/i, "")
+    .toLowerCase();
+
+  return `https://${host}/${owner}`;
 }
+
+/** A canonical owner url on github.com with a non-empty owner segment. */
+const GITHUB_OWNER_URL = /^https:\/\/github\.com\/[^/]+$/;
 
 /** Read every `remote.<name>.url` from git config; empty if not a repo / no remotes. */
 function listRemoteConfig(
@@ -129,11 +151,11 @@ export async function listRemoteOwnerUrls(cwd: string): Promise<string[]> {
   const owners: string[] = [];
   const seen = new Set<string>();
   for (const remote of ordered) {
-    let owner: string;
-    try {
-      owner = canonicalOwnerUrl(remote.url);
-    } catch {
-      continue; // non-GitHub remote — can't map to an org
+    const owner = canonicalOwnerUrl(remote.url);
+    // Only a github.com owner can match a `github`-sourced whoami org. Drop
+    // other hosts and any empty owner (a remote with no owner segment).
+    if (!GITHUB_OWNER_URL.test(owner)) {
+      continue;
     }
     if (!seen.has(owner)) {
       seen.add(owner);
