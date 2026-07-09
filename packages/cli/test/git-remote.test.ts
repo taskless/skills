@@ -128,6 +128,31 @@ describe("listRemoteOwnerUrls", () => {
     expect(await listRemoteOwnerUrls(directory)).toEqual([]);
   });
 
+  it("keeps every url of a precedence remote (multi-url origin)", async () => {
+    // `git remote set-url --add` gives origin a second url; both owners must be
+    // considered, in order, rather than the first winning outright.
+    await execFileAsync(
+      "git",
+      ["remote", "add", "origin", "git@github.com:primary/widgets.git"],
+      { cwd: directory }
+    );
+    await execFileAsync(
+      "git",
+      [
+        "remote",
+        "set-url",
+        "--add",
+        "origin",
+        "https://github.com/secondary/widgets.git",
+      ],
+      { cwd: directory }
+    );
+    expect(await listRemoteOwnerUrls(directory)).toEqual([
+      "https://github.com/primary",
+      "https://github.com/secondary",
+    ]);
+  });
+
   it("matches a github remote given in ssh:// url form", async () => {
     // Regression guard: the old regex canonicalizer threw on ssh:// remotes, so
     // this repo would have resolved to no current-org context.
