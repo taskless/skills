@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+// Adapted from the taskless/taskless stack-breadcrumb implementation
+// (@taskless/stack-breadcrumb) and brought into this repository under its MIT
+// license, with permission.
 "use strict";
 
 /**
@@ -31,13 +35,23 @@
 /** Matches the whole region, opening marker through `<!-- /stack -->`. */
 const REGION_PATTERN = /<!-- stack [^>]*-->[\S\s]*?<!-- \/stack -->/;
 
-/** Matches just the opening marker, capturing `root` and the `pr=` list. */
-const OPEN_MARKER_PATTERN = /<!-- stack root=(\d+) pr=([\d,]*) -->/;
+/**
+ * Matches just the opening marker, capturing `root` and the `pr=` list. Each
+ * `pr=` entry is either `member` or `member:parent`, so the character class
+ * admits `:` — old flat markers (`pr=82,83,84`) still match and parse as
+ * members with no recorded parent (structure then comes from the live graph).
+ */
+const OPEN_MARKER_PATTERN = /<!-- stack root=(\d+) pr=([\d,:]*) -->/;
 
 /**
- * Parse the opening marker's `root` and ordered `pr=` membership list — but only
- * inside a COMPLETE region (both markers present), so a stray or pasted opening
- * marker without its closing tag is not mistaken for a managed region.
+ * Parse the opening marker's `root`, ordered `pr=` membership list, and any
+ * recorded `member:parent` topology — but only inside a COMPLETE region (both
+ * markers present), so a stray or pasted opening marker without its closing tag
+ * is not mistaken for a managed region.
+ *
+ * Returns `{ root, members, parents }` where `parents` is a Map of member →
+ * recorded parent for entries that carried a `:parent` suffix. A legacy flat
+ * marker yields an empty `parents` map — fully backward compatible.
  */
 function parseStackComment(body) {
   const region = getRegion(body);
@@ -49,11 +63,47 @@ function parseStackComment(body) {
     return undefined;
   }
   const root = Number(match[1]);
-  const members = match[2]
-    .split(",")
-    .filter((part) => part.length > 0)
-    .map(Number);
-  return { root, members };
+  const members = [];
+  const parents = new Map();
+  for (const part of match[2].split(",")) {
+    if (part.length === 0) {
+      continue;
+    }
+    const [memberText, parentText] = part.split(":");
+    const member = Number(memberText);
+    if (!Number.isInteger(member)) {
+      continue;
+    }
+    members.push(member);
+    if (parentText !== undefined) {
+      const parent = Number(parentText);
+      if (Number.isInteger(parent)) {
+        parents.set(member, parent);
+      }
+    }
+  }
+  return { root, members, parents };
+}
+
+/**
+ * Consolidate the recorded `member → parent` topology across every PR body in
+ * the list. All PRs in a stack carry the same marker, so the union is
+ * consistent; on the rare disagreement, last-write wins. Legacy flat markers
+ * contribute nothing, so a stack only gains durable topology once it has been
+ * reconciled at least once under this format.
+ */
+function gatherRecordedParents(pullRequests) {
+  const parents = new Map();
+  for (const pullRequest of pullRequests) {
+    const marker = parseStackComment(pullRequest.body);
+    if (!marker) {
+      continue;
+    }
+    for (const [member, parent] of marker.parents) {
+      parents.set(member, parent);
+    }
+  }
+  return parents;
 }
 
 /** Return the existing region (including both markers), or `undefined` if absent. */
@@ -107,24 +157,58 @@ function spliceRegion(body, region) {
 
 const HERE_PREFIX = "➡️ "; // ➡️
 const HERE_SUFFIX = " (you are here)";
+const MERGED_SUFFIX = " ✅ merged";
+const CLOSED_SUFFIX = " ⛔ closed";
 const STACK_HEADING = "**Stack** (root → tip):"; // root → tip
 
-/** Render the full `<!-- stack … -->` … `<!-- /stack -->` region, or `''` for a non-stacked PR. */
-function renderRegion(tree, currentNumber) {
+/**
+ * Render the full `<!-- stack … -->` … `<!-- /stack -->` region, or `''` for a
+ * non-stacked PR.
+ *
+ * `stateOf(number)` returns `'merged' | 'closed' | 'open'` (default `'open'`),
+ * so merged/closed ancestors stay in the tree with a status marker instead of
+ * being pruned. The `pr=` list encodes topology as `member:parent` (the root
+ * has no `:parent`), so the structure is recorded and survives retargeting.
+ */
+function renderRegion(tree, currentNumber, stateOf = () => "open") {
   if (tree.members.length <= 1) {
     return "";
   }
 
-  const open = `<!-- stack root=${tree.root} pr=${tree.members.join(",")} -->`;
+  const encodeMember = (number_) => {
+    const parent = tree.parentOf.get(number_);
+    return parent === undefined ? String(number_) : `${number_}:${parent}`;
+  };
+  const open = `<!-- stack root=${tree.root} pr=${tree.members
+    .map(encodeMember)
+    .join(",")} -->`;
   const lines = [open, STACK_HEADING, ""];
 
+  const stateSuffix = (number_) => {
+    switch (stateOf(number_)) {
+      case "merged":
+        return MERGED_SUFFIX;
+      case "closed":
+        return CLOSED_SUFFIX;
+      default:
+        return "";
+    }
+  };
+
+  // `buildTree` yields an acyclic tree, but guard the recursion defensively so a
+  // hand-built or malformed `childrenOf` can never spin the workflow forever.
+  const rendered = new Set();
   const renderNode = (number_, depth) => {
+    if (rendered.has(number_)) {
+      return;
+    }
+    rendered.add(number_);
     const indent = "  ".repeat(depth);
-    lines.push(
+    const label =
       number_ === currentNumber
-        ? `${indent}- ${HERE_PREFIX}#${number_}${HERE_SUFFIX}`
-        : `${indent}- #${number_}`
-    );
+        ? `${HERE_PREFIX}#${number_}${HERE_SUFFIX}`
+        : `#${number_}${stateSuffix(number_)}`;
+    lines.push(`${indent}- ${label}`);
     for (const child of tree.childrenOf.get(number_) ?? []) {
       renderNode(child, depth + 1);
     }
@@ -136,7 +220,29 @@ function renderRegion(tree, currentNumber) {
 }
 
 // ---------------------------------------------------------------------------
-// Tree derivation (pure, from the open-PR list)
+// Tree derivation — additive topology (live edges + recorded parents)
+//
+// The tree is ADDITIVE: once a PR joins a stack it stays in the breadcrumb, even
+// after it merges. Two facts feed the shape, and the first that answers wins:
+//
+//   1. RECORDED parent — the marker encodes topology as `member:parent`
+//      (`pr=82,83:82,84:83`). This is durable: it does not change when a branch
+//      is deleted or a PR is retargeted.
+//   2. LIVE parent — the PR whose head branch is this PR's base. This reflects
+//      the current GitHub graph and seeds the topology for a brand-new member
+//      that no marker has recorded yet.
+//
+// Why recorded must win: when a parent merges, GitHub deletes its branch and
+// retargets the child onto the default branch — which SEVERS the live edge
+// (child.base becomes `main`, so `findRoot` would call the child its own root
+// and the merged parent would vanish). The recorded parent survives that, so
+// `buildTree` climbs it back to the true root and keeps the merged ancestor in
+// the tree (rendered `✅ merged`). Because the marker is written while the edges
+// are still live, the topology is captured BEFORE any retarget can sever it.
+//
+// A legacy flat marker (`pr=82,83,84`) records no parents, so such a stack
+// derives purely from the live graph — identical to the pre-topology behavior —
+// and self-migrates to the recorded form on its next reconcile.
 // ---------------------------------------------------------------------------
 
 function indexPullRequests(pullRequests) {
@@ -173,40 +279,125 @@ function findRoot(startNumber, pullRequests, defaultBranch) {
   return current.number;
 }
 
-/** Build the tree rooted at `rootNumber`: DFS pre-order members + sorted child map. */
+/**
+ * Build the provenance tree for `rootNumber`'s stack.
+ *
+ * Each member's parent is its RECORDED parent (from the marker topology) when
+ * one exists, else its LIVE parent (the PR whose head branch is this PR's base).
+ * Recorded parents win so the structure survives a merged parent whose child
+ * GitHub retargeted onto the default branch — which severs the live base/head
+ * edge but not the recorded one. From `rootNumber` we climb to the true (top)
+ * root, then DFS down the combined child map, so merged/closed ancestors stay
+ * in the tree instead of being pruned.
+ *
+ * Legacy flat markers record no parents, so a not-yet-migrated stack derives
+ * purely from the live graph (unchanged behavior); the first reconcile writes
+ * the topology while the edges are still live, making it durable thereafter.
+ *
+ * Returns `{ root, members, childrenOf, parentOf }` — members in DFS pre-order,
+ * `parentOf` a Map of member → parent (the root is absent).
+ */
 function buildTree(rootNumber, pullRequests) {
-  const { byNumber } = indexPullRequests(pullRequests);
+  const { byNumber, byHead } = indexPullRequests(pullRequests);
+  const recordedParents = gatherRecordedParents(pullRequests);
 
-  const childrenByHead = new Map();
-  for (const pullRequest of pullRequests) {
-    const siblings = childrenByHead.get(pullRequest.baseRefName) ?? [];
-    siblings.push(pullRequest.number);
-    childrenByHead.set(pullRequest.baseRefName, siblings);
+  const liveParentOf = (number_) => {
+    const node = byNumber.get(number_);
+    const parent = node ? byHead.get(node.baseRefName) : undefined;
+    return parent ? parent.number : undefined;
+  };
+  // The LIVE edge wins — it is authoritative and not user-editable. A RECORDED
+  // parent only fills a SEVERED edge (a PR with no live parent), and only when
+  // it points at a KNOWN merged/closed ancestor — the sole legitimate case (a
+  // parent that merged and had its child retargeted onto the default branch).
+  // PR bodies are user-editable, so this containment stops a crafted marker from
+  // re-parenting an unrelated PR: it can neither override a live edge nor attach
+  // a PR under an open one.
+  const parentOf = (number_) => {
+    const live = liveParentOf(number_);
+    if (live !== undefined) {
+      return live;
+    }
+    const recorded = recordedParents.get(number_);
+    if (recorded === undefined) {
+      return undefined;
+    }
+    const recordedParent = byNumber.get(recorded);
+    const parentIsMergedOrClosed =
+      recordedParent !== undefined &&
+      recordedParent.state !== undefined &&
+      recordedParent.state !== "open";
+    return parentIsMergedOrClosed ? recorded : undefined;
+  };
+
+  // Climb to the true root (recorded topology may point above `rootNumber`
+  // once an ancestor has merged and its child was retargeted).
+  let trueRoot = rootNumber;
+  const climbed = new Set();
+  for (
+    let parent = parentOf(trueRoot);
+    parent !== undefined && !climbed.has(trueRoot);
+    parent = parentOf(trueRoot)
+  ) {
+    climbed.add(trueRoot);
+    trueRoot = parent;
   }
 
-  const childrenOf = new Map();
-  const members = [];
-  const visited = new Set();
+  // Every number we know of — live PRs plus any named only by recorded topology
+  // (e.g. a merged root that has dropped out of the open-PR list).
+  const known = new Set(byNumber.keys());
+  for (const [member, parent] of recordedParents) {
+    known.add(member);
+    known.add(parent);
+  }
 
-  const visit = (number_) => {
-    const node = byNumber.get(number_);
-    // Guard against a base/head cycle (A←B and B←A): never visit a PR twice.
-    if (!node || visited.has(number_)) {
+  // Invert parent → child, then DFS pre-order from the true root.
+  const childrenOf = new Map();
+  for (const number_ of known) {
+    const parent = parentOf(number_);
+    if (parent !== undefined && parent !== number_) {
+      childrenOf.set(parent, [...(childrenOf.get(parent) ?? []), number_]);
+    }
+  }
+  for (const [parent, children] of childrenOf) {
+    childrenOf.set(
+      parent,
+      children.toSorted((a, b) => a - b)
+    );
+  }
+
+  const members = [];
+  const parentMap = new Map();
+  const visited = new Set();
+  const visit = (number_, parent) => {
+    // Guard against a topology cycle: never visit a number twice.
+    if (visited.has(number_)) {
       return;
     }
     visited.add(number_);
     members.push(number_);
-    const childNumbers = (childrenByHead.get(node.headRefName) ?? [])
-      .filter((candidate) => candidate !== number_)
-      .toSorted((a, b) => a - b);
-    childrenOf.set(number_, childNumbers);
-    for (const child of childNumbers) {
-      visit(child);
+    if (parent !== undefined) {
+      parentMap.set(number_, parent);
+    }
+    for (const child of childrenOf.get(number_) ?? []) {
+      visit(child, number_);
     }
   };
+  visit(trueRoot, undefined);
 
-  visit(rootNumber);
-  return { root: rootNumber, members, childrenOf };
+  // Scope the child map to this tree's members, guaranteeing an entry (possibly
+  // empty) for every member — including leaves.
+  const scopedChildren = new Map();
+  for (const number_ of members) {
+    scopedChildren.set(number_, childrenOf.get(number_) ?? []);
+  }
+
+  return {
+    root: trueRoot,
+    members,
+    childrenOf: scopedChildren,
+    parentOf: parentMap,
+  };
 }
 
 /** Find the root of `triggerNumber`'s stack, then build the tree. */
@@ -296,6 +487,20 @@ async function reconcile(root, deps) {
   );
   const tree = buildTree(root, pullRequests);
 
+  // Per-member status for rendering: a member with no PR object (named only by
+  // recorded topology) or an open one is unannotated; a closed one is shown as
+  // merged vs. plain-closed via its `merged` flag.
+  const stateOf = (number_) => {
+    const pullRequest = byNumber.get(number_);
+    if (!pullRequest || pullRequest.state === undefined) {
+      return "open";
+    }
+    if (pullRequest.state === "open") {
+      return "open";
+    }
+    return pullRequest.merged ? "merged" : "closed";
+  };
+
   const updated = [];
   const skipped = [];
   const frozen = [];
@@ -314,7 +519,7 @@ async function reconcile(root, deps) {
       frozen.push(number_);
       continue;
     }
-    const region = renderRegion(tree, number_);
+    const region = renderRegion(tree, number_, stateOf);
     const plan = planUpdate(pullRequest, region);
     if (!plan.changed) {
       skipped.push(number_);
@@ -355,6 +560,7 @@ function hasFailedStackJob(jobs) {
 
 module.exports = {
   parseStackComment,
+  gatherRecordedParents,
   getRegion,
   spliceRegion,
   renderRegion,
@@ -368,5 +574,7 @@ module.exports = {
   hasFailedStackJob,
   HERE_PREFIX,
   HERE_SUFFIX,
+  MERGED_SUFFIX,
+  CLOSED_SUFFIX,
   STACK_HEADING,
 };
