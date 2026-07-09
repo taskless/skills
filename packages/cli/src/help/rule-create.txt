@@ -92,6 +92,7 @@ When `--json` is set, failures emit `{ ok: false, code, message }`:
 | `INVALID_INPUT`          | `--from` JSON failed validation    | re-read the input schema, fix, retry        |
 | `NETWORK_ERROR`          | API submit/poll failed             | report and suggest retry                    |
 | `RULE_GENERATION_FAILED` | API returned a generation failure  | report the message; suggest enriching prompt |
+| `RULE_UNSUPPORTED`        | plan lacks this generation type    | tell the user to enable it; do not retry     |
 
 ## See Also
 

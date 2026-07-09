@@ -3,10 +3,11 @@ import { CLI_VERSION, CLI_VERSION_HEADER } from "../version";
 
 /**
  * Server-owned rule reconciliation (TSKL-270). The CLI reports the rule files
- * it holds and the server returns the exact subset that may run. This endpoint
- * is not in the generated schema (it may not be deployed everywhere yet), so it
- * is called with a hand-typed request over plain `fetch`; migrate it onto the
- * typed client once it lands in `GET /cli/api/__schema`.
+ * it holds and the server returns the exact subset that may run. The endpoint
+ * is now in the generated schema, but this stays on hand-typed plain `fetch`
+ * for its degradation contract (`ReconcileOutcome` never throws for expected
+ * network/auth/deployment conditions, so `check` falls back to a local scan);
+ * migrating it onto the typed client would mean re-expressing that handling.
  */
 
 /** A rule file reported for reconciliation. */
@@ -16,6 +17,11 @@ export interface ReportedFile {
 }
 
 export interface ReconcileRequest {
+  /**
+   * Org subject: Taskless UUID (preferred) or numeric GitHub org id. Optional —
+   * the server falls back to the deprecated token claim when it is absent.
+   */
+  orgId?: string | number;
   repositoryUrl: string;
   files: ReportedFile[];
 }
