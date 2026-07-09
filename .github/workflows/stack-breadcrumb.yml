@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Adapted from the taskless/taskless stack-breadcrumb workflow and brought into
+# this repository under its MIT license, with permission.
 name: Stack Breadcrumb
 
 # Self-contained stacked-PR breadcrumb. All logic lives in a zero-dependency
@@ -194,6 +197,10 @@ jobs:
                       baseRefName: pr.base.ref,
                       body: pr.body ?? "",
                       state: pr.state, // "closed" (merged or closed)
+                      // Distinguish merged vs. plain-closed. `merged_at` is
+                      // always present on a merged PR; the boolean `merged` is
+                      // not reliably exposed on every response shape.
+                      merged: pr.merged_at != null,
                     };
                   } catch (error) {
                     core.info(`stack-breadcrumb: could not fetch historical PR #${number}: ${String(error)}`);
