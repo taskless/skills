@@ -142,9 +142,12 @@ const REMOTE_PRECEDENCE = ["origin", "upstream"];
 export async function listRemoteOwnerUrls(cwd: string): Promise<string[]> {
   const remotes = await listRemoteConfig(cwd);
   const ordered = [
-    ...REMOTE_PRECEDENCE.map((name) =>
-      remotes.find((remote) => remote.name === name)
-    ).filter((remote) => remote !== undefined),
+    // A remote can carry several `remote.<name>.url` entries (e.g. `git remote
+    // set-url --add`), so collect ALL of a precedence remote's urls, not just
+    // the first — otherwise a second origin/upstream url is dropped entirely.
+    ...REMOTE_PRECEDENCE.flatMap((name) =>
+      remotes.filter((remote) => remote.name === name)
+    ),
     ...remotes.filter((remote) => !REMOTE_PRECEDENCE.includes(remote.name)),
   ];
 
