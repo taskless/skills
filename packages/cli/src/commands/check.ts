@@ -10,6 +10,7 @@ import { getTelemetry } from "../telemetry";
 import { outputSchema as checkOutputSchema } from "../schemas/check";
 import { makeErrorEnvelope } from "../types/errors";
 import { getToken } from "../auth/token";
+import { resolveOrgSubject } from "../auth/org";
 import { resolveRepositoryUrl } from "../util/git-remote";
 import { getCliPrefix } from "../util/package-manager";
 import { reconcile } from "../api/reconcile";
@@ -184,7 +185,9 @@ async function planRuntime(
     reason: "its check.ts is missing or unreadable",
   }));
 
+  const orgSubject = await resolveOrgSubject(cwd, token);
   const outcome = await reconcile(token, {
+    orgId: orgSubject,
     repositoryUrl,
     files: reportRuntimeChecks(cwd, signed),
   });

@@ -1,4 +1,6 @@
 import type { paths } from "../generated/api";
+import { decodeOrgId } from "./jwt";
+import { fetchWhoami } from "./whoami";
 import { listRemoteOwnerUrls } from "../util/git-remote";
 
 type WhoamiData =
@@ -44,4 +46,26 @@ export async function resolveCurrentOrg(
 ): Promise<WhoamiOrg | undefined> {
   const ownerUrls = await listRemoteOwnerUrls(cwd);
   return selectOrgForOwners(ownerUrls, orgs);
+}
+
+/**
+ * The org subject to send on write calls. Prefers the current org's Taskless
+ * UUID (`id`), resolved by matching the repo's remotes against `whoami`; falls
+ * back to the deprecated numeric `orgId` claim in the token when whoami is
+ * unavailable or no org owns the repo. A new client thus routes multi-org users
+ * correctly, while older single-org behaviour is preserved via the claim.
+ *
+ * Returns `undefined` only when there is neither a matched org nor a claim
+ * (a broken or pre-org token) — the caller has no subject to send.
+ */
+export async function resolveOrgSubject(
+  cwd: string,
+  token: string
+): Promise<string | number | undefined> {
+  const whoami = await fetchWhoami(token);
+  if (whoami && whoami.orgs.length > 0) {
+    const org = await resolveCurrentOrg(cwd, whoami.orgs);
+    if (org) return org.id;
+  }
+  return decodeOrgId(token);
 }

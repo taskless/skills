@@ -23,13 +23,32 @@ function parseErrorBody(rawError: unknown): Record<string, unknown> {
   return {};
 }
 
+/**
+ * The server returns the same 404 `organization_not_found` whether the org
+ * isn't yours or its GitHub App installation doesn't cover this repository (it
+ * deliberately doesn't distinguish, to avoid leaking org existence), so the
+ * message names both causes — coverage first, since a resolved org subject
+ * makes membership the less likely one.
+ */
+function orgNotFoundMessage(): string {
+  return [
+    "Taskless could not act on this repository for your organization.",
+    "",
+    "Most often the organization's Taskless GitHub App installation does not cover this repository. It can also mean your login no longer has access to the organization.",
+    "",
+    "- Confirm the Taskless app is installed on this repository's owner and includes this repository.",
+    `- If access recently changed, re-authenticate with \`${getCliPrefix()} auth login\`.`,
+  ].join("\n");
+}
+
 // --- API functions ---
 
 /** Submit a new rule generation request */
 export async function submitRule(
   token: string,
   request: {
-    orgId: number;
+    /** Org subject: Taskless UUID (preferred) or numeric GitHub org id. */
+    orgId: string | number;
     repositoryUrl: string;
     prompt: string;
     successCases?: string[];
@@ -65,9 +84,7 @@ export async function submitRule(
       response.status === 404 &&
       errorData.error === "organization_not_found"
     ) {
-      throw new Error(
-        `Organization not found. Try running \`${getCliPrefix()} auth login\` to re-authenticate.`
-      );
+      throw new Error(orgNotFoundMessage());
     }
     throw new Error(
       `Request submission failed (HTTP ${String(response.status)})`
@@ -103,7 +120,8 @@ export async function iterateRule(
   token: string,
   ruleId: string,
   request: {
-    orgId: number;
+    /** Org subject: Taskless UUID (preferred) or numeric GitHub org id. */
+    orgId: string | number;
     guidance: string;
     references?: Array<{ filename: string; content: string }>;
   }
@@ -133,9 +151,7 @@ export async function iterateRule(
       response.status === 404 &&
       errorData.error === "organization_not_found"
     ) {
-      throw new Error(
-        `Organization not found. Try running \`${getCliPrefix()} auth login\` to re-authenticate.`
-      );
+      throw new Error(orgNotFoundMessage());
     }
     throw new Error(`Iterate request failed (HTTP ${String(response.status)})`);
   }

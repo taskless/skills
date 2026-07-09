@@ -1,20 +1,26 @@
 import { getToken } from "./token";
-import { decodeOrgId } from "./jwt";
+import { resolveOrgSubject } from "./org";
 import { resolveRepositoryUrl } from "../util/git-remote";
 import { getCliPrefix } from "../util/package-manager";
 
 export interface Identity {
   token: string;
-  orgId: number;
+  /**
+   * Org subject to send on write calls: the current org's Taskless UUID
+   * (preferred) or the deprecated numeric `orgId` claim. See `resolveOrgSubject`.
+   */
+  orgSubject: string | number;
   repositoryUrl: string;
 }
 
 /**
- * Resolve the current user's identity from JWT claims and git remote.
- * - orgId: extracted from the JWT's orgId claim
+ * Resolve the current user's identity for a write call.
+ * - orgSubject: the current org's Taskless UUID matched from `whoami` + the
+ *   repo's remotes, falling back to the token's deprecated numeric `orgId` claim
  * - repositoryUrl: inferred from `git remote get-url origin`
  *
- * Throws if auth is missing, the JWT lacks orgId, or the git remote is unavailable.
+ * Throws if auth is missing, no org subject can be determined, or the git
+ * remote is unavailable.
  */
 export async function resolveIdentity(cwd: string): Promise<Identity> {
   const token = await getToken(cwd);
@@ -24,14 +30,14 @@ export async function resolveIdentity(cwd: string): Promise<Identity> {
     );
   }
 
-  const orgId = decodeOrgId(token);
-  if (orgId === undefined) {
+  const repositoryUrl = await resolveRepositoryUrl(cwd);
+
+  const orgSubject = await resolveOrgSubject(cwd, token);
+  if (orgSubject === undefined) {
     throw new Error(
       `Your auth token is missing organization info. Run \`${getCliPrefix()} auth login\` to re-authenticate.`
     );
   }
 
-  const repositoryUrl = await resolveRepositoryUrl(cwd);
-
-  return { token, orgId, repositoryUrl };
+  return { token, orgSubject, repositoryUrl };
 }

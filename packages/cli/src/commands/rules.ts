@@ -39,6 +39,20 @@ function getTimestamp(): string {
 
 const POLL_INTERVAL_MS = 15_000;
 
+/**
+ * `unsupported` is a terminal status: the request asked for a rule generation
+ * the account can't access — e.g. runtime rules that aren't enabled on the
+ * current plan. It is not a transient failure to retry; the plan or entitlement
+ * has to change first.
+ */
+function unsupportedMessage(): string {
+  return [
+    "This rule generation isn't available on your current Taskless plan.",
+    "",
+    "It may need a capability that isn't enabled for your organization yet (for example, runtime rules). Ask your Taskless administrator or upgrade your plan to enable it.",
+  ].join("\n");
+}
+
 const createCommand = defineCommand({
   meta: {
     name: "create",
@@ -163,7 +177,7 @@ const createCommand = defineCommand({
       let ruleId: string;
       try {
         const response = await submitRule(identity.token, {
-          orgId: identity.orgId,
+          orgId: identity.orgSubject,
           repositoryUrl: identity.repositoryUrl,
           prompt: request.prompt,
           successCases: request.successCases,
@@ -198,8 +212,16 @@ const createCommand = defineCommand({
             console.error("Status: accepted — waiting for processing...");
             break;
           }
+          case "classifying": {
+            console.error("Status: classifying — analyzing your request...");
+            break;
+          }
           case "building": {
             console.error("Status: building — generating rules...");
+            break;
+          }
+          case "unsupported": {
+            fail(unsupportedMessage(), "RULE_UNSUPPORTED");
             break;
           }
           case "failed": {
@@ -396,7 +418,7 @@ const improveCommand = defineCommand({
       let requestId: string;
       try {
         const response = await iterateRule(identity.token, request.ruleId, {
-          orgId: identity.orgId,
+          orgId: identity.orgSubject,
           guidance: request.guidance,
           references: request.references,
         });
@@ -431,8 +453,16 @@ const improveCommand = defineCommand({
             console.error("Status: accepted — waiting for processing...");
             break;
           }
+          case "classifying": {
+            console.error("Status: classifying — analyzing your request...");
+            break;
+          }
           case "building": {
             console.error("Status: building — generating rules...");
+            break;
+          }
+          case "unsupported": {
+            fail(unsupportedMessage(), "RULE_UNSUPPORTED");
             break;
           }
           case "failed": {

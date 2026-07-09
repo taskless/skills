@@ -95,6 +95,7 @@ When `--json` is set, failures emit `{ ok: false, code, message }`:
 | `RULE_NOT_FOUND`         | metadata missing for the given rule    | use anonymous variant or recreate via create |
 | `NETWORK_ERROR`          | API submit/poll failed                 | report and suggest retry                     |
 | `RULE_GENERATION_FAILED` | API returned a generation failure      | report; suggest enriching guidance/references |
+| `RULE_UNSUPPORTED`        | plan lacks this generation type        | tell the user to enable it; do not retry      |
 
 ## See Also
 
