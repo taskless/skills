@@ -300,22 +300,25 @@ function carryForward(parentBody, childNumber, childBody) {
 // Tree derivation — additive topology (live edges + recorded parents)
 //
 // The tree is ADDITIVE: once a PR joins a stack it stays in the breadcrumb, even
-// after it merges. Two facts feed the shape, and the first that answers wins:
+// after it merges. Two facts feed the shape:
 //
-//   1. RECORDED parent — the marker encodes topology as `member:parent`
+//   1. LIVE parent — the PR whose head branch is this PR's base. This reflects
+//      the current GitHub graph and is authoritative: it is not user-editable.
+//   2. RECORDED parent — the marker encodes topology as `member:parent`
 //      (`pr=82,83:82,84:83`). This is durable: it does not change when a branch
 //      is deleted or a PR is retargeted.
-//   2. LIVE parent — the PR whose head branch is this PR's base. This reflects
-//      the current GitHub graph and seeds the topology for a brand-new member
-//      that no marker has recorded yet.
 //
-// Why recorded must win: when a parent merges, GitHub deletes its branch and
-// retargets the child onto the default branch — which SEVERS the live edge
-// (child.base becomes `main`, so `findRoot` would call the child its own root
-// and the merged parent would vanish). The recorded parent survives that, so
-// `buildTree` climbs it back to the true root and keeps the merged ancestor in
-// the tree (rendered `✅ merged`). Because the marker is written while the edges
-// are still live, the topology is captured BEFORE any retarget can sever it.
+// The LIVE parent wins. The RECORDED parent is only a fallback for a SEVERED
+// edge: when a parent merges, GitHub deletes its branch and retargets the child
+// onto the default branch (child.base becomes `main`), so `findRoot` would call
+// the child its own root and the merged parent would vanish. In that one case —
+// and only when the recorded parent names a KNOWN merged/closed ancestor — the
+// recorded link is used, so `buildTree` climbs back to the true root and keeps
+// the merged ancestor in the tree. Because PR bodies are user-editable, this
+// containment (recorded never overrides a live edge, never attaches a PR under
+// an open one) stops a crafted marker from re-parenting an unrelated PR. The
+// marker is written while the edges are still live, so the topology is captured
+// BEFORE any retarget can sever it.
 //
 // A legacy flat marker (`pr=82,83,84`) records no parents, so such a stack
 // derives purely from the live graph — identical to the pre-topology behavior —
@@ -359,13 +362,14 @@ function findRoot(startNumber, pullRequests, defaultBranch) {
 /**
  * Build the provenance tree for `rootNumber`'s stack.
  *
- * Each member's parent is its RECORDED parent (from the marker topology) when
- * one exists, else its LIVE parent (the PR whose head branch is this PR's base).
- * Recorded parents win so the structure survives a merged parent whose child
- * GitHub retargeted onto the default branch — which severs the live base/head
- * edge but not the recorded one. From `rootNumber` we climb to the true (top)
- * root, then DFS down the combined child map, so merged/closed ancestors stay
- * in the tree instead of being pruned.
+ * Each member's parent is its LIVE parent (the PR whose head branch is this
+ * PR's base) when one exists, else its RECORDED parent (from the marker
+ * topology) — and the recorded link is used only for a SEVERED edge that names
+ * a known merged/closed ancestor. The live edge is authoritative; the recorded
+ * parent is the durable fallback that keeps a merged parent (whose child GitHub
+ * retargeted onto the default branch) from vanishing. From `rootNumber` we climb
+ * to the true (top) root, then DFS down the combined child map, so merged/closed
+ * ancestors stay in the tree instead of being pruned.
  *
  * Legacy flat markers record no parents, so a not-yet-migrated stack derives
  * purely from the live graph (unchanged behavior); the first reconcile writes
