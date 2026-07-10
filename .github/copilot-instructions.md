@@ -25,10 +25,11 @@ them as security-sensitive and flag the following:
   (changeset text, PR bodies, uploaded artifacts). Prefer splitting into a
   credential-free job that handles untrusted content and a separate credentialed
   job that only runs reviewed, merged source.
-- **Over-broad `permissions:`.** Flag missing top-level `permissions:` (defaults
-  are broad) and any grant not justified by the job — call out `contents: write`,
-  `id-token: write`, `packages: write`, `actions: write`. Prefer least privilege,
-  set per job.
+- **Over-broad or implicit `permissions:`.** Prefer an explicit least-privilege
+  `permissions:` block over relying on the repo/org default token scope, which
+  varies by settings and may grant more than the job needs. Flag any grant not
+  justified by the job — call out `contents: write`, `id-token: write`,
+  `packages: write`, `actions: write` — and prefer setting permissions per job.
 - **Unpinned actions.** In any workflow that touches secrets or OIDC, flag
   third-party actions pinned to a tag or branch (`@v4`, `@main`) instead of a
   full commit SHA.
