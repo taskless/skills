@@ -157,20 +157,20 @@ function spliceRegion(body, region) {
 
 const HERE_PREFIX = "➡️ "; // ➡️
 const HERE_SUFFIX = " (you are here)";
-const MERGED_SUFFIX = " ✅ merged";
-const CLOSED_SUFFIX = " ⛔ closed";
 const STACK_HEADING = "**Stack** (root → tip):"; // root → tip
 
 /**
  * Render the full `<!-- stack … -->` … `<!-- /stack -->` region, or `''` for a
  * non-stacked PR.
  *
- * `stateOf(number)` returns `'merged' | 'closed' | 'open'` (default `'open'`),
- * so merged/closed ancestors stay in the tree with a status marker instead of
- * being pruned. The `pr=` list encodes topology as `member:parent` (the root
- * has no `:parent`), so the structure is recorded and survives retargeting.
+ * Each node is a BARE `#N`: GitHub's own autolink expands a `#N` reference to
+ * the PR's title AND a state icon (open / merged / closed), so adding our own
+ * title text or `✅ merged` suffix only DUPLICATES what GitHub already renders.
+ * We add only the `➡️ … (you are here)` marker for the current PR, which GitHub
+ * cannot know. The `pr=` list still encodes topology as `member:parent` (the
+ * root has no `:parent`) so the structure is recorded and survives retargeting.
  */
-function renderRegion(tree, currentNumber, stateOf = () => "open") {
+function renderRegion(tree, currentNumber) {
   if (tree.members.length <= 1) {
     return "";
   }
@@ -184,17 +184,6 @@ function renderRegion(tree, currentNumber, stateOf = () => "open") {
     .join(",")} -->`;
   const lines = [open, STACK_HEADING, ""];
 
-  const stateSuffix = (number_) => {
-    switch (stateOf(number_)) {
-      case "merged":
-        return MERGED_SUFFIX;
-      case "closed":
-        return CLOSED_SUFFIX;
-      default:
-        return "";
-    }
-  };
-
   // `buildTree` yields an acyclic tree, but guard the recursion defensively so a
   // hand-built or malformed `childrenOf` can never spin the workflow forever.
   const rendered = new Set();
@@ -207,7 +196,7 @@ function renderRegion(tree, currentNumber, stateOf = () => "open") {
     const label =
       number_ === currentNumber
         ? `${HERE_PREFIX}#${number_}${HERE_SUFFIX}`
-        : `#${number_}${stateSuffix(number_)}`;
+        : `#${number_}`;
     lines.push(`${indent}- ${label}`);
     for (const child of tree.childrenOf.get(number_) ?? []) {
       renderNode(child, depth + 1);
@@ -217,6 +206,94 @@ function renderRegion(tree, currentNumber, stateOf = () => "open") {
   renderNode(tree.root, 0);
   lines.push("<!-- /stack -->");
   return lines.join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// PR carry-forward — a merged child's body embedded in its parent
+//
+// When a stack member merges INTO ITS PARENT (an atomic collapse, tip→root),
+// its body is carried into the parent's PR body as a keyed region below the
+// stack tree, so the PR that finally lands on the default branch holds the full
+// legacy of everything it brings in. Regions are FLAT and keyed by PR number:
+// carrying a child also re-homes the child's own carried regions as top-level
+// siblings, and every region is upserted (replaced by its key), so the set is
+// deduped no matter how many times this runs. Incremental delivery (each PR
+// merges straight to the default branch) has no parent PR to carry into, so
+// this is a no-op there — correct, since each slice stands alone.
+// ---------------------------------------------------------------------------
+
+/** One carried region for a specific PR number (a known key → simple regex). */
+function prRegionPattern(number_) {
+  return new RegExp(`<!-- PR:${number_} -->[\\S\\s]*?<!-- /PR:${number_} -->`);
+}
+
+/** Any carried region; the open/close numbers must agree (backreference). */
+const ANY_PR_REGION_PATTERN = /<!-- PR:(\d+) -->[\S\s]*?<!-- \/PR:\1 -->/g;
+
+/** Every carried region already in `body`, in order: `{ number, region }[]`. */
+function extractCarriedRegions(body) {
+  const regions = [];
+  for (const match of body.matchAll(ANY_PR_REGION_PATTERN)) {
+    regions.push({ number: Number(match[1]), region: match[0] });
+  }
+  return regions;
+}
+
+/**
+ * A body's own description — the human-written part, with the managed regions
+ * (the stack tree and any carried `<!-- PR:N -->` regions) removed and spacing
+ * tidied.
+ */
+function ownDescription(body) {
+  return body
+    .replace(REGION_PATTERN, "")
+    .replace(ANY_PR_REGION_PATTERN, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/** Wrap a description as a carried region for `number_`. */
+function renderCarriedRegion(number_, description) {
+  return [
+    `<!-- PR:${number_} -->`,
+    `# Contains #${number_}`,
+    "",
+    description,
+    `<!-- /PR:${number_} -->`,
+  ].join("\n");
+}
+
+/**
+ * Upsert a carried region into `body` (keyed by PR number): replace an existing
+ * region for that number in place, else append it below the stack tree (at the
+ * end — the tree, written first, stays above). Idempotent.
+ */
+function upsertCarriedRegion(body, number_, region) {
+  const pattern = prRegionPattern(number_);
+  if (pattern.test(body)) {
+    // Function replacer so `$` sequences in the carried body are literal.
+    return body.replace(pattern, () => region);
+  }
+  const trimmed = body.replace(/\s+$/, "");
+  return trimmed.length === 0 ? region : `${trimmed}\n\n${region}`;
+}
+
+/**
+ * Carry a merged child's body into `parentBody`: add the child's own
+ * description as `<!-- PR:child -->`, and re-home the child's already-carried
+ * regions as flat top-level siblings — each upserted by key, so the parent ends
+ * with a deduped, flat set of every PR in the merged subtree, below the tree.
+ */
+function carryForward(parentBody, childNumber, childBody) {
+  let body = upsertCarriedRegion(
+    parentBody,
+    childNumber,
+    renderCarriedRegion(childNumber, ownDescription(childBody))
+  );
+  for (const { number, region } of extractCarriedRegions(childBody)) {
+    body = upsertCarriedRegion(body, number, region);
+  }
+  return body;
 }
 
 // ---------------------------------------------------------------------------
@@ -487,20 +564,6 @@ async function reconcile(root, deps) {
   );
   const tree = buildTree(root, pullRequests);
 
-  // Per-member status for rendering: a member with no PR object (named only by
-  // recorded topology) or an open one is unannotated; a closed one is shown as
-  // merged vs. plain-closed via its `merged` flag.
-  const stateOf = (number_) => {
-    const pullRequest = byNumber.get(number_);
-    if (!pullRequest || pullRequest.state === undefined) {
-      return "open";
-    }
-    if (pullRequest.state === "open") {
-      return "open";
-    }
-    return pullRequest.merged ? "merged" : "closed";
-  };
-
   const updated = [];
   const skipped = [];
   const frozen = [];
@@ -519,7 +582,7 @@ async function reconcile(root, deps) {
       frozen.push(number_);
       continue;
     }
-    const region = renderRegion(tree, number_, stateOf);
+    const region = renderRegion(tree, number_);
     const plan = planUpdate(pullRequest, region);
     if (!plan.changed) {
       skipped.push(number_);
@@ -572,9 +635,11 @@ module.exports = {
   planUpdate,
   reconcile,
   hasFailedStackJob,
+  extractCarriedRegions,
+  ownDescription,
+  upsertCarriedRegion,
+  carryForward,
   HERE_PREFIX,
   HERE_SUFFIX,
-  MERGED_SUFFIX,
-  CLOSED_SUFFIX,
   STACK_HEADING,
 };
