@@ -1,5 +1,20 @@
 # @taskless/cli
 
+## 0.10.0
+
+### Minor Changes
+
+- da74920: Send an `x-taskless-cli-version` header on every request to the Taskless service (rule generation, reconcile, `whoami`, and the device-auth flow) declaring the CLI's version. The service uses this to gate capability-dependent responses — notably runtime rules — on the CLI being new enough to handle them; a request without the header is treated as a pre-runtime CLI. The version is also emitted with the CLI's telemetry so usage is recorded client-side rather than inferred server-side.
+- 19f4327: Send the acting organization's identity on every write request. The CLI now resolves which Taskless org owns the current repository by matching the repo's git remotes (`origin` → `upstream` → rest) against the canonical owner URLs returned by `whoami`, and sends that org's Taskless UUID as the subject on rule generation, iterate, and reconcile calls. This fixes multi-org users being routed to whichever org their token happened to pin; the server authorizes the chosen org per request. When no remote matches a known org, the CLI falls back to the token's numeric `orgId` claim, so single-org behavior is unchanged.
+
+  The client-side owner-URL canonicalizer is a verbatim port of the server's shared implementation, so both sides compare by exact string equality across SSH, `ssh://`/`git://`, port, and `www.` remote forms.
+
+  `rule create`/`rule improve` now handle two additional generation states: `classifying` (a transient pre-build phase) and `unsupported`, a terminal state emitted when the request needs a capability the organization's plan doesn't include (for example, runtime rules) — surfaced with a clear message and the new `RULE_UNSUPPORTED` error code. When the server can't act on a repository for the selected org (its GitHub App installation doesn't cover the repo, or membership changed), the CLI now explains the coverage cause rather than only suggesting re-authentication.
+
+- f392880: Add server-owned rule reconciliation and runtime rules to `taskless check`. Authenticated runs reconcile the repo's rules against the Taskless service and execute only the server-blessed set. A new class of **runtime rules** (`.taskless/runtime-rules/` — one or more ast-grep capture rules plus a `check.ts` assertion) runs through a local harness: the capture rules narrow with ast-grep, and only on a match is `check.ts` invoked via a bundled `tsx`. Because `check.ts` is arbitrary code, it runs only when its signature is validated by the server; otherwise it is skipped and reported. Adds the `--dangerously-run-scripts` (run runtime rules unverified) and `--timeout` flags.
+
+  (Backfills the changeset that was missed when this work landed across #47, #49, and #50.)
+
 ## 0.9.0
 
 ### Minor Changes
