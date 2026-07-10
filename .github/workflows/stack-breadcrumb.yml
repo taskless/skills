@@ -16,6 +16,11 @@ name: Stack Breadcrumb
 #                         `stack`-prefixed check that a shape change left failing
 #                         on a PR that is no longer the tip.
 #
+# A separate CARRY-FORWARD job runs on a member's MERGE: it embeds the merged
+# PR's body into its parent PR as a keyed `<!-- PR:N -->` region below the tree,
+# so an atomic collapse (tip→root) accumulates the full legacy on the PR that
+# lands on the default branch. Incremental delivery has no parent → a no-op.
+#
 # Stage 1 fires the dispatch with the built-in GITHUB_TOKEN: although that token
 # normally suppresses recursive workflow runs, `repository_dispatch` is a
 # documented exception, so stage 2 fires. NOTE: `repository_dispatch` always runs
@@ -116,6 +121,84 @@ jobs:
               core.info(`dispatched reconcile for root #${root}`);
             }
 
+  carry-forward:
+    name: Carry a merged PR's body into its parent
+    # On a stack member's MERGE, embed its body into its parent PR as a keyed
+    # `<!-- PR:N -->` region below the tree, so an atomic collapse (tip→root)
+    # accumulates the full legacy on the PR that finally lands on the default
+    # branch. Incremental delivery (each PR merges straight to the default
+    # branch) has no open parent PR to carry into → a clean no-op.
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.action == 'closed'
+      && github.event.pull_request.merged == true
+      && github.event.pull_request.base.ref != github.event.repository.default_branch
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.sender.login != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # actions/checkout needs this (top-level permissions: {} grants no defaults)
+      pull-requests: write # edit the parent PR body
+    concurrency:
+      # Serialize per PARENT branch (the body we write); convergent upserts make
+      # this safe, and we must not cancel a carry mid-write.
+      group: stack-carry-forward-${{ github.event.pull_request.base.ref }}
+      cancel-in-progress: false
+    steps:
+      # Trusted script from the default branch — never PR-supplied code.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const scriptPath = `${process.env.GITHUB_WORKSPACE}/.github/scripts/stack-breadcrumb.cjs`;
+            let stack;
+            try {
+              stack = require(scriptPath);
+            } catch (error) {
+              if (error.code === "MODULE_NOT_FOUND") {
+                core.info("stack-breadcrumb script not on the default branch yet; skipping until merged.");
+                return;
+              }
+              throw error;
+            }
+            const { owner, repo } = context.repo;
+            const merged = context.payload.pull_request;
+
+            // The parent is the open PR whose head branch is this PR's base.
+            const rawPulls = await github.paginate(github.rest.pulls.list, {
+              owner, repo, state: "open", per_page: 100,
+            });
+            const parent = rawPulls.find(
+              (pr) =>
+                pr.head.repo?.full_name === `${owner}/${repo}` &&
+                pr.head.ref === merged.base.ref
+            );
+            if (!parent) {
+              core.info(`#${merged.number} merged into "${merged.base.ref}", which has no open parent PR — nothing to carry (incremental land).`);
+              return;
+            }
+
+            // Fetch fresh bodies — the event payload can lag a last-moment edit.
+            const [{ data: mergedFresh }, { data: parentFresh }] = await Promise.all([
+              github.rest.pulls.get({ owner, repo, pull_number: merged.number }),
+              github.rest.pulls.get({ owner, repo, pull_number: parent.number }),
+            ]);
+
+            const newBody = stack.carryForward(
+              parentFresh.body ?? "",
+              merged.number,
+              mergedFresh.body ?? ""
+            );
+            if (newBody === (parentFresh.body ?? "")) {
+              core.info(`#${merged.number} already carried into #${parent.number}; nothing to do.`);
+              return;
+            }
+            await github.rest.pulls.update({ owner, repo, pull_number: parent.number, body: newBody });
+            core.info(`carried #${merged.number} into parent #${parent.number}`);
+
   reconcile:
     name: Reconcile breadcrumb across the stack
     if: github.event_name == 'repository_dispatch' || github.event_name == 'workflow_dispatch'
@@ -196,11 +279,7 @@ jobs:
                       headRefName: pr.head.ref,
                       baseRefName: pr.base.ref,
                       body: pr.body ?? "",
-                      state: pr.state, // "closed" (merged or closed)
-                      // Distinguish merged vs. plain-closed. `merged_at` is
-                      // always present on a merged PR; the boolean `merged` is
-                      // not reliably exposed on every response shape.
-                      merged: pr.merged_at != null,
+                      state: pr.state, // "closed" (merged or closed) — freezes rewrites
                     };
                   } catch (error) {
                     core.info(`stack-breadcrumb: could not fetch historical PR #${number}: ${String(error)}`);

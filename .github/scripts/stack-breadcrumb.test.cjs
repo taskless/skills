@@ -21,6 +21,10 @@ const {
   planUpdate,
   reconcile,
   hasFailedStackJob,
+  extractCarriedRegions,
+  ownDescription,
+  upsertCarriedRegion,
+  carryForward,
 } = require("./stack-breadcrumb.cjs");
 
 const DEFAULT_BRANCH = "main";
@@ -310,6 +314,7 @@ test("reconcile: writes only changed bodies and reports updated/skipped", async 
 test("reconcile: skips a PR whose body already matches", async () => {
   const twoChain = [pr(10, "a", "main"), pr(11, "b", "a")];
   const tree = buildTree(10, twoChain);
+  // Seed with the same render reconcile produces, so the body matches → skipped.
   const seeded = twoChain.map((p) =>
     p.number === 10 ? { ...p, body: renderRegion(tree, 10) } : p
   );
@@ -366,17 +371,20 @@ test("reconcile: a lone open root with only merged descendants still renders", a
   assert.deepEqual(result.updated, [10]);
   assert.deepEqual(result.frozen, [11, 12]);
   assert.match(calls[0][1], /pr=10,11:10,12:11/);
-  assert.match(calls[0][1], /#11 ✅ merged/);
-  assert.match(calls[0][1], /#12 ✅ merged/);
+  assert.match(calls[0][1], /- #11\b/); // merged member still listed
+  assert.match(calls[0][1], /- #12\b/);
 });
 
-test("renderRegion: annotates merged/closed members and encodes topology", () => {
-  const stateOf = (number_) =>
-    number_ === 11 ? "merged" : number_ === 12 ? "closed" : "open";
-  const region = renderRegion(buildTree(10, chain), 10, stateOf);
+test("renderRegion: renders bare #N refs and encodes topology (no title/status)", () => {
+  // GitHub autolinks a #N reference to the PR title + a state icon, so the tree
+  // stays bare — no appended title, no ✅/⛔ suffix — while the marker still
+  // records `member:parent` topology.
+  const region = renderRegion(buildTree(10, chain), 10);
   assert.match(region, /pr=10,11:10,12:11/);
-  assert.match(region, /#11 ✅ merged/);
-  assert.match(region, /#12 ⛔ closed/);
+  assert.match(region, /- ➡️ #10 \(you are here\)/);
+  assert.match(region, /- #11\n/);
+  assert.match(region, /- #12/);
+  assert.doesNotMatch(region, /✅|⛔|merged|closed/);
 });
 
 test("buildTree: keeps a merged root after its child was retargeted", () => {
@@ -458,7 +466,7 @@ test("reconcile: keeps a merged, retargeted-away root in the open breadcrumbs", 
     [11, 12]
   );
   const body11 = calls.find(([number_]) => number_ === 11)[1];
-  assert.match(body11, /#10 ✅ merged/); // provenance kept
+  assert.match(body11, /- #10\b/); // merged root still listed (provenance kept)
   assert.match(body11, /pr=10,11:10,12:11/); // topology recorded forward
 });
 
@@ -503,4 +511,89 @@ test("hasFailedStackJob: 'stack' must be a name prefix, not merely contained", (
 test("hasFailedStackJob: false for empty/missing jobs", () => {
   assert.equal(hasFailedStackJob([]), false);
   assert.equal(hasFailedStackJob(undefined), false);
+});
+
+// ─── Titles in the tree ──────────────────────────────────────────────────────
+
+// ─── PR carry-forward ────────────────────────────────────────────────────────
+
+const P85 = [
+  "<!-- PR:85 -->",
+  "# Contains #85",
+  "",
+  "Tip work.",
+  "<!-- /PR:85 -->",
+].join("\n");
+
+test("extractCarriedRegions: finds each carried region with its number", () => {
+  const body = `intro\n\n${P85}\n\n<!-- PR:84 -->\n# Contains #84\nx\n<!-- /PR:84 -->`;
+  assert.deepEqual(
+    extractCarriedRegions(body).map((r) => r.number),
+    [85, 84]
+  );
+});
+
+test("ownDescription: strips the stack tree and carried regions", () => {
+  const body = [
+    "My description.",
+    "",
+    "<!-- stack root=82 pr=82,83:82 -->\n(tree)\n<!-- /stack -->",
+    "",
+    P85,
+  ].join("\n");
+  assert.equal(ownDescription(body), "My description.");
+});
+
+test("upsertCarriedRegion: appends when absent, replaces in place when present", () => {
+  const appended = upsertCarriedRegion("Body.", 85, P85);
+  assert.equal(appended, `Body.\n\n${P85}`);
+
+  const replacement = P85.replace("Tip work.", "Revised.");
+  const replaced = upsertCarriedRegion(appended, 85, replacement);
+  assert.match(replaced, /Revised\./);
+  assert.doesNotMatch(replaced, /Tip work\./);
+  // Still exactly one region for #85 (no duplication).
+  assert.equal(extractCarriedRegions(replaced).length, 1);
+});
+
+test("carryForward: flattens the merged subtree into the parent below the tree", () => {
+  // #84 already carries #85; merging #84 into #83 lands both, flat.
+  const parent83 =
+    "Parent 83 desc.\n\n<!-- stack root=82 pr=82,83:82,84:83,85:84 -->\n(tree)\n<!-- /stack -->";
+  const child84 = [
+    "Group 84 work.",
+    "",
+    "<!-- stack root=82 pr=82,83:82,84:83,85:84 -->\n(tree)\n<!-- /stack -->",
+    "",
+    P85,
+  ].join("\n");
+
+  const result = carryForward(parent83, 84, child84);
+
+  const carried = extractCarriedRegions(result);
+  assert.deepEqual(
+    carried.map((r) => r.number),
+    [84, 85]
+  );
+  // #84's region is its OWN description only (tree + #85 stripped out).
+  assert.match(
+    result,
+    /<!-- PR:84 -->\n# Contains #84\n\nGroup 84 work\.\n<!-- \/PR:84 -->/
+  );
+  // #85 re-homed verbatim as a flat sibling.
+  assert.ok(result.includes(P85));
+  // Carried regions sit below the tree.
+  assert.ok(
+    result.indexOf("<!-- /stack -->") < result.indexOf("<!-- PR:84 -->")
+  );
+});
+
+test("carryForward: is idempotent — re-carrying does not duplicate", () => {
+  const parent =
+    "Parent.\n\n<!-- stack root=1 pr=1,2:1 -->\n(t)\n<!-- /stack -->";
+  const child = "Child work.";
+  const once = carryForward(parent, 2, child);
+  const twice = carryForward(once, 2, child);
+  assert.equal(once, twice);
+  assert.equal(extractCarriedRegions(twice).length, 1);
 });
