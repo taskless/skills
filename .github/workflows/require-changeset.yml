@@ -30,9 +30,18 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
           LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
         run: |
           set -euo pipefail
+
+          # The changesets "Version Packages" PR consumes changesets (removing
+          # them is its whole job), so it legitimately has none. Bypass it by its
+          # well-known bot branch name so it needs no manual `skip-changeset`.
+          if [ "$HEAD_REF" = "changeset-release/main" ]; then
+            echo "Version Packages PR (changeset-release/main) — bypassing the changeset requirement."
+            exit 0
+          fi
 
           # Escape hatch for PRs that intentionally ship no release note.
           case ",${LABELS}," in
