@@ -68,8 +68,44 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  # Decides whether main's version needs publishing — with NO credential and NO
+  # OIDC identity. Runs on every push, but the credentialed publish job below
+  # only starts when this reports a new version, so ordinary non-release pushes
+  # never instantiate an OIDC-capable job or touch the npm-production environment.
+  check:
+    name: Check for a new version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # checkout + read package.json
+    outputs:
+      publish: ${{ steps.check.outputs.publish }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      # Publish only a version npm has never seen. On an ordinary feature merge
+      # the version is unchanged (already on npm) so this is false; it flips true
+      # only on the merge of the Version Packages PR. Reads package.json (repo
+      # source) via `node -p` — no untrusted interpolation into the shell.
+      - id: check
+        run: |
+          name=$(node -p "require('./packages/cli/package.json').name")
+          version=$(node -p "require('./packages/cli/package.json').version")
+          if npm view "$name@$version" version >/dev/null 2>&1; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "$name@$version already published — nothing to do."
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "Will publish $name@$version."
+          fi
+
   publish:
     name: Publish to npm
+    # Gate on the credential-free check: this job — and therefore the OIDC
+    # identity + npm-production environment — only exists for an actual release.
+    needs: check
+    if: needs.check.outputs.publish == 'true'
     runs-on: ubuntu-latest
     # Environment is the scoping/audit boundary for the release and where the
     # npm trusted-publisher is bound. No required reviewers (fully automatic
@@ -93,28 +129,10 @@ jobs:
       # can't change publish behavior unreviewed; bump this intentionally.
       - run: npm install -g npm@12.0.1
 
-      # Publish only a version npm has never seen. On an ordinary feature merge
-      # the version is unchanged (already on npm) so this is a no-op; it fires
-      # only on the merge of the Version Packages PR. Reads package.json (repo
-      # source) via `node -p` — no untrusted interpolation into the shell.
-      - id: check
-        run: |
-          name=$(node -p "require('./packages/cli/package.json').name")
-          version=$(node -p "require('./packages/cli/package.json').version")
-          if npm view "$name@$version" version >/dev/null 2>&1; then
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-            echo "$name@$version already published — nothing to do."
-          else
-            echo "publish=true" >> "$GITHUB_OUTPUT"
-            echo "Will publish $name@$version."
-          fi
-
-      - if: steps.check.outputs.publish == 'true'
-        run: pnpm --filter @taskless/cli build
+      - run: pnpm --filter @taskless/cli build
 
       # OIDC handshake happens here (id-token: write + registry-url + a
       # registered trusted publisher). No token in env. `--provenance` attaches
       # a signed build-provenance attestation.
-      - if: steps.check.outputs.publish == 'true'
-        run: npm publish --provenance --access public
+      - run: npm publish --provenance --access public
         working-directory: packages/cli
