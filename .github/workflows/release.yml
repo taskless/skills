@@ -81,6 +81,8 @@ jobs:
       publish: ${{ steps.check.outputs.publish }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false # no git writes here; don't leave the token in git config
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
@@ -116,6 +118,8 @@ jobs:
       id-token: write # OIDC → short-lived npm auth + build provenance
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false # publish authenticates via OIDC/npm, not git creds
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
@@ -127,7 +131,8 @@ jobs:
       # OIDC trusted publishing + provenance need npm >= 11.5.1. Pin the version
       # (not @latest) so the release is deterministic and a new npm release
       # can't change publish behavior unreviewed; bump this intentionally.
-      - run: npm install -g npm@12.0.1
+      # --ignore-scripts: no lifecycle code runs while the OIDC identity exists.
+      - run: npm install -g npm@12.0.1 --ignore-scripts
 
       - run: pnpm --filter @taskless/cli build
 
