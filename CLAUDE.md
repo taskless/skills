@@ -66,14 +66,16 @@ Stacked branches share commits (each child contains its ancestors). Prefer expli
 
 ### Recovery if a child PR gets closed by base-branch deletion
 
-1. Restore the deleted base branch ref at the child's merge commit's second parent. Resolve the merge commit from the closed PR itself — do **not** use `origin/main^2`, which is only that second parent while the merge is still `main`'s tip (any later merge, or a squash/rebase tip, makes it the wrong SHA):
+This happens when the **parent** PR is merged with `--delete-branch`: deleting the parent's head branch (which is the child's base) closes the **child** PR. Two PRs are involved — the merged parent (`<parent>`) and the closed child (`<child>`); `<branch>` is the deleted base, i.e. the parent's head branch.
+
+1. Restore the deleted base branch ref at the **parent** merge commit's second parent (the deleted branch's pre-merge tip). Resolve the merge commit from `<parent>` — the PR that actually merged — **not** the closed child (it's unmerged, so its `mergeCommit` is `null` and `git rev-parse` would fail), and **not** `origin/main^2` (only that second parent while the parent merge is still `main`'s tip; any later merge, or a squash/rebase tip, makes it the wrong SHA):
    ```bash
-   MERGE_SHA=$(gh pr view <n> --repo <owner>/<repo> --json mergeCommit --jq .mergeCommit.oid)
+   MERGE_SHA=$(gh pr view <parent> --repo <owner>/<repo> --json mergeCommit --jq .mergeCommit.oid)
    gh api --method POST repos/<owner>/<repo>/git/refs -f ref=refs/heads/<branch> -f sha=$(git rev-parse "$MERGE_SHA^2")
    ```
 2. Reopen the child via **REST** (GraphQL `gh pr reopen` fails on the Projects-classic deprecation):
-   `gh api --method PATCH repos/<owner>/<repo>/pulls/<n> -f state=open`
-3. Retarget it: `gh pr edit <n> --base main` (only works once it's open).
+   `gh api --method PATCH repos/<owner>/<repo>/pulls/<child> -f state=open`
+3. Retarget it: `gh pr edit <child> --base main` (only works once it's open).
 
 ### Other gotchas
 
