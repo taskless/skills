@@ -11,7 +11,7 @@ const {
   parseStackComment,
   gatherRecordedParents,
   getRegion,
-  spliceRegion,
+  canonicalizeBody,
   renderRegion,
   findRoot,
   buildTree,
@@ -110,51 +110,80 @@ test("getRegion: undefined when absent", () => {
   assert.equal(getRegion("no region here"), undefined);
 });
 
-test("spliceRegion: appends to a body with none", () => {
+// A carried-forward legacy region, used by the canonical-layout tests below.
+const CARRIED_84 = [
+  "<!-- PR:84 -->",
+  "# Contains #84",
+  "",
+  "Group 84 work.",
+  "<!-- /PR:84 -->",
+].join("\n");
+const CARRIED_85 = [
+  "<!-- PR:85 -->",
+  "# Contains #85",
+  "",
+  "Tip work.",
+  "<!-- /PR:85 -->",
+].join("\n");
+
+test("canonicalizeBody: orders breadcrumb → description → carried", () => {
   assert.equal(
-    spliceRegion("Original body.", REGION),
-    `Original body.\n\n${REGION}`
+    canonicalizeBody("Original body.", REGION),
+    `${REGION}\n\nOriginal body.`
   );
 });
 
-test("spliceRegion: returns just the region for an empty body", () => {
-  assert.equal(spliceRegion("", REGION), REGION);
+test("canonicalizeBody: returns just the breadcrumb for an empty body", () => {
+  assert.equal(canonicalizeBody("", REGION), REGION);
 });
 
-test("spliceRegion: replaces an existing region in place", () => {
-  const oldRegion = "<!-- stack root=10 pr=10,11 -->\nold\n<!-- /stack -->";
-  const body = `top\n\n${oldRegion}\n\nbottom`;
-  assert.equal(spliceRegion(body, REGION), `top\n\n${REGION}\n\nbottom`);
+test("canonicalizeBody: reflows an out-of-order body into canonical order", () => {
+  // Worst case: carried region first, then description, then the breadcrumb.
+  const body = `${CARRIED_85}\n\nMy description.\n\n${REGION}`;
+  assert.equal(
+    canonicalizeBody(body, REGION),
+    `${REGION}\n\nMy description.\n\n${CARRIED_85}`
+  );
 });
 
-test("spliceRegion: removes the region when given an empty region", () => {
-  assert.equal(spliceRegion(`keep this\n\n${REGION}`, ""), "keep this");
+test("canonicalizeBody: sorts carried regions ascending by PR number", () => {
+  // #85 appears before #84 in the input; canonical order sorts them 84, 85.
+  const body = `Desc.\n\n${CARRIED_85}\n\n${CARRIED_84}\n\n${REGION}`;
+  assert.equal(
+    canonicalizeBody(body, REGION),
+    `${REGION}\n\nDesc.\n\n${CARRIED_84}\n\n${CARRIED_85}`
+  );
 });
 
-test("spliceRegion: no-op removing when no region exists", () => {
-  assert.equal(spliceRegion("nothing to remove", ""), "nothing to remove");
+test("canonicalizeBody: is idempotent on an already-canonical body", () => {
+  const canonical = `${REGION}\n\nDesc.\n\n${CARRIED_84}`;
+  assert.equal(canonicalizeBody(canonical, REGION), canonical);
 });
 
-test("spliceRegion: removing preserves unrelated blank runs elsewhere", () => {
-  // A 3+ newline run unrelated to the region must survive removal.
-  const body = `line1\n\n\n\nline2\n\n${REGION}`;
-  assert.equal(spliceRegion(body, ""), "line1\n\n\n\nline2");
+test("canonicalizeBody: empty breadcrumb drops the stack region", () => {
+  assert.equal(canonicalizeBody(`keep this\n\n${REGION}`, ""), "keep this");
 });
 
-test("spliceRegion: removing a middle region rejoins with one blank line", () => {
-  assert.equal(spliceRegion(`top\n\n${REGION}\n\nbottom`, ""), "top\n\nbottom");
+test("canonicalizeBody: leaves a plain non-stacked body byte-for-byte", () => {
+  // No breadcrumb to place, none present, no carried regions → untouched, even
+  // with incidental trailing whitespace and blank runs a reformat would tidy.
+  const body = "just a normal PR\n\n\n\nwith odd spacing\n";
+  assert.equal(canonicalizeBody(body, ""), body);
 });
 
-test("spliceRegion: skip-when-equal is a no-op", () => {
-  const body = `intro\n\n${REGION}\n\noutro`;
-  assert.equal(spliceRegion(body, REGION), body);
+test("canonicalizeBody: keeps carried legacy even with no breadcrumb", () => {
+  // A collapsed root that has left its stack but still holds carried history.
+  assert.equal(
+    canonicalizeBody(`Desc.\n\n${CARRIED_84}`, ""),
+    `Desc.\n\n${CARRIED_84}`
+  );
 });
 
-test("spliceRegion: does not treat $ sequences as replacement patterns", () => {
+test("canonicalizeBody: does not treat $ sequences as replacement patterns", () => {
   const dollarRegion =
     "<!-- stack root=10 pr=10,11 -->\ncost is $1 and $& too\n<!-- /stack -->";
   const body = "<!-- stack root=10 pr=10 -->\nold\n<!-- /stack -->";
-  assert.equal(spliceRegion(body, dollarRegion), dollarRegion);
+  assert.equal(canonicalizeBody(body, dollarRegion), dollarRegion);
 });
 
 const chain = [pr(10, "a", DEFAULT_BRANCH), pr(11, "b", "a"), pr(12, "c", "b")];
@@ -281,14 +310,22 @@ test("resolveAffectedRoots: nothing when a closed PR affects no open stack", () 
   );
 });
 
-test("planUpdate: appends the region and flags a change", () => {
+test("planUpdate: places the breadcrumb above the description and flags a change", () => {
   const plan = planUpdate(pr(10, "a", "main", "intro"), REGION);
   assert.equal(plan.changed, true);
-  assert.ok(plan.body.includes(REGION));
+  assert.equal(plan.body, `${REGION}\n\nintro`);
 });
 
-test("planUpdate: skips when the body already has the region", () => {
+test("planUpdate: reflows a description-first body to canonical order", () => {
+  // An existing PR authored with the breadcrumb below the prose is reformatted
+  // on sync — the one moment the region order matters.
   const plan = planUpdate(pr(10, "a", "main", `intro\n\n${REGION}`), REGION);
+  assert.equal(plan.changed, true);
+  assert.equal(plan.body, `${REGION}\n\nintro`);
+});
+
+test("planUpdate: skips when the body is already canonical", () => {
+  const plan = planUpdate(pr(10, "a", "main", `${REGION}\n\nintro`), REGION);
   assert.equal(plan.changed, false);
 });
 
@@ -596,4 +633,18 @@ test("carryForward: is idempotent — re-carrying does not duplicate", () => {
   const twice = carryForward(once, 2, child);
   assert.equal(once, twice);
   assert.equal(extractCarriedRegions(twice).length, 1);
+});
+
+test("carryForward: emits canonical order — breadcrumb, then description, then carried", () => {
+  // Parent authored description-first; carrying a child must hoist the
+  // breadcrumb above the prose, matching the sync-time layout so the two
+  // converge no matter which writes the parent body last.
+  const breadcrumb =
+    "<!-- stack root=82 pr=82,83:82,84:83 -->\n(tree)\n<!-- /stack -->";
+  const parent83 = `Parent 83 desc.\n\n${breadcrumb}`;
+  const result = carryForward(parent83, 84, "Group 84 work.");
+  assert.equal(
+    result,
+    `${breadcrumb}\n\nParent 83 desc.\n\n<!-- PR:84 -->\n# Contains #84\n\nGroup 84 work.\n<!-- /PR:84 -->`
+  );
 });
