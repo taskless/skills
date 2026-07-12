@@ -1,0 +1,64 @@
+# Topic: detect     (CLI v%(CLI_VERSION)s / topic v1)
+
+## Goal
+Scan the working directory for the linters it configures, the
+languages it uses, and the styles of any rules the repo already
+authors. Offline and deterministic — no network, no auth, no state
+change. This is the discovery step that feeds rule-authoring: the
+routing flow reads `detect` to decide where a new rule should live.
+
+## Preconditions
+- None. Works in any directory; doesn't require `.taskless/`.
+
+## Steps
+
+1. **Invoke the CLI** with JSON output:
+   ```
+   npx @taskless/cli detect --json
+   ```
+
+2. **Parse the response.** Shape:
+   ```json
+   {
+     "success": true,
+     "linters": [
+       {
+         "name": "eslint",
+         "evidence": ["eslint.config.js", "dependency eslint (package.json)"]
+       }
+     ],
+     "languages": ["typescript", "javascript"],
+     "ruleStyles": [
+       {
+         "source": ".taskless/rules",
+         "description": "ast-grep rules with YAML metadata sidecars"
+       }
+     ]
+   }
+   ```
+   - `linters` — each has a `name` and `evidence` (config-file paths,
+     a pyproject table marker, or a dependency marker from the
+     language's package file; not every entry is a path).
+   - `languages` — inferred from manifests and the detected linters.
+   - `ruleStyles` — how the repo authors its own rules, surfaced for
+     downstream reuse.
+
+3. **Use the signals to route.** Feed the output into rule authoring:
+   - A detected linter the repo already uses → author the rule there
+     (`taskless help existing`).
+   - No suitable linter, local-only → `taskless help static`.
+   - See `taskless help route` for the full decision.
+
+## Errors
+
+When `--json` is set, failures emit `{ ok: false, code, message }`:
+
+| code              | meaning                          | fix                       |
+|-------------------|----------------------------------|---------------------------|
+| `INTERNAL_ERROR`  | Internal schema validation       | Report; likely a CLI bug  |
+
+## See Also
+
+- `taskless help route` — decide where to author a rule from these signals
+- `taskless help existing` — author a rule in a linter the repo already uses
+- `taskless help check` — run rules against the codebase
