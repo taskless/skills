@@ -201,15 +201,23 @@ function extractCarriedRegions(body) {
 
 /**
  * A body's own description — the human-written part, with the managed regions
- * (the stack tree and any carried `<!-- PR:N -->` regions) removed and spacing
- * tidied.
+ * (the stack tree and any carried `<!-- PR:N -->` regions) removed and the
+ * spacing their removal left behind tidied.
+ *
+ * Only whitespace introduced by the surgery is touched: 3+ newline runs (a seam
+ * where a region was cut from the middle) collapse to a blank line, leading
+ * blank lines (left when a region sat at the very top) are dropped, and trailing
+ * whitespace is trimmed. The prose is otherwise preserved verbatim — crucially,
+ * leading indentation on the first line survives, so a description that opens
+ * with an indented Markdown code block is not silently reflowed.
  */
 function ownDescription(body) {
   return body
     .replace(REGION_PATTERN, "")
     .replace(ANY_PR_REGION_PATTERN, "")
     .replace(/\n{3,}/g, "\n\n")
-    .trim();
+    .replace(/^\n+/, "")
+    .trimEnd();
 }
 
 /** Wrap a description as a carried region for `number_`. */

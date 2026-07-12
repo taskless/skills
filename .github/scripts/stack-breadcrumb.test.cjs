@@ -581,6 +581,14 @@ test("ownDescription: strips the stack tree and carried regions", () => {
   assert.equal(ownDescription(body), "My description.");
 });
 
+test("ownDescription: preserves leading indentation after a top region", () => {
+  // A breadcrumb at the very top must not cost the prose its leading indent —
+  // otherwise a description opening with an indented code block gets reflowed.
+  const body =
+    "<!-- stack root=1 pr=1,2:1 -->\n(tree)\n<!-- /stack -->\n\n    const x = 1;\nplain line";
+  assert.equal(ownDescription(body), "    const x = 1;\nplain line");
+});
+
 test("upsertCarriedRegion: appends when absent, replaces in place when present", () => {
   const appended = upsertCarriedRegion("Body.", 85, P85);
   assert.equal(appended, `Body.\n\n${P85}`);
