@@ -22,14 +22,13 @@
  */
 
 // ---------------------------------------------------------------------------
-// Marker-region surgery
+// Marker-region parsing
 //
-// Each managed PR body carries at most one region delimited by
-// `<!-- stack root=N pr=… -->` … `<!-- /stack -->`. Replacing a region in place
-// leaves every other byte untouched, so a git-town breadcrumb or any other
-// content is never disturbed. Appending trims the body's trailing whitespace
-// before adding the region after a blank line; removing collapses the blank
-// lines the region left behind and trims trailing whitespace.
+// Each managed PR body carries at most one breadcrumb region delimited by
+// `<!-- stack root=N pr=… -->` … `<!-- /stack -->`. The helpers here locate and
+// parse that region. Placing it in a body — and ordering it against the other
+// managed regions — is the job of `canonicalizeBody` (see "Canonical body
+// layout" below), which is the single authority on where every region lands.
 // ---------------------------------------------------------------------------
 
 /** Matches the whole region, opening marker through `<!-- /stack -->`. */
@@ -110,45 +109,6 @@ function gatherRecordedParents(pullRequests) {
 function getRegion(body) {
   const match = REGION_PATTERN.exec(body);
   return match ? match[0] : undefined;
-}
-
-/**
- * Splice `region` into `body`:
- * - an empty `region` removes an existing region (non-stacked PR);
- * - an existing region is replaced in place;
- * - otherwise the region is appended after a blank line.
- * Content outside the markers is preserved.
- */
-function spliceRegion(body, region) {
-  const existing = getRegion(body);
-
-  if (region.length === 0) {
-    if (!existing) {
-      return body;
-    }
-    // Remove the region and only the blank lines hugging it, rejoining the
-    // surrounding text with a single blank line. Spacing elsewhere in the body
-    // is left exactly as-is.
-    const start = body.indexOf(existing);
-    const before = body.slice(0, start).replace(/\n+$/, "");
-    const after = body.slice(start + existing.length).replace(/^\n+/, "");
-    if (before.length === 0) {
-      return after.trimEnd();
-    }
-    if (after.length === 0) {
-      return before.trimEnd();
-    }
-    return `${before}\n\n${after}`;
-  }
-
-  if (existing) {
-    // Function replacer so `$` sequences in a PR title are not treated as
-    // `String.replace` special patterns ($&, $1, …).
-    return body.replace(REGION_PATTERN, () => region);
-  }
-
-  const trimmed = body.trimEnd();
-  return trimmed.length === 0 ? region : `${trimmed}\n\n${region}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -265,8 +225,10 @@ function renderCarriedRegion(number_, description) {
 
 /**
  * Upsert a carried region into `body` (keyed by PR number): replace an existing
- * region for that number in place, else append it below the stack tree (at the
- * end — the tree, written first, stays above). Idempotent.
+ * region for that number in place, else append it. Final placement (below the
+ * breadcrumb and description, sorted by PR number) is settled by
+ * `canonicalizeBody`; this helper only guarantees the region is present exactly
+ * once. Idempotent.
  */
 function upsertCarriedRegion(body, number_, region) {
   const pattern = prRegionPattern(number_);
@@ -283,6 +245,12 @@ function upsertCarriedRegion(body, number_, region) {
  * description as `<!-- PR:child -->`, and re-home the child's already-carried
  * regions as flat top-level siblings — each upserted by key, so the parent ends
  * with a deduped, flat set of every PR in the merged subtree, below the tree.
+ *
+ * A final `canonicalizeBody` re-lays the accumulated body in the canonical order
+ * (breadcrumb → description → carried), keeping the parent's existing
+ * breadcrumb. This is convergent with the sync-time reconcile, which both run on
+ * a member's merge: whichever writes the parent body last, the result is the
+ * same canonical string.
  */
 function carryForward(parentBody, childNumber, childBody) {
   let body = upsertCarriedRegion(
@@ -293,7 +261,52 @@ function carryForward(parentBody, childNumber, childBody) {
   for (const { number, region } of extractCarriedRegions(childBody)) {
     body = upsertCarriedRegion(body, number, region);
   }
-  return body;
+  return canonicalizeBody(body, getRegion(body) ?? "");
+}
+
+// ---------------------------------------------------------------------------
+// Canonical body layout
+//
+// A managed PR body always renders its regions in one fixed order, so a stack
+// reads the same on every PR and reformatting is deterministic:
+//
+//   1. the stack breadcrumb   (<!-- stack … -->)                — on top
+//   2. the human description   (everything unmanaged)
+//   3. carried-forward legacy  (<!-- PR:N --> blocks, ascending) — on the bottom
+//
+// `breadcrumb` is the breadcrumb region to place: `''` (or a non-string) omits
+// it, so a PR that has left its stack drops the region. The description and any
+// carried regions are taken from `body`; carried regions are sorted by PR number
+// so the order is stable no matter which order they were carried in. The
+// transform is idempotent — a body already in canonical form is returned
+// unchanged. As a deliberate exception, a body with NOTHING managed (no
+// breadcrumb to place, none present, no carried regions) is returned
+// byte-for-byte, so a plain, non-stacked PR's description is never rewritten.
+// ---------------------------------------------------------------------------
+
+function canonicalizeBody(body, breadcrumb) {
+  const hasBreadcrumb = typeof breadcrumb === "string" && breadcrumb.length > 0;
+  const carried = extractCarriedRegions(body).toSorted(
+    (a, b) => a.number - b.number
+  );
+  // Nothing managed to place and nothing already present: leave the body exactly
+  // as-is. Only PRs that actually participate in the managed layout get
+  // reformatted, so a normal PR's prose (and its incidental whitespace) is safe.
+  if (!hasBreadcrumb && carried.length === 0 && getRegion(body) === undefined) {
+    return body;
+  }
+  const description = ownDescription(body);
+  const sections = [];
+  if (hasBreadcrumb) {
+    sections.push(breadcrumb);
+  }
+  if (description.length > 0) {
+    sections.push(description);
+  }
+  for (const { region } of carried) {
+    sections.push(region);
+  }
+  return sections.join("\n\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -546,9 +559,14 @@ function findAllRoots(pullRequests, defaultBranch) {
 // Reconcile orchestration
 // ---------------------------------------------------------------------------
 
-/** Compute the new body for one PR given its desired region (`''` removes it). */
+/**
+ * Compute the new body for one PR given its desired breadcrumb region (`''`
+ * removes it). The body is re-laid in canonical order (breadcrumb → description
+ * → carried), so a sync also normalizes the layout of an existing PR — the one
+ * moment the region order matters.
+ */
 function planUpdate(pullRequest, region) {
-  const body = spliceRegion(pullRequest.body, region);
+  const body = canonicalizeBody(pullRequest.body, region);
   return {
     number: pullRequest.number,
     changed: body !== pullRequest.body,
@@ -629,7 +647,7 @@ module.exports = {
   parseStackComment,
   gatherRecordedParents,
   getRegion,
-  spliceRegion,
+  canonicalizeBody,
   renderRegion,
   findRoot,
   buildTree,
