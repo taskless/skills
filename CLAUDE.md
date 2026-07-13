@@ -36,9 +36,9 @@ When delegating to a background agent with **worktree isolation** (its own check
 
 **Recovery if the main checkout gets switched onto an agent's branch:** your own work is safe as long as it was pushed — confirm `origin/<branch>` and the PR head SHA still match your last commit. Then `git worktree remove --force <path>`, delete the stray branch, and `git checkout <your-branch>`.
 
-## Stacked PRs with Git Town
+## Stacked PRs
 
-This repo uses [Git Town](https://www.git-town.com/) to manage stacked feature branches. Branch protection lives on `main` only (`Validate` required, `strict_up_to_date: true`, 0 required reviews); child branches are unprotected. Follow these practices to land stacks cleanly.
+Committing a branch straight to `main` is the norm — stacks are optional. When PRs _do_ stack, the **stack-breadcrumb workflow** (`.github/workflows/stack-breadcrumb.yml`) keeps their cross-links and carried-forward bodies in sync automatically; there is no git-town or other stacking tool in the loop. Branch protection lives on `main` only (`Validate` required, `strict_up_to_date: true`, 0 required reviews); child branches are unprotected. When you do land a stack, follow these practices.
 
 ### Landing a stack: merge _down_, then one merge to `main`
 
@@ -62,7 +62,7 @@ If stranded, reconcile from the tip (a tip branch contains the entire stack): on
 
 ### Use merge-commit, not squash, for a stack
 
-Stacked branches share commits (each child contains its ancestors). Prefer explicit `gh pr merge --merge` — `--merge` keeps children clean, while squash rewrites the parent into a new commit the children don't have, forcing a `git town sync` reconciliation between every merge and inviting phantom conflicts. (Note: `git town ship`'s default strategy can be squash — avoid it for stacks.)
+Stacked branches share commits (each child contains its ancestors). Prefer explicit `gh pr merge --merge` — `--merge` keeps children clean, while squash rewrites the parent into a new commit the children don't have, forcing a manual `git merge origin/main` reconciliation on every child between merges and inviting phantom conflicts.
 
 ### Recovery if a child PR gets closed by base-branch deletion
 
@@ -79,10 +79,10 @@ This happens when the **parent** PR is merged with `--delete-branch`: deleting t
 
 ### Other gotchas
 
-- **Projects-classic deprecation** breaks several GraphQL-backed `gh` commands (`gh pr reopen`, git-town's `gh` connector updating proposals). Workarounds: REST API for PR state changes; git-town `api` connector (`GITHUB_TOKEN`) for proposals.
+- **Projects-classic deprecation** breaks some GraphQL-backed `gh` commands (e.g. `gh pr reopen`). Workaround: use the REST API for PR state changes (`gh api --method PATCH .../pulls/<n> -f state=open`).
 - **`gh pr update-branch` may not exist** in the installed `gh`; update locally (`git merge origin/main` on the up-to-date remote branch) and push.
 - **Stack-aware OpenSpec archive check** (`pr-check-openspec.yml`) skips on non-tip PRs and runs on the tip; "tip" recomputes as branches merge, so it lands green when the archiving PR reaches `main`.
-- **`git town sync --all`** propagates fixes up the stack and prunes; run it after the stack lands to clean local branches.
+- **Clean up local branches** once the stack lands: `git fetch --prune`, then delete the branches that merged (`git branch --merged main`).
 
 ## OpenSpec Apply
 

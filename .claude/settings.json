@@ -30,8 +30,7 @@
       "Bash(find skills -name \"SKILL.md\" -exec grep -l \"optional\\\\|required\" {} \\\\;)",
       "Skill(pr-writer)",
       "Skill(pr-writer:*)",
-      "WebSearch",
-      "Bash(git-town:*)"
+      "WebSearch"
     ],
     "deny": [
       "AskUserQuestion*",
