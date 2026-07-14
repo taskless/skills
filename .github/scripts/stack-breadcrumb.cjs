@@ -220,11 +220,20 @@ function ownDescription(body) {
     .trimEnd();
 }
 
-/** Wrap a description as a carried region for `number_`. */
-function renderCarriedRegion(number_, description) {
+/**
+ * Wrap a description as a carried region for `number_`, headed by `heading`.
+ *
+ * The heading records HOW this PR joined the body and is fixed at authoring
+ * time: a down-merge (tip→root) carries a child into its parent as
+ * `Contains #N` (the default); a forward-merge (root→tip) carries a parent into
+ * the redirected root as `Built on top of #N`. Re-homing an already-carried
+ * region never re-renders it, so its original heading — its provenance —
+ * survives regardless of the direction of a later merge.
+ */
+function renderCarriedRegion(number_, description, heading = "Contains") {
   return [
     `<!-- PR:${number_} -->`,
-    `# Contains #${number_}`,
+    `# ${heading} #${number_}`,
     "",
     description,
     `<!-- /PR:${number_} -->`,
@@ -267,6 +276,41 @@ function carryForward(parentBody, childNumber, childBody) {
     renderCarriedRegion(childNumber, ownDescription(childBody))
   );
   for (const { number, region } of extractCarriedRegions(childBody)) {
+    body = upsertCarriedRegion(body, number, region);
+  }
+  return canonicalizeBody(body, getRegion(body) ?? "");
+}
+
+/**
+ * Carry a merged PARENT's body into `childBody` — the forward-merge (root→tip)
+ * mirror of `carryForward`. When a stack lands INCREMENTALLY, the bottom PR
+ * merges to the default branch first and the next PR up is retargeted onto the
+ * default branch, becoming the new "redirected root". That surviving child
+ * absorbs the parent it was built on as `<!-- PR:parent -->` headed
+ * `Built on top of #parent`, and re-homes the parent's own already-carried
+ * regions as flat top-level siblings — each upserted by key, so the child ends
+ * with a deduped, flat set of everything landed beneath it.
+ *
+ * Where `carryForward` keeps the surviving parent's descendants ("Contains"),
+ * `carryBackward` keeps the surviving child's ancestors ("Built on top of"), so
+ * the PR that finally reaches the default branch still holds the full legacy of
+ * the stack — read from the opposite end. Re-homed regions keep whatever heading
+ * they were first carried under (provenance is never rewritten); only the parent
+ * being freshly absorbed here is rendered with the forward heading. A final
+ * `canonicalizeBody` re-lays the accumulated body in canonical order (breadcrumb
+ * → description → carried), keeping the child's existing breadcrumb.
+ */
+function carryBackward(childBody, parentNumber, parentBody) {
+  let body = upsertCarriedRegion(
+    childBody,
+    parentNumber,
+    renderCarriedRegion(
+      parentNumber,
+      ownDescription(parentBody),
+      "Built on top of"
+    )
+  );
+  for (const { number, region } of extractCarriedRegions(parentBody)) {
     body = upsertCarriedRegion(body, number, region);
   }
   return canonicalizeBody(body, getRegion(body) ?? "");
@@ -669,6 +713,7 @@ module.exports = {
   ownDescription,
   upsertCarriedRegion,
   carryForward,
+  carryBackward,
   HERE_PREFIX,
   HERE_SUFFIX,
   STACK_HEADING,
