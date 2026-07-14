@@ -201,6 +201,23 @@ describe("authenticated identity", () => {
     }
   });
 
+  it("groups on the canonical `id` claim when present, not the legacy orgId", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "taskless-auth-test-"));
+    try {
+      const jwt = makeJwt({ sub: "user-789", id: "org-uuid", orgId: 99 });
+      await writeTokenFile(cwd, jwt);
+
+      await getTelemetry(cwd);
+
+      expect(mockGroupIdentify).toHaveBeenCalledWith({
+        groupType: "organization",
+        groupKey: "org-uuid",
+      });
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
   it("falls back to anonymous UUID when no JWT is available", async () => {
     const telemetry = await getTelemetry();
     telemetry.capture("cli_run");
