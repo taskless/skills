@@ -4,10 +4,6 @@ import { z } from "zod";
 export const outputSchema = z.object({
   id: z.string().describe("Rule ID"),
   ticketId: z.string().describe("Ticket ID that produced this rule"),
-  installationId: z
-    .string()
-    .optional()
-    .describe("GitHub App installation ID (absent for public repos)"),
   generatedAt: z.string().describe("ISO 8601 generation timestamp"),
   schemaVersion: z.string().describe("Sidecar schema version"),
 });

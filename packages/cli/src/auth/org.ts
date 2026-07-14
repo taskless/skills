@@ -7,12 +7,30 @@ type WhoamiData =
   paths["/cli/api/whoami"]["get"]["responses"]["200"]["content"]["application/json"];
 
 /**
- * One organization from `GET /cli/api/whoami`, derived from the generated
- * OpenAPI schema. `orgId` is the numeric GitHub org id; `id` is the Taskless
- * org UUID — the subject the CLI acts as on write calls; `url` is the canonical
- * OWNER url (e.g. `https://github.com/acme`) matched against the repo's remotes.
+ * One organization from `GET /cli/api/whoami`. Adapts the generated OpenAPI
+ * shape to what the CLI actually acts on, staying forward-compatible with the
+ * server's coming identity cleanup:
+ *
+ * - `id` — the canonical, stable, platform-agnostic Taskless org id and the
+ *   only subject the CLI acts on. A UUID string, so kept as the generated
+ *   `string` (the `string | number` tolerance lives on the legacy JWT-claim
+ *   path in `decodeOrgId`, where a numeric id can still appear).
+ * - `githubOrgId` — GitHub's numeric org id, a convenience only. The server is
+ *   renaming the legacy `orgId` to this; read `githubOrgId ?? orgId` so either
+ *   spelling resolves during the transition.
+ * - `installationId` is intentionally dropped — the CLI never uses it and it
+ *   should not be sent to us.
+ *
+ * `url` is the canonical OWNER url (e.g. `https://github.com/acme`) matched
+ * against the repo's remotes.
  */
-export type WhoamiOrg = WhoamiData["orgs"][number];
+export type WhoamiOrg = Omit<
+  WhoamiData["orgs"][number],
+  "orgId" | "installationId"
+> & {
+  orgId?: number;
+  githubOrgId?: number;
+};
 
 /**
  * Pick the acting org from a whoami org list given the repo's owner urls (in

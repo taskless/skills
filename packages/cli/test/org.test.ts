@@ -32,10 +32,9 @@ const WHOAMI_UNAVAILABLE = undefined as Awaited<ReturnType<typeof fetchWhoami>>;
 // "github"; the source-filter test deliberately injects another provider.
 const org = (id: string, url: string, source = "github"): WhoamiOrg =>
   ({
-    orgId: 1,
+    githubOrgId: 1,
     id,
     name: url.split("/").pop() ?? "",
-    installationId: 1,
     source,
     url,
   }) as WhoamiOrg;

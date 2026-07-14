@@ -145,7 +145,9 @@ export async function getTelemetry(cwd?: string): Promise<TelemetryClient> {
     // Resolve identity: prefer JWT subject, fall back to anonymous ID
     let distinctId = anonymousId;
     let anonymous = true;
-    let orgId: number | undefined;
+    // The org's canonical id — the field we always identify on. May be a string
+    // (UUID) or a number, so it is stringified only at the group boundary.
+    let orgSubject: string | number | undefined;
 
     const token = await getToken(cwd, { silent: true });
     if (token) {
@@ -154,7 +156,7 @@ export async function getTelemetry(cwd?: string): Promise<TelemetryClient> {
         distinctId = sub;
         anonymous = false;
       }
-      orgId = decodeOrgId(token);
+      orgSubject = decodeOrgId(token);
     }
 
     const scaffoldVersion = await resolveScaffoldVersion(cwd);
@@ -176,10 +178,10 @@ export async function getTelemetry(cwd?: string): Promise<TelemetryClient> {
     });
 
     // Group identify for authenticated users with an org
-    if (!anonymous && orgId !== undefined) {
+    if (!anonymous && orgSubject !== undefined) {
       posthog.groupIdentify({
         groupType: "organization",
-        groupKey: String(orgId),
+        groupKey: String(orgSubject),
       });
     }
 
@@ -196,8 +198,8 @@ export async function getTelemetry(cwd?: string): Promise<TelemetryClient> {
               cliVersion: CLI_VERSION,
               scaffoldVersion,
             },
-            ...(!anonymous && orgId !== undefined
-              ? { groups: { organization: String(orgId) } }
+            ...(!anonymous && orgSubject !== undefined
+              ? { groups: { organization: String(orgSubject) } }
               : {}),
           });
         } catch {
