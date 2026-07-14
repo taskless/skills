@@ -218,6 +218,23 @@ describe("authenticated identity", () => {
     }
   });
 
+  it("groups a logged-in user with no org on the nil-UUID", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "taskless-auth-test-"));
+    try {
+      const jwt = makeJwt({ sub: "user-000" });
+      await writeTokenFile(cwd, jwt);
+
+      await getTelemetry(cwd);
+
+      expect(mockGroupIdentify).toHaveBeenCalledWith({
+        groupType: "organization",
+        groupKey: "00000000-0000-0000-0000-000000000000",
+      });
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
   it("falls back to anonymous UUID when no JWT is available", async () => {
     const telemetry = await getTelemetry();
     telemetry.capture("cli_run");
