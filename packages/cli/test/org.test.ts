@@ -115,10 +115,10 @@ describe("resolveOrgSubject", () => {
     expect(await resolveOrgSubject(directory, token)).toBe(4242);
   });
 
-  it("returns undefined when whoami is unavailable and the token has no claim", async () => {
+  it("falls back to the nil-UUID when whoami is unavailable and the token has no org claim", async () => {
     mockedFetchWhoami.mockResolvedValue(WHOAMI_UNAVAILABLE);
-    expect(
-      await resolveOrgSubject(directory, makeJwt({ sub: "u" }))
-    ).toBeUndefined();
+    expect(await resolveOrgSubject(directory, makeJwt({ sub: "u" }))).toBe(
+      "00000000-0000-0000-0000-000000000000"
+    );
   });
 });

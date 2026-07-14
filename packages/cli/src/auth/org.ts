@@ -1,5 +1,5 @@
 import type { paths } from "../generated/api";
-import { decodeOrgId } from "./jwt";
+import { decodeOrgId, NIL_ORG_ID } from "./jwt";
 import { fetchWhoami } from "./whoami";
 import { listRemoteOwnerUrls } from "../util/git-remote";
 
@@ -69,21 +69,23 @@ export async function resolveCurrentOrg(
 /**
  * The org subject to send on write calls. Prefers the current org's Taskless
  * UUID (`id`), resolved by matching the repo's remotes against `whoami`; falls
- * back to the deprecated numeric `orgId` claim in the token when whoami is
- * unavailable or no org owns the repo. A new client thus routes multi-org users
- * correctly, while older single-org behaviour is preserved via the claim.
+ * back to the token's canonical id (or its deprecated numeric `orgId` claim)
+ * when whoami is unavailable or no org owns the repo. A new client thus routes
+ * multi-org users correctly, while older single-org behaviour is preserved via
+ * the claim.
  *
- * Returns `undefined` only when there is neither a matched org nor a claim
- * (a broken or pre-org token) — the caller has no subject to send.
+ * Never `undefined`: when neither a matched org nor a token claim resolves,
+ * returns the nil-UUID `NIL_ORG_ID` so the canonical subject is always known
+ * (unattributed usage is sent under one stable, known org id).
  */
 export async function resolveOrgSubject(
   cwd: string,
   token: string
-): Promise<string | number | undefined> {
+): Promise<string | number> {
   const whoami = await fetchWhoami(token);
   if (whoami && whoami.orgs.length > 0) {
     const org = await resolveCurrentOrg(cwd, whoami.orgs);
     if (org) return org.id;
   }
-  return decodeOrgId(token);
+  return decodeOrgId(token) ?? NIL_ORG_ID;
 }

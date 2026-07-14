@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { PostHog } from "posthog-node";
 import { decodeJwt } from "jose";
 
-import { decodeOrgId } from "./auth/jwt";
+import { decodeOrgId, NIL_ORG_ID } from "./auth/jwt";
 import { getConfigDirectory, getToken } from "./auth/token";
 import { CLI_VERSION } from "./version";
 
@@ -146,7 +146,9 @@ export async function getTelemetry(cwd?: string): Promise<TelemetryClient> {
     let distinctId = anonymousId;
     let anonymous = true;
     // The org's canonical id — the field we always identify on. May be a string
-    // (UUID) or a number, so it is stringified only at the group boundary.
+    // (UUID) or a number, so it is stringified only at the group boundary. When
+    // logged in but no org resolves, it falls back to the known nil-UUID so
+    // authenticated events always carry a stable org group.
     let orgSubject: string | number | undefined;
 
     const token = await getToken(cwd, { silent: true });
@@ -156,7 +158,7 @@ export async function getTelemetry(cwd?: string): Promise<TelemetryClient> {
         distinctId = sub;
         anonymous = false;
       }
-      orgSubject = decodeOrgId(token);
+      orgSubject = decodeOrgId(token) ?? NIL_ORG_ID;
     }
 
     const scaffoldVersion = await resolveScaffoldVersion(cwd);
