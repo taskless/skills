@@ -25,6 +25,7 @@ const {
   ownDescription,
   upsertCarriedRegion,
   carryForward,
+  carryBackward,
 } = require("./stack-breadcrumb.cjs");
 
 const DEFAULT_BRANCH = "main";
@@ -654,5 +655,69 @@ test("carryForward: emits canonical order — breadcrumb, then description, then
   assert.equal(
     result,
     `${breadcrumb}\n\nParent 83 desc.\n\n<!-- PR:84 -->\n# Contains #84\n\nGroup 84 work.\n<!-- /PR:84 -->`
+  );
+});
+
+// ─── PR carry-backward (forward-merge, root→tip) ─────────────────────────────
+
+test("carryBackward: absorbs the merged parent under a 'Built on top of' heading", () => {
+  // #82 (the root) merged to the default branch; #83 is retargeted onto it and
+  // becomes the redirected root, absorbing #82.
+  const child83 =
+    "Group 83 work.\n\n<!-- stack root=82 pr=82,83:82 -->\n(tree)\n<!-- /stack -->";
+  const result = carryBackward(child83, 82, "Root 82 desc.");
+  assert.match(
+    result,
+    /<!-- PR:82 -->\n# Built on top of #82\n\nRoot 82 desc\.\n<!-- \/PR:82 -->/
+  );
+});
+
+test("carryBackward: re-homes the merged parent's carried regions, keeping their headings", () => {
+  // #82 already carried #81 downward ("Contains"); when #82 merges forward into
+  // #83, #81 rides along as a flat sibling and KEEPS its original heading —
+  // provenance is never rewritten by the direction of a later merge.
+  const carried81 = [
+    "<!-- PR:81 -->",
+    "# Contains #81",
+    "",
+    "Earlier work.",
+    "<!-- /PR:81 -->",
+  ].join("\n");
+  const parent82 = `Root 82 desc.\n\n${carried81}`;
+  const child83 =
+    "Group 83 work.\n\n<!-- stack root=82 pr=82,83:82 -->\n(tree)\n<!-- /stack -->";
+
+  const result = carryBackward(child83, 82, parent82);
+
+  // Both ancestors are present, sorted by number below the tree.
+  assert.deepEqual(
+    extractCarriedRegions(result).map((r) => r.number),
+    [81, 82]
+  );
+  // #82 is freshly absorbed with the forward heading …
+  assert.match(result, /# Built on top of #82/);
+  // … while #81 rides along with the heading it was first carried under.
+  assert.ok(result.includes(carried81));
+});
+
+test("carryBackward: is idempotent — re-absorbing does not duplicate", () => {
+  const child =
+    "Child work.\n\n<!-- stack root=1 pr=1,2:1 -->\n(t)\n<!-- /stack -->";
+  const once = carryBackward(child, 1, "Root work.");
+  const twice = carryBackward(once, 1, "Root work.");
+  assert.equal(once, twice);
+  assert.equal(extractCarriedRegions(twice).length, 1);
+});
+
+test("carryBackward: emits canonical order — breadcrumb, then description, then carried", () => {
+  const breadcrumb =
+    "<!-- stack root=82 pr=82,83:82 -->\n(tree)\n<!-- /stack -->";
+  // Child authored description-first; absorbing the parent must still land the
+  // breadcrumb on top, the child's prose next, and the carried parent last.
+  const child83 = `Group 83 work.\n\n${breadcrumb}`;
+  const result = carryBackward(child83, 82, "Root 82 desc.");
+  assert.equal(
+    result,
+    `${breadcrumb}\n\nGroup 83 work.\n\n<!-- PR:82 -->\n# Built on top of #82\n\nRoot 82 desc.\n<!-- /PR:82 -->`
   );
 });

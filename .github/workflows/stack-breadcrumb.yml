@@ -16,10 +16,16 @@ name: Stack Breadcrumb
 #                         `stack`-prefixed check that a shape change left failing
 #                         on a PR that is no longer the tip.
 #
-# A separate CARRY-FORWARD job runs on a member's MERGE: it embeds the merged
-# PR's body into its parent PR as a keyed `<!-- PR:N -->` region below the tree,
-# so an atomic collapse (tip→root) accumulates the full legacy on the PR that
-# lands on the default branch. Incremental delivery has no parent → a no-op.
+# Two CARRY jobs run on a member's MERGE, embedding the merged PR's body into a
+# surviving PR as a keyed `<!-- PR:N -->` region below the tree:
+#   CARRY-FORWARD  (merge into a NON-default base, tip→root) — an atomic collapse
+#                  accumulates the merged CHILD into its parent ("Contains #N").
+#   CARRY-BACKWARD (merge into the DEFAULT branch, root→tip) — an incremental
+#                  land absorbs the merged PARENT into the redirected root (the
+#                  child GitHub retargets onto the default branch), headed
+#                  "Built on top of #N".
+# Either way the PR that finally reaches the default branch holds the full stack
+# legacy; a merge with no surviving stack neighbour is a clean no-op.
 #
 # Stage 1 fires the dispatch with the built-in GITHUB_TOKEN: although that token
 # normally suppresses recursive workflow runs, `repository_dispatch` is a
@@ -198,6 +204,103 @@ jobs:
             }
             await github.rest.pulls.update({ owner, repo, pull_number: parent.number, body: newBody });
             core.info(`carried #${merged.number} into parent #${parent.number}`);
+
+  carry-backward:
+    name: Absorb a merged parent into the redirected root
+    # On a member's merge INTO THE DEFAULT BRANCH (an incremental forward land),
+    # embed the merged PR's body into the open child that was built on it — the
+    # PR GitHub retargets onto the default branch to become the new root — as a
+    # keyed `<!-- PR:N -->` region headed "Built on top of #N". A merge to the
+    # default branch with no such child (a standalone PR, or the genuine last
+    # slice) has nothing to absorb into → a clean no-op.
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.action == 'closed'
+      && github.event.pull_request.merged == true
+      && github.event.pull_request.base.ref == github.event.repository.default_branch
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.sender.login != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # actions/checkout needs this (top-level permissions: {} grants no defaults)
+      pull-requests: write # edit the redirected-root PR body
+    concurrency:
+      # Serialize retries of THIS merge event; convergent upserts make it safe,
+      # and we must not cancel an absorb mid-write.
+      group: stack-carry-backward-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    steps:
+      # Trusted script from the default branch — never PR-supplied code.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const scriptPath = `${process.env.GITHUB_WORKSPACE}/.github/scripts/stack-breadcrumb.cjs`;
+            let stack;
+            try {
+              stack = require(scriptPath);
+            } catch (error) {
+              if (error.code === "MODULE_NOT_FOUND") {
+                core.info("stack-breadcrumb script not on the default branch yet; skipping until merged.");
+                return;
+              }
+              throw error;
+            }
+            const { owner, repo } = context.repo;
+            const merged = context.payload.pull_request;
+            const defaultBranch = context.payload.repository.default_branch;
+
+            // The redirected root is the open child built on the merged PR. Find
+            // it two ways, because merging the root may have deleted its head
+            // branch and made GitHub retarget the child onto the default branch:
+            //   1. base still points at the merged root's head branch (branch
+            //      not deleted, or the retarget hasn't landed yet);
+            //   2. otherwise the child's breadcrumb marker records the merged PR
+            //      as its parent, and its base is now the default branch.
+            // A branching stack can have several such children (each becomes an
+            // independent root); absorb the parent into every one.
+            const rawPulls = await github.paginate(github.rest.pulls.list, {
+              owner, repo, state: "open", per_page: 100,
+            });
+            const sameRepo = rawPulls.filter(
+              (pr) => pr.head.repo?.full_name === `${owner}/${repo}`
+            );
+            const children = sameRepo.filter((pr) => {
+              if (pr.base.ref === merged.head.ref) return true;
+              if (pr.base.ref !== defaultBranch) return false;
+              const marker = stack.parseStackComment(pr.body ?? "");
+              return marker !== undefined && marker.parents.get(pr.number) === merged.number;
+            });
+            if (children.length === 0) {
+              core.info(`#${merged.number} merged into "${merged.base.ref}" with no open child built on it — nothing to absorb (standalone or last slice).`);
+              return;
+            }
+
+            // Fetch the merged body fresh — the event payload can lag a
+            // last-moment edit.
+            const { data: mergedFresh } = await github.rest.pulls.get({
+              owner, repo, pull_number: merged.number,
+            });
+
+            for (const child of children) {
+              const { data: childFresh } = await github.rest.pulls.get({
+                owner, repo, pull_number: child.number,
+              });
+              const newBody = stack.carryBackward(
+                childFresh.body ?? "",
+                merged.number,
+                mergedFresh.body ?? ""
+              );
+              if (newBody === (childFresh.body ?? "")) {
+                core.info(`#${merged.number} already absorbed into #${child.number}; nothing to do.`);
+                continue;
+              }
+              await github.rest.pulls.update({ owner, repo, pull_number: child.number, body: newBody });
+              core.info(`absorbed #${merged.number} into redirected root #${child.number}`);
+            }
 
   reconcile:
     name: Reconcile breadcrumb across the stack
