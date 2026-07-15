@@ -66,6 +66,9 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # Single tracking comment (in-progress → results), updated in place.
           track_progress: true
+          # The "Fix this →" claude.ai/code deep-links render as broken markdown
+          # (huge percent-encoded query). Turn them off at the source.
+          include_fix_links: false
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ steps.prep.outputs.pr }}
