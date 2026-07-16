@@ -52,6 +52,8 @@ Returns JSON with feedback categorized as:
 
 Review bot feedback (from Sentry, Warden, Copilot, Cursor, Bugbot, CodeQL, etc.) appears in `high`/`medium`/`low` with `review_bot: true` — it is NOT placed in the `bot` bucket.
 
+**Self-review feedback** (from the PR author) appears in `high`/`medium`/`low` with `self_review: true`. Because you can't "Request changes" on your own PR, a self-review lands as `COMMENTED` review summaries and ordinary review threads rather than changes-requested items — these are surfaced (not dropped) and bucketed by content, defaulting to `medium` when there's no `h:/m:/l:` prefix. Treat `self_review` items the same as any other human feedback in step 3.
+
 Each feedback item may also include:
 
 - `thread_id` - GraphQL node ID for inline review comments (used for replies)
@@ -109,23 +111,18 @@ Which would you like to address? (e.g., "1,3" or "all" or "none")
 
 #### Replying to Comments
 
-After processing each inline review comment, reply on the PR thread to acknowledge the action taken. Only reply to items with a `thread_id` (inline review comments).
+After processing a feedback item, acknowledge it on the PR so the trail shows what was addressed. How you reply depends on whether the item is an **inline thread** or a **top-level comment**.
 
-**When to reply:**
+**When to reply (both cases):**
 
 - `high` and `medium` items — whether fixed or determined to be false positives
 - `low` items — whether fixed or declined by the user
+- `self_review` items — the same as any other human feedback
 
-**How to reply:** Use the `addPullRequestReviewThreadReply` GraphQL mutation with `pullRequestReviewThreadId` and `body` inputs.
+**Inline review-thread comments** (items with a `thread_id`):
 
-**Reply format:**
-
-- 1-2 sentences: what was changed, why it's not an issue, or acknowledgment of declined items
-- End every reply with `\n\n*— AI Coding Agent*`
-- Before replying, check if the thread already has a reply ending with `*- AI Coding Agent*` or `*— AI Coding Agent*` to avoid duplicates on re-loops
-- If the `gh api` call fails, log and continue — do not block the workflow
-
-**Resolving threads:** After replying, always resolve the thread using the `resolveReviewThread` GraphQL mutation with the same `threadId`. A reply alone does not mark the thread as resolved.
+1. Reply with the `addPullRequestReviewThreadReply` GraphQL mutation (`pullRequestReviewThreadId` + `body`).
+2. Then resolve the thread with the `resolveReviewThread` mutation using the same `threadId` — a reply alone does not resolve it.
 
 ```graphql
 mutation {
@@ -136,6 +133,26 @@ mutation {
   }
 }
 ```
+
+**Top-level comments** (items WITHOUT a `thread_id` — `review_summary` items and top-level PR/issue comments, e.g. a review bot like Claude that posts its findings as one top-level comment):
+
+There is no thread to reply into, so post a **new top-level comment** with `gh pr comment <pr> --body "..."`. A PR can carry several independent top-level comments, so a bare reply is ambiguous — **open every top-level reply with a reference marker** identifying the comment you are addressing. Cite the author and the opening of the original, and link it when the item includes a `url`:
+
+```
+> **Re:** @<author> — "<first line of the original, ~100 chars>…"
+> <item `url`, if present>
+
+<what changed, or why it's not an issue>
+
+*— AI Coding Agent*
+```
+
+**Reply format (both cases):**
+
+- 1-2 sentences: what was changed, why it's not an issue, or acknowledgment of declined items.
+- End every reply with `\n\n*— AI Coding Agent*`.
+- Before replying, dedupe against re-loops: for inline threads, check whether the thread already has a reply ending in `*- AI Coding Agent*` / `*— AI Coding Agent*`; for top-level comments, scan existing top-level comments for one whose **reference marker** already cites this author + snippet (the signature alone is not enough — distinct top-level items would otherwise collide).
+- If the `gh`/GraphQL call fails, log and continue — do not block the workflow.
 
 ### 4. Check CI Status
 

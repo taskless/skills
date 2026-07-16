@@ -25,6 +25,13 @@ Bot classification:
   a ``review_bot: true`` flag — they are NOT placed in the ``bot`` bucket.
 - Info bots (Codecov, Dependabot, Renovate, etc.) post status reports and are
   placed in the ``bot`` bucket for silent skipping.
+
+Self-review feedback:
+- You can't formally "Request changes" on your own PR, so a PR author's own
+  feedback arrives as ``COMMENTED`` review summaries and ordinary review
+  **threads**, not as changes-requested items. These are surfaced (not dropped)
+  and flagged ``self_review: true``, bucketed by content — defaulting to
+  ``medium`` when no ``h:/m:/l:`` prefix is present.
 """
 from __future__ import annotations
 
@@ -276,6 +283,7 @@ def extract_feedback_item(
     is_resolved: bool = False,
     is_outdated: bool = False,
     review_bot: bool = False,
+    self_review: bool = False,
     thread_id: str | None = None,
 ) -> dict[str, Any]:
     """Create a standardized feedback item."""
@@ -301,6 +309,8 @@ def extract_feedback_item(
         item["outdated"] = True
     if review_bot:
         item["review_bot"] = True
+    if self_review:
+        item["self_review"] = True
     if thread_id:
         item["thread_id"] = thread_id
 
@@ -340,16 +350,35 @@ def main():
         "resolved": [],
     }
 
-    # Process reviews for overall status
+    # Process review summary bodies. Every non-empty summary is surfaced,
+    # regardless of author: a self-review can't be "Request changes", so the PR
+    # author's own feedback arrives as COMMENTED summaries and would otherwise
+    # be dropped. A real reviewer's CHANGES_REQUESTED is always high; everything
+    # else is bucketed by content (default medium).
     reviews = pr_info.get("reviews", [])
     for review in reviews:
-        if review.get("state") == "CHANGES_REQUESTED":
-            author = review.get("author", {}).get("login", "")
-            body = review.get("body", "")
-            if body and author != pr_author:
-                item = extract_feedback_item(body, author)
-                item["type"] = "changes_requested"
-                feedback["high"].append(item)
+        author = review.get("author", {}).get("login", "")
+        body = review.get("body", "")
+
+        # Skip empty summaries: a bare approval, or a review whose only content
+        # is inline comments (those arrive via reviewThreads below).
+        if not body or len(body.strip()) < 3:
+            continue
+
+        is_self = author == pr_author
+        state = review.get("state", "")
+        item = extract_feedback_item(body, author, self_review=is_self)
+        item["type"] = "changes_requested" if state == "CHANGES_REQUESTED" else "review_summary"
+
+        if is_review_bot(author):
+            item["review_bot"] = True
+            feedback[categorize_comment(review, body)].append(item)
+        elif is_info_bot(author):
+            feedback["bot"].append(item)
+        elif state == "CHANGES_REQUESTED" and not is_self:
+            feedback["high"].append(item)
+        else:
+            feedback[categorize_comment(review, body)].append(item)
 
     # Get review threads (inline comments with resolution status)
     threads = get_review_threads(owner, repo, pr_number)
@@ -363,9 +392,10 @@ def main():
         author = first_comment.get("author", {}).get("login", "")
         body = first_comment.get("body", "")
 
-        # Skip if author is PR author (self-comments)
-        if author == pr_author:
-            continue
+        # The PR author's own inline comments are NOT skipped: a self-review's
+        # design comments arrive as ordinary review threads and are real
+        # feedback for the iterate loop. Flag them so callers can tell them apart.
+        is_self = author == pr_author
 
         # Skip empty or very short comments
         if not body or len(body.strip()) < 3:
@@ -382,6 +412,7 @@ def main():
             line=thread.get("line"),
             is_resolved=is_resolved,
             is_outdated=is_outdated,
+            self_review=is_self,
             thread_id=thread_id,
         )
 
@@ -438,6 +469,13 @@ def main():
         if item.get("review_bot")
     )
 
+    # Count self-review items (PR author's own feedback) across priority buckets
+    self_review_count = sum(
+        1 for bucket in ("high", "medium", "low")
+        for item in feedback[bucket]
+        if item.get("self_review")
+    )
+
     # Build output
     output = {
         "pr": {
@@ -453,6 +491,7 @@ def main():
             "bot_comments": len(feedback["bot"]),
             "resolved": len(feedback["resolved"]),
             "review_bot_feedback": review_bot_count,
+            "self_review_feedback": self_review_count,
             "needs_attention": len(feedback["high"]) + len(feedback["medium"]),
         },
         "feedback": feedback,
