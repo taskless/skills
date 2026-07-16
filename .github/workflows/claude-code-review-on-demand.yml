@@ -77,13 +77,12 @@ jobs:
 
             Review the diff for correctness, security, performance, test
             adequacy, and clarity. Do NOT run the project's build/lint/test
-            locally — CI already runs those. Instead read the PR's automated
-            checks with `gh pr checks` and factor their status into your review
-            (if a check is failing, inspect it with `gh run view` and note it);
-            do not treat inability to run tests yourself as a gap. Post concrete
-            issues as inline comments on the relevant lines, and a single
-            top-level comment with the overall assessment and the CI status.
+            locally, and do not fetch or report CI check status — CI runs those
+            and reports them on the PR itself; do not treat inability to run
+            tests yourself as a gap. Post concrete issues as inline comments on
+            the relevant lines, and a single top-level comment with the overall
+            assessment.
           # In agent mode (comment-triggered) Claude only posts if it has these
-          # tools. All read-only or comment-posting — no local build/test.
+          # tools. All read-only or comment-posting — no local build/test, no CI reads.
           claude_args: |
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr checks:*),Bash(gh run view:*)"
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
