@@ -9,15 +9,17 @@
 
 - [x] 1.7 Anchor the `sgconfig.yml` entry in `.taskless/.gitignore` (`/sgconfig.yml`), so the unanchored pattern `0001` wrote no longer also ignores the committed `.taskless/sg/sgconfig.yml`; `0004` rewrites it in existing checkouts
 
-> After group 1 alone, `check`/`verify`/runtime discovery still read the pre-move paths, so 20 tests in
-> `check.test.ts`, `verify.test.ts`, and `runtime-check.test.ts` fail until groups 2–4 land. Group 2 brings
-> that to 9, all in `runtime-check.test.ts`, which group 3 fixes.
+> Group 1 relocates the trees **and** repoints every reader, so the suite is green on that group alone
+> (396 passing). An earlier revision moved the files without following them, which left 20 failures across
+> `check.test.ts`, `verify.test.ts`, and `runtime-check.test.ts` — those were two real defects, not an
+> artifact of splitting the work: readers kept the pre-move paths, and `check` discovered rules before
+> running the migration that creates them. Each group is independently correct; none is expected to be red.
 
 ## 2. Engine dispatch (directory model)
 
 - [x] 2.1 Implement directory-based engine discovery: enumerate `.taskless/<engine>/` and route rules by directory, no per-file parsing. `sg` and `runtime` get executors here; `vale/` is recognized as an engine directory but has no executor yet — `rules/engines.ts` (`planEngineDispatch`, `discoverAstGrepRuleSources`)
 - [x] 2.2 In `commands/check.ts`, call `ensureTasklessDirectory(cwd)` directly (preserving the migration trigger now that `generateSgConfig` leaves the check path) — `rules/verify.ts` does the same, since the migration moves rules between the paths it resolves
-- [ ] 2.3 Tests: a rule under `sg/rules/` dispatches to ast-grep and one under `runtime/rules/` to the harness, by directory alone; an unknown engine directory is ignored rather than misrouted — **partially done**: the `sg/rules/` and unknown-directory scenarios are covered (`test/engine-dispatch.test.ts`), and the dispatch plan asserts `runtime` → harness; a rule _under `runtime/rules/`_ cannot reach the harness until 3.1 moves discovery, so that half is covered by 3.3
+- [x] 2.3 Tests: a rule under `sg/rules/` dispatches to ast-grep and one under `runtime/rules/` to the harness, by directory alone; an unknown engine directory is ignored rather than misrouted — completed in group 3 once 3.1 moved discovery; `test/engine-dispatch.test.ts` and `test/runtime-check.test.ts` now cover both halves
 - [x] 2.4 Treat the legacy `.taskless/rules/` path as an ast-grep source alongside `sg/rules/`, so an unmigrated checkout still runs; de-duplicate when both are present
 - [x] 2.5 Tests: a `.taskless/` with only `rules/` dispatches to ast-grep; with both `rules/` and `sg/rules/`, findings merge without duplicates
 
@@ -36,18 +38,24 @@
 
 ## 3. Runtime discovery path
 
-- [ ] 3.1 Update `rules/runtime/discover.ts` to read `.taskless/runtime/rules/<name>/` and fixtures from `runtime/rule-tests/<name>/` (was `runtime-rules/`)
-- [ ] 3.2 Confirm rules under `.taskless/sg/rules/` are treated as static, not runtime
-- [ ] 3.3 Tests: runtime discovery at the new path; execution/reconcile/signing behavior unchanged
+- [x] 3.1 Update `rules/runtime/discover.ts` to read `.taskless/runtime/rules/<name>/` and fixtures from `runtime/rule-tests/<name>/` (was `runtime-rules/`) — `RUNTIME_RULES_DIR` now derives from `ENGINE_LAYOUTS.runtime`. No code reads the rule-tests fixtures yet (only `0004` moves them), so only the rules path needed a change
+- [x] 3.2 Confirm rules under `.taskless/sg/rules/` are treated as static, not runtime — discovery only ever enumerates the `runtime` engine directory; covered by a test that files a runtime-shaped capture under `sg/rules/` and asserts it is never discovered as runtime
+- [x] 3.3 Tests: runtime discovery at the new path; execution/reconcile/signing behavior unchanged — `runtime-check.test.ts` and `runtime-harness.test.ts` now seed the engine layout and pass unmodified otherwise; the reported reconcile path moves to `.taskless/runtime/rules/<name>/check.ts` with the signature unchanged
 
 ## 4. ast-grep engine over the committed config
 
-- [ ] 4.1 Update `rules/scan.ts` to run `sg scan --config .taskless/sg/sgconfig.yml --json=stream` and remove ephemeral `sgconfig.yml` generation from the check path
-- [ ] 4.2 Update `rules/verify.ts` to run `sg test -c .taskless/sg/sgconfig.yml` over `sg/rule-tests/`
-- [ ] 4.3 Tests: scan/verify run against the committed `sg/` config; `sg` binary-not-found prints an error and exits 1
+- [x] 4.1 Update `rules/scan.ts` to run `sg scan --config .taskless/sg/sgconfig.yml --json=stream` and remove ephemeral `sgconfig.yml` generation from the check path — `runAstGrepScan` takes the config path and defaults to the committed one; `resolveSgConfigPath` returns it without writing anything
+- [x] 4.2 Update `rules/verify.ts` to run `sg test -c .taskless/sg/sgconfig.yml` over `sg/rule-tests/` — through the same resolver, so verify and check agree on which config a rule set uses
+- [x] 4.3 Tests: scan/verify run against the committed `sg/` config; `sg` binary-not-found prints an error and exits 1 — `test/sg-committed-config.test.ts`, including a rule directory only the committed config declares (proving it is read, not reconstructed) and the bundled CLI run from outside the workspace with an empty `PATH`
+
+> `generateSgConfig` survives, narrowed to exactly one caller: `resolveSgConfigPath` generating a config
+> for the pre-migration `.taskless/rules/` layout, which has no committed config of its own. Its
+> `rulesDirectory` / `testDirectory` options are required for that alone. The materialized `.run/` set is
+> **not** a second caller — the runtime narrow writes its own `sgconfig.yml` (`rules/runtime/narrow.ts`)
+> and never goes through `generateSgConfig`.
 
 ## 5. Quality gates
 
-- [ ] 5.1 `pnpm --filter @taskless/cli typecheck && lint && test` clean
-- [ ] 5.2 Verify `check` output is identical before and after the relayout on a real `.taskless/` — same findings, same exit code. This change is a no-op to the user, so a difference is a regression
-- [ ] 5.3 Update CLI help/onboarding text that names `.taskless/rules/` for the engine-partitioned layout, and `.taskless/.gitignore` handling
+- [x] 5.1 `pnpm --filter @taskless/cli typecheck && lint && test` clean — 421 passed, 0 failed
+- [x] 5.2 Verify `check` output is identical before and after the relayout on a real `.taskless/` — same findings, same exit code. This change is a no-op to the user, so a difference is a regression. Ran against this repo's own rule set: the pre-change scan (ast-grep over the old ephemeral `ruleDirs: [rules]` config) and the post-migration CLI produced the same 2 findings — same rule, file, position, severity, message — and the same exit code 1. The published CLI was not used as the baseline because `pnpm dlx` is unavailable here; the reproduction is the exact command the old check path ran
+- [x] 5.3 Update CLI help/onboarding text that names `.taskless/rules/` for the engine-partitioned layout, and `.taskless/.gitignore` handling — 12 `help/*.txt` recipes, `packages/cli/README.md`, and the `.taskless/README.md` that `0001` writes (now describing the per-engine directories). `.gitignore` handling landed in 1.7
