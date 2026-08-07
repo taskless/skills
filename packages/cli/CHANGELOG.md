@@ -1,5 +1,50 @@
 # @taskless/cli
 
+## 0.11.0
+
+### Minor Changes
+
+- f7ee186: Partition `.taskless/` by rule engine. Migration `0004` moves ast-grep rules to `sg/rules/` and `sg/rule-tests/`, the runtime tree to `runtime/rules/` and `runtime/rule-tests/`, and scaffolds an inert `vale/`. Files move byte-for-byte, so runtime rule signatures survive.
+
+  The directory a rule sits in now **is** its engine: dispatch reads the path and never parses a rule file to decide who owns it. `check` runs ast-grep against the committed `.taskless/sg/sgconfig.yml` instead of generating an ephemeral config each run.
+
+  A rule engine the CLI does not recognize is now rejected with a message instead of failing silently: an unsupported engine from the server previously exited 0 with no output, which read as success.
+
+  Runtime rules are discovered under `runtime/rules/` rather than the pre-migration `runtime-rules/`. Migration `0004` moves that tree byte-for-byte, so the signatures the server validates are unchanged.
+
+  `check` and `rule verify` read the committed `.taskless/sg/sgconfig.yml` rather than writing an ephemeral config on every run, so the config ast-grep uses is the one you can edit and review. A pre-migration rule set still gets a generated config, so an unmigrated project keeps running.
+
+  Existing projects keep working without action. The pre-`0004` `.taskless/rules/` still runs as ast-grep, and a delivered rule that names no engine is still treated as ast-grep — a rule engine this CLI does not recognize is rejected rather than guessed at. A migration that would have to merge a file into an engine directory now refuses up front with `SCAFFOLD_CONFLICT` rather than failing part-way.
+
+### Patch Changes
+
+- db8adfa: Resolve the ast-grep binary without relying on an install-time step, and drop
+  the `@ast-grep/cli` wrapper from what consumers install.
+  - **The wrapper moves to `devDependencies`.** The seven `@ast-grep/cli-<platform>`
+    packages were already declared in `optionalDependencies`, and the CLI already
+    resolved them by path — the wrapper was a leftover whose only job is a
+    `postinstall` that hardlinks the binary into itself so its `bin` entries work.
+    Nothing here invoked those entries. Consumers now install only the platform
+    package matching their host, and the wrapper's `postinstall` — which leaves a
+    placeholder text file where the binary should be under `pnpm dlx`'s strict
+    isolation — is out of the shipped product entirely. It stays as a
+    `devDependency` because `fetch-ast-grep-schema` reads its version.
+  - **Platform packages are pinned exactly at `0.41.0`.** They were carets, and the
+    wrapper had been enforcing alignment implicitly by pinning its own
+    `optionalDependencies`; without it, two hosts could resolve different ast-grep
+    versions against the same rules and disagree about findings. Held at `0.41.0`
+    rather than taking upstream's `0.45.0`, so this change stays structural.
+  - **Binary resolution exhausts every candidate before failing.** It now searches
+    the platform package, `node_modules/.bin`, then `sg` and `ast-grep` on `PATH`,
+    and throws naming what it tried. Previously it returned a bare `"sg"` and let
+    `spawn`'s `ENOENT` be the error, from a caller that could not say where it had
+    looked.
+
+  Alpine improves as a side effect: upstream publishes no musl build and marks its
+  Linux packages `libc: ["glibc"]`, so today the wrapper's `postinstall` resolves a
+  package that does not exist and exits 1, failing the install wherever dependency
+  scripts run. Installing now succeeds and resolution falls through to `PATH`.
+
 ## 0.10.2
 
 ### Patch Changes
