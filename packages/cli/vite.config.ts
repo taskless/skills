@@ -2,7 +2,7 @@ import { builtinModules } from "node:module";
 import { chmodSync, readFileSync, readdirSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { parse } from "yaml";
-import type { Plugin } from "vite";
+import type { Plugin, Rollup } from "vite";
 import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
@@ -131,19 +131,35 @@ function assertSkillVersions(): Plugin {
   };
 }
 
+// The build emits two entries. `index` is the executable CLI; `prompts` is a
+// library module consumers import as `@taskless/cli/prompts`. Only the former
+// is a program, so only the former gets a shebang and the executable bit — a
+// `#!` line on the library entry would be a syntax error to anything importing
+// it as a module.
+const BIN_ENTRY = "index";
+const PROMPTS_ENTRY = "prompts";
+
 function shebang(): Plugin {
+  // Typed against Rollup's own bundle union rather than a structural shape, so
+  // an asset cannot satisfy the parameter by having none of these fields. The
+  // predicate return lets both hooks narrow to the chunk they act on.
+  const isBinEntry = (
+    chunk: Rollup.OutputAsset | Rollup.OutputChunk
+  ): chunk is Rollup.OutputChunk =>
+    chunk.type === "chunk" && chunk.isEntry && chunk.name === BIN_ENTRY;
+
   return {
     name: "shebang",
     generateBundle(_options, bundle) {
       for (const chunk of Object.values(bundle)) {
-        if (chunk.type === "chunk" && chunk.isEntry) {
+        if (isBinEntry(chunk)) {
           chunk.code = "#!/usr/bin/env node\n" + chunk.code;
         }
       }
     },
     writeBundle(options, bundle) {
       for (const [fileName, chunk] of Object.entries(bundle)) {
-        if (chunk.type === "chunk" && chunk.isEntry) {
+        if (isBinEntry(chunk)) {
           const outPath = resolve(options.dir ?? resolveOutDir(), fileName);
           chmodSync(outPath, 0o755);
         }
@@ -162,9 +178,12 @@ export default defineConfig({
   build: {
     outDir: resolveOutDir(),
     lib: {
-      entry: resolve(import.meta.dirname, "src/index.ts"),
+      entry: {
+        [BIN_ENTRY]: resolve(import.meta.dirname, "src/index.ts"),
+        [PROMPTS_ENTRY]: resolve(import.meta.dirname, "src/prompts/index.ts"),
+      },
       formats: ["es"],
-      fileName: "index",
+      fileName: (_format, entryName) => `${entryName}.js`,
     },
     rollupOptions: {
       external: [/^node:/, ...builtinModules],
